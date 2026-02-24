@@ -75,3 +75,83 @@ Notes:
 
 Notes:
 - `glab auth status --all` may return a non-zero exit code if any instance fails; v0.1 parses stdout best-effort and records errors per instance.
+
+## AWS CLI
+
+### What is “context”?
+- Typically: profile + region (+ output format)
+- “Current” is influenced by environment variables and local config files.
+
+### Read current (v0.1)
+- Profile (heuristic): `$AWS_PROFILE` / `$AWS_DEFAULT_PROFILE` (fallback `default`)
+- Region: `$AWS_REGION` / `$AWS_DEFAULT_REGION`, else `aws configure get region --profile <profile>`
+- Output format: `$AWS_DEFAULT_OUTPUT`, else `aws configure get output --profile <profile>`
+
+### Configured check (v0.1)
+- `aws configure list-profiles` has at least one line.
+
+## aliyun (Aliyun CLI)
+
+### What is “context”?
+- Active profile + region (as shown by `aliyun configure list`)
+
+### Read current (v0.1)
+- `aliyun configure list` parses the `*`-marked profile row and extracts `profile/region/language/valid`.
+
+### Configured check (v0.1)
+- `aliyun configure list` contains at least one profile row.
+
+## wrangler (Cloudflare)
+
+### What is “context”?
+- Login state + available Cloudflare accounts (there is not always a single global “current” account)
+
+### Read current (v0.1)
+- `wrangler whoami`:
+  - logged_in yes/no
+  - accounts_count
+  - warning when multiple accounts exist
+
+### Configured check (v0.1)
+- Same `wrangler whoami` result; command timeouts are treated as `unknown`.
+
+## argocd (Argo CD CLI)
+
+### What is “context”?
+- Argo CD server contexts stored in local argocd config; one active context.
+
+### Read current (v0.1)
+- `argocd context` parses the `*` row to get current `context` + `server`.
+
+### Configured check (v0.1)
+- `argocd context` outputs at least one context row.
+
+## kargo (Kargo CLI)
+
+### What is “context”?
+- Kargo API server address + optional default project (CLI config).
+
+### Read current (v0.1)
+- `kargo config view` parses:
+  - `apiAddress` → `api_address`
+  - `defaultProject` → `project` (if present)
+
+### Configured check (v0.1)
+- `kargo config view` contains a non-empty `apiAddress`.
+
+## mise
+
+### What is “context”?
+- Effective tool versions for the current directory/shell environment.
+
+### Read current (v0.1)
+- `mise current` parsed into a map like `go=1.26.0`, `node=22.20.0`, etc.
+
+## k9s
+
+### What is “context”?
+- Kubernetes context/namespace (via kubeconfig) + K9s config location.
+
+### Read current (v0.1)
+- Kubernetes context/namespace derived from `kubectl` current context + kubeconfig namespace.
+- `k9s info` extracts the config path (`Config:` line).

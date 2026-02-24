@@ -7,6 +7,8 @@
 - `gh` (active account per host)
 - `glab` (GitLab host context)
 
+It also detects “current context” for other common tools in `all-cli status` (read-only), including `aws`, `aliyun`, `wrangler`, `argocd`, `kargo`, `mise`, and `k9s`.
+
 It defaults to human-friendly output and supports `--json` for stable machine-readable output (e.g. a future SwiftUI macOS app).
 
 ## Install

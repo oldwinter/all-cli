@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"strings"
 
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
@@ -53,5 +54,25 @@ func Evaluate(ctx context.Context, def ToolDefinition, runner execx.Runner) mode
 		summary.Errors = append(summary.Errors, errs...)
 	}
 
+	summary.Warnings = dedupeStrings(summary.Warnings)
+	summary.Errors = dedupeStrings(summary.Errors)
+
 	return summary
+}
+
+func dedupeStrings(in []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out
 }

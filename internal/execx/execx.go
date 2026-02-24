@@ -32,6 +32,12 @@ func (DefaultRunner) Run(ctx context.Context, name string, args ...string) CmdRe
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
+	if err != nil {
+		// Make timeouts/cancellation detectable even when exec returns "signal: killed".
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			err = ctxErr
+		}
+	}
 	exitCode := 0
 	if err != nil {
 		exitCode = 1

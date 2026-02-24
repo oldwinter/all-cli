@@ -21,7 +21,7 @@ type rootOptions struct {
 
 func NewRootCommand() *cobra.Command {
 	opts := &rootOptions{
-		Timeout: 3 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 	runner := execx.DefaultRunner{}
 
