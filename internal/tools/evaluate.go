@@ -1,0 +1,57 @@
+package tools
+
+import (
+	"context"
+
+	"github.com/oldwinter/all-cli/internal/execx"
+	"github.com/oldwinter/all-cli/internal/model"
+)
+
+func FindByID(id string) (ToolDefinition, bool) {
+	for _, def := range DefaultRegistry() {
+		if def.ID == id {
+			return def, true
+		}
+	}
+	return ToolDefinition{}, false
+}
+
+func Evaluate(ctx context.Context, def ToolDefinition, runner execx.Runner) model.ToolSummary {
+	installPath, err := execx.LookPath(def.Binary)
+	installed := err == nil
+
+	summary := model.ToolSummary{
+		ID:          def.ID,
+		DisplayName: def.DisplayName,
+		Category:    def.Category,
+		Installed:   installed,
+		Capabilities: model.Capability{
+			HasContexts: def.Capabilities.HasContexts,
+			CanSwitch:   def.Capabilities.CanSwitch,
+		},
+		ConfiguredState: model.ConfiguredUnknown,
+		Configured:      false,
+	}
+	if installed {
+		summary.InstallPath = installPath
+	}
+
+	if def.ConfigCheck != nil {
+		state, warnings, errs := def.ConfigCheck(ctx, runner, installed)
+		summary.ConfiguredState = state
+		summary.Configured = state == model.ConfiguredYes || state == model.ConfiguredNA
+		summary.Warnings = append(summary.Warnings, warnings...)
+		summary.Errors = append(summary.Errors, errs...)
+	}
+
+	if def.Current != nil {
+		cur, warnings, errs := def.Current(ctx, runner, installed)
+		if len(cur) > 0 {
+			summary.Current = cur
+		}
+		summary.Warnings = append(summary.Warnings, warnings...)
+		summary.Errors = append(summary.Errors, errs...)
+	}
+
+	return summary
+}

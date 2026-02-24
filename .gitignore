@@ -1,0 +1,14 @@
+.DS_Store
+.idea/
+.vscode/
+
+# Go
+bin/
+dist/
+*.exe
+*.test
+*.out
+coverage.out
+
+# Local builds
+all-cli
