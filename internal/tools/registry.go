@@ -543,7 +543,7 @@ func kargoTool() ToolDefinition {
 		Binary:      "kargo",
 		Capabilities: model.Capability{
 			HasContexts: true,
-			CanSwitch:   false,
+			CanSwitch:   true,
 		},
 		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
 			if !installed {
@@ -597,7 +597,7 @@ func argocdTool() ToolDefinition {
 		Binary:      "argocd",
 		Capabilities: model.Capability{
 			HasContexts: true,
-			CanSwitch:   false,
+			CanSwitch:   true,
 		},
 		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
 			if !installed {

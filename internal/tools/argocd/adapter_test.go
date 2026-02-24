@@ -1,6 +1,25 @@
 package argocd
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/oldwinter/all-cli/internal/execx"
+)
+
+type fakeRunner struct {
+	results map[string]execx.CmdResult
+}
+
+func (f fakeRunner) Run(_ context.Context, name string, args ...string) execx.CmdResult {
+	key := name + " " + strings.Join(args, " ")
+	if r, ok := f.results[key]; ok {
+		return r
+	}
+	return execx.CmdResult{ExitCode: 1, Err: errors.New("unexpected command")}
+}
 
 func TestParseContextTable(t *testing.T) {
 	stdout := `CURRENT  NAME                  SERVER
@@ -26,5 +45,29 @@ func TestParseContextTable(t *testing.T) {
 	}
 	if !contexts[1].IsCurrent || contexts[1].Name != "localhost:18443" {
 		t.Fatalf("unexpected current context: %#v", contexts[1])
+	}
+}
+
+func TestAdapterUseContext(t *testing.T) {
+	r := fakeRunner{
+		results: map[string]execx.CmdResult{
+			"argocd context ctx1": {ExitCode: 0, Err: nil},
+		},
+	}
+	a := New(r)
+	if err := a.UseContext(context.Background(), "ctx1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestAdapterUseContext_Error(t *testing.T) {
+	r := fakeRunner{
+		results: map[string]execx.CmdResult{
+			"argocd context ctx1": {ExitCode: 1, Err: errors.New("boom"), Stderr: "bad"},
+		},
+	}
+	a := New(r)
+	if err := a.UseContext(context.Background(), "ctx1"); err == nil {
+		t.Fatalf("expected error")
 	}
 }

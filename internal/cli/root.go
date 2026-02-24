@@ -40,6 +40,8 @@ func NewRootCommand() *cobra.Command {
 	cmd.AddCommand(newDockerCommand(opts, runner))
 	cmd.AddCommand(newGHCommand(opts, runner))
 	cmd.AddCommand(newGLabCommand(opts, runner))
+	cmd.AddCommand(newArgoCDCommand(opts, runner))
+	cmd.AddCommand(newKargoCommand(opts, runner))
 
 	return cmd
 }

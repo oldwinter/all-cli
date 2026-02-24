@@ -57,6 +57,18 @@ func (a Adapter) ViewConfig(ctx context.Context) (Config, []string, []string, er
 	return parseConfigView(res.Stdout)
 }
 
+func (a Adapter) SetDefaultProject(ctx context.Context, project string) error {
+	res := a.runner.Run(ctx, "kargo", "config", "set-project", project)
+	if res.Err != nil {
+		errMsg := strings.TrimSpace(res.Stderr)
+		if errMsg == "" {
+			errMsg = res.Err.Error()
+		}
+		return fmt.Errorf("kargo config set-project failed (exit=%d): %s", res.ExitCode, errMsg)
+	}
+	return nil
+}
+
 func parseConfigView(stdout string) (Config, []string, []string, error) {
 	cfg := Config{}
 	warnings := []string{}

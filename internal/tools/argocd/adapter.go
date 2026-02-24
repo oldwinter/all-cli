@@ -62,6 +62,18 @@ func (a Adapter) ListContexts(ctx context.Context) ([]Context, []string, []strin
 	return parseContextTable(res.Stdout)
 }
 
+func (a Adapter) UseContext(ctx context.Context, contextName string) error {
+	res := a.runner.Run(ctx, "argocd", "context", contextName)
+	if res.Err != nil {
+		errMsg := strings.TrimSpace(res.Stderr)
+		if errMsg == "" {
+			errMsg = res.Err.Error()
+		}
+		return fmt.Errorf("argocd context %q failed (exit=%d): %s", contextName, res.ExitCode, errMsg)
+	}
+	return nil
+}
+
 func parseContextTable(stdout string) ([]Context, []string, []string, error) {
 	out := []Context{}
 	warnings := []string{}

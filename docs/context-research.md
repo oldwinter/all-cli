@@ -123,6 +123,12 @@ Notes:
 ### Read current (v0.1)
 - `argocd context` parses the `*` row to get current `context` + `server`.
 
+### List
+- `argocd context` (same command; table output)
+
+### Switch
+- `argocd context <context>`
+
 ### Configured check (v0.1)
 - `argocd context` outputs at least one context row.
 
@@ -138,6 +144,10 @@ Notes:
 
 ### Configured check (v0.1)
 - `kargo config view` contains a non-empty `apiAddress`.
+
+### Switch default project
+- Set: `kargo config set-project <name>`
+- Unset: `kargo config set-project ""`
 
 ## mise
 

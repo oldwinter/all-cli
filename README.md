@@ -6,6 +6,8 @@
 - `docker` (docker contexts)
 - `gh` (active account per host)
 - `glab` (GitLab host context)
+- `argocd` (Argo CD CLI contexts)
+- `kargo` (default project)
 
 It also detects “current context” for other common tools in `all-cli status` (read-only), including `aws`, `aliyun`, `wrangler`, `argocd`, `kargo`, `mise`, and `k9s`.
 
@@ -71,6 +73,24 @@ all-cli gh use --hostname github.com --user <login>
 all-cli glab status
 all-cli glab list
 all-cli glab use <host>
+```
+
+### argocd
+
+```bash
+all-cli argocd status
+all-cli argocd current
+all-cli argocd list
+all-cli argocd use <context>
+```
+
+### kargo
+
+```bash
+all-cli kargo status
+all-cli kargo current
+all-cli kargo use <project>
+all-cli kargo use --unset
 ```
 
 ## Security notes

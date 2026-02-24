@@ -11,17 +11,19 @@ Build a CLI tool `all-cli` that:
 ## Scope (v0.1)
 
 - Inventory tools: brew, mise, yazi, k9s, lazydocker, aws, aliyun, wrangler, eksctl, kubectl, docker, gh, glab, rclone, kargo, argocd, opensearch
-- Context management: kubectl/docker/gh/glab only
+- Context management: kubectl/docker/gh/glab, plus argocd/kargo
 - No installers; no macOS app; no Codex/Claude/gemini config management
 
 ## CLI surface
 
-- `all-cli status [--json] [--timeout 3s] [--tools ...]`
+- `all-cli status [--json] [--timeout 5s] [--tools ...]` (TTY shows a progress spinner)
 - `all-cli version`
 - `all-cli kubectl status|current|list|use|namespace`
 - `all-cli docker status|current|list|use`
 - `all-cli gh status|current|list|use`
 - `all-cli glab status|current|list|use`
+- `all-cli argocd status|current|list|use`
+- `all-cli kargo status|current|use`
 
 ## JSON contract (v0.1)
 

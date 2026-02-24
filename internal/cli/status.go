@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -46,6 +47,12 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				Tools:         make([]model.ToolSummary, len(reg)),
 			}
 
+			var spinner *progressSpinner
+			if !opts.JSON && isTerminal(os.Stderr) {
+				spinner = newProgressSpinner(cmd.ErrOrStderr(), len(reg))
+				spinner.Start()
+			}
+
 			baseCtx := cmd.Context()
 			var wg sync.WaitGroup
 			for i, def := range reg {
@@ -53,9 +60,16 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				go func(i int, def tools.ToolDefinition) {
 					defer wg.Done()
 					report.Tools[i] = tools.Evaluate(baseCtx, def, runnerT)
+					if spinner != nil {
+						spinner.Inc(def.ID)
+					}
 				}(i, def)
 			}
 			wg.Wait()
+
+			if spinner != nil {
+				spinner.Stop()
+			}
 
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), report)
