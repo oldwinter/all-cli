@@ -15,6 +15,13 @@ It defaults to human-friendly output and supports `--json` for stable machine-re
 
 ## Install
 
+### Homebrew
+
+```bash
+brew install oldwinter/tap/all-cli
+all-cli version
+```
+
 ### From source (local)
 
 ```bash

@@ -1,0 +1,53 @@
+version: 2
+
+project_name: all-cli
+
+builds:
+  - id: all-cli
+    main: ./cmd/all-cli
+    binary: all-cli
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/oldwinter/all-cli/internal/cli.version={{.Version}}
+      - -X github.com/oldwinter/all-cli/internal/cli.commit={{.Commit}}
+      - -X github.com/oldwinter/all-cli/internal/cli.date={{.Date}}
+
+archives:
+  - id: default
+    ids:
+      - all-cli
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  prerelease: auto
+
+brews:
+  - name: all-cli
+    description: "Inspect and manage common CLI tool contexts"
+    homepage: "https://github.com/oldwinter/all-cli"
+    directory: Formula
+    repository:
+      owner: oldwinter
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
+    install: |
+      bin.install "all-cli"
+    test: |
+      system "#{bin}/all-cli", "version"
