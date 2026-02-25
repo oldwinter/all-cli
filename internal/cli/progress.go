@@ -18,6 +18,8 @@ type progressSpinner struct {
 
 	stopOnce sync.Once
 	stopCh   chan struct{}
+
+	stoppedCh chan struct{}
 }
 
 func newProgressSpinner(w io.Writer, total int) *progressSpinner {
@@ -31,7 +33,10 @@ func newProgressSpinner(w io.Writer, total int) *progressSpinner {
 }
 
 func (p *progressSpinner) Start() {
+	p.stoppedCh = make(chan struct{})
 	go func() {
+		defer close(p.stoppedCh)
+
 		frames := []string{"|", "/", "-", "\\"}
 		ticker := time.NewTicker(120 * time.Millisecond)
 		defer ticker.Stop()
@@ -46,7 +51,7 @@ func (p *progressSpinner) Start() {
 				done := p.done.Load()
 				last, _ := p.last.Load().(string)
 
-				msg := fmt.Sprintf("\r%s Checking tools... %d/%d", frames[i%len(frames)], done, p.total)
+				msg := fmt.Sprintf("\r\033[K%s Checking tools... %d/%d", frames[i%len(frames)], done, p.total)
 				if last != "" {
 					msg += fmt.Sprintf(" (last: %s)", last)
 				}
@@ -66,6 +71,9 @@ func (p *progressSpinner) Inc(lastToolID string) {
 
 func (p *progressSpinner) Stop() {
 	p.stopOnce.Do(func() { close(p.stopCh) })
+	if p.stoppedCh != nil {
+		<-p.stoppedCh
+	}
 }
 
 func isTerminal(f *os.File) bool {
