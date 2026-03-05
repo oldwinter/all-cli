@@ -15,13 +15,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	statusGroupByNone     = "none"
+	statusGroupByCategory = "category"
+
+	statusSortTool         = "tool"
+	statusSortToolDesc     = "tool-desc"
+	statusSortCategory     = "category"
+	statusSortCategoryDesc = "category-desc"
+)
+
 func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
+	var groupBy string
+	var sortBy string
 
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show installed/configured status for common CLI tools",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			groupByValue, err := parseStatusGroupBy(groupBy)
+			if err != nil {
+				return err
+			}
+			sortByValue, err := parseStatusSort(sortBy)
+			if err != nil {
+				return err
+			}
+
 			runnerT := execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout}
 			reg := tools.DefaultRegistry()
 			if strings.TrimSpace(toolsFilter) != "" {
@@ -71,15 +92,22 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				spinner.Stop()
 			}
 
+			sortToolSummaries(report.Tools, sortByValue)
+
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
-			output.PrintStatusTable(cmd.OutOrStdout(), report)
+			output.PrintStatusTableWithOptions(cmd.OutOrStdout(), report, output.StatusTableOptions{
+				GroupBy: groupByValue,
+				SortBy:  sortByValue,
+			})
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to check (e.g. kubectl,docker)")
+	cmd.Flags().StringVar(&groupBy, "group-by", statusGroupByCategory, "Group output: category|none")
+	cmd.Flags().StringVar(&sortBy, "sort", statusSortTool, "Sort order: tool|tool-desc|category|category-desc")
 	return cmd
 }
 
@@ -113,4 +141,62 @@ func parseToolsFilter(s string) (map[string]bool, error) {
 	}
 
 	return out, nil
+}
+
+func parseStatusGroupBy(s string) (string, error) {
+	value := strings.ToLower(strings.TrimSpace(s))
+	switch value {
+	case "", statusGroupByCategory:
+		return statusGroupByCategory, nil
+	case statusGroupByNone:
+		return statusGroupByNone, nil
+	default:
+		return "", fmt.Errorf("invalid --group-by value %q (allowed: category, none)", s)
+	}
+}
+
+func parseStatusSort(s string) (string, error) {
+	value := strings.ToLower(strings.TrimSpace(s))
+	switch value {
+	case "", statusSortTool:
+		return statusSortTool, nil
+	case statusSortToolDesc, statusSortCategory, statusSortCategoryDesc:
+		return value, nil
+	default:
+		return "", fmt.Errorf("invalid --sort value %q (allowed: tool, tool-desc, category, category-desc)", s)
+	}
+}
+
+func sortToolSummaries(toolsList []model.ToolSummary, sortBy string) {
+	less := func(i, j int) bool {
+		left := toolsList[i]
+		right := toolsList[j]
+
+		switch sortBy {
+		case statusSortToolDesc:
+			if left.ID != right.ID {
+				return left.ID > right.ID
+			}
+			return left.Category < right.Category
+		case statusSortCategory:
+			if left.Category != right.Category {
+				return left.Category < right.Category
+			}
+			return left.ID < right.ID
+		case statusSortCategoryDesc:
+			if left.Category != right.Category {
+				return left.Category > right.Category
+			}
+			return left.ID < right.ID
+		case statusSortTool:
+			fallthrough
+		default:
+			if left.ID != right.ID {
+				return left.ID < right.ID
+			}
+			return left.Category < right.Category
+		}
+	}
+
+	sort.SliceStable(toolsList, less)
 }

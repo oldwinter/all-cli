@@ -60,7 +60,7 @@ func DefaultRegistry() []ToolDefinition {
 		kargoTool(),
 		argocdTool(),
 
-		toolNA("opensearch", "OpenSearch CLI", "search", "opensearch"),
+		toolNA("opensearch", "OpenSearch CLI", "search", "opensearch-cli"),
 	}
 }
 

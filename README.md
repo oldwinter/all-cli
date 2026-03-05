@@ -36,14 +36,47 @@ go install github.com/oldwinter/all-cli/cmd/all-cli@latest
 all-cli version
 ```
 
+## Local development
+
+### Local test (without just)
+
+```bash
+go mod tidy
+git diff --exit-code -- go.mod go.sum
+go test ./...
+```
+
+### Local test/build with justfile
+
+```bash
+brew install just
+just ci
+just build
+just status --tools kubectl,docker --group-by none
+```
+
+Common high-frequency recipes:
+
+- `just run status --json`
+- `just test-race`
+- `just test-cover`
+- `just build-release`
+- `just release-check`
+- `just release-snapshot`
+
 ## Usage
 
 ### Global overview
+
+`all-cli status` defaults to grouping by `category` and sorting tools by `tool` (A-Z).
 
 ```bash
 all-cli status
 all-cli status --json
 all-cli status --tools kubectl,docker
+all-cli status --group-by none
+all-cli status --sort tool-desc
+all-cli status --sort category-desc
 all-cli status --timeout 10s
 ```
 
