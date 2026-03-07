@@ -64,6 +64,8 @@ Common high-frequency recipes:
 - `just release-check`
 - `just release-snapshot`
 
+If you hit a local Go toolchain mismatch like `compile: version "go1.x.y" does not match go tool version "go1.x.z"`, your shell is likely exporting a stale `GOROOT` or `GOTOOLDIR`. Clear those vars for the command (for example `env -u GOROOT -u GOTOOLDIR go test ./...`) or fix the shell config that exports them.
+
 ## Usage
 
 ### Global overview

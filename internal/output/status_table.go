@@ -40,6 +40,7 @@ func PrintStatusTableWithOptions(w io.Writer, report model.StatusReport, opts St
 	default:
 		printStatusTableFlat(w, report)
 	}
+	printStatusDiagnostics(w, report)
 }
 
 func printStatusTableFlat(w io.Writer, report model.StatusReport) {
@@ -135,4 +136,48 @@ func boolToYesNo(b bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+func printStatusDiagnostics(w io.Writer, report model.StatusReport) {
+	warnings := collectToolMessages(report.Tools, func(tool model.ToolSummary) []string {
+		return tool.Warnings
+	})
+	errors := collectToolMessages(report.Tools, func(tool model.ToolSummary) []string {
+		return tool.Errors
+	})
+
+	if len(warnings) == 0 && len(errors) == 0 {
+		return
+	}
+
+	fmt.Fprintln(w)
+	if len(warnings) > 0 {
+		fmt.Fprintln(w, "Warnings:")
+		for _, line := range warnings {
+			fmt.Fprintf(w, "- %s\n", line)
+		}
+	}
+	if len(errors) > 0 {
+		if len(warnings) > 0 {
+			fmt.Fprintln(w)
+		}
+		fmt.Fprintln(w, "Errors:")
+		for _, line := range errors {
+			fmt.Fprintf(w, "- %s\n", line)
+		}
+	}
+}
+
+func collectToolMessages(tools []model.ToolSummary, pick func(model.ToolSummary) []string) []string {
+	var out []string
+	for _, tool := range tools {
+		for _, msg := range pick(tool) {
+			msg = strings.TrimSpace(msg)
+			if msg == "" {
+				continue
+			}
+			out = append(out, fmt.Sprintf("%s: %s", tool.ID, msg))
+		}
+	}
+	return out
 }

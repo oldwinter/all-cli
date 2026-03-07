@@ -27,5 +27,8 @@ jobs:
           go mod tidy
           git diff --exit-code
 
+      - name: Vet
+        run: go vet ./...
+
       - name: Test
         run: go test ./...
