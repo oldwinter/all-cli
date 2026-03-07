@@ -51,10 +51,14 @@ func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []st
 	out := map[string]string{
 		"profile": profile,
 	}
+	warnings := []string{}
+	errs := []string{}
 
 	region := strings.TrimSpace(firstNonEmpty(os.Getenv("AWS_REGION"), os.Getenv("AWS_DEFAULT_REGION")))
 	if region == "" {
-		r, _, _, _ := a.configureGet(ctx, profile, "region")
+		r, w, e, _ := a.configureGet(ctx, profile, "region")
+		warnings = append(warnings, w...)
+		errs = append(errs, e...)
 		region = strings.TrimSpace(r)
 	}
 	if region != "" {
@@ -63,14 +67,16 @@ func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []st
 
 	format := strings.TrimSpace(os.Getenv("AWS_DEFAULT_OUTPUT"))
 	if format == "" {
-		f, _, _, _ := a.configureGet(ctx, profile, "output")
+		f, w, e, _ := a.configureGet(ctx, profile, "output")
+		warnings = append(warnings, w...)
+		errs = append(errs, e...)
 		format = strings.TrimSpace(f)
 	}
 	if format != "" {
 		out["output"] = format
 	}
 
-	return out, nil, nil, nil
+	return out, warnings, errs, nil
 }
 
 func currentProfile() string {

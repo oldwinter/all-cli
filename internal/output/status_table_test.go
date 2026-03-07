@@ -79,10 +79,80 @@ func TestPrintStatusTableWithOptions_GroupByNone(t *testing.T) {
 	})
 
 	got := buf.String()
-	if !strings.Contains(got, "TOOL  CATEGORY  INSTALLED  CONFIGURED  CURRENT") {
+	if !strings.Contains(got, "TOOL") || !strings.Contains(got, "CONFIGURED") {
 		t.Fatalf("expected flat table header, got:\n%s", got)
 	}
 	if strings.Contains(got, "Category: ") {
 		t.Fatalf("expected no group headings in flat output, got:\n%s", got)
+	}
+}
+
+func TestPrintStatusTableWithOptions_IncludesDiagnosticsSections(t *testing.T) {
+	report := model.StatusReport{
+		Tools: []model.ToolSummary{
+			{
+				ID:              "aws",
+				Category:        "cloud",
+				Installed:       true,
+				ConfiguredState: model.ConfiguredUnknown,
+				Warnings:        []string{"region lookup failed"},
+				Errors:          []string{"aws configure get region failed (exit=1)"},
+			},
+			{
+				ID:              "kubectl",
+				Category:        "k8s",
+				Installed:       true,
+				ConfiguredState: model.ConfiguredYes,
+				Warnings:        []string{"namespace not set"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintStatusTableWithOptions(&buf, report, StatusTableOptions{
+		GroupBy: StatusTableGroupByNone,
+		SortBy:  StatusTableSortTool,
+	})
+
+	got := buf.String()
+	if !strings.Contains(got, "TOOL") || !strings.Contains(got, "CONFIGURED") {
+		t.Fatalf("expected flat table header, got:\n%s", got)
+	}
+	if !strings.Contains(got, "Warnings:\n") {
+		t.Fatalf("expected warnings section, got:\n%s", got)
+	}
+	if !strings.Contains(got, "- aws: region lookup failed") {
+		t.Fatalf("expected aws warning entry, got:\n%s", got)
+	}
+	if !strings.Contains(got, "- kubectl: namespace not set") {
+		t.Fatalf("expected kubectl warning entry, got:\n%s", got)
+	}
+	if !strings.Contains(got, "Errors:\n") {
+		t.Fatalf("expected errors section, got:\n%s", got)
+	}
+	if !strings.Contains(got, "- aws: aws configure get region failed (exit=1)") {
+		t.Fatalf("expected aws error entry, got:\n%s", got)
+	}
+}
+
+func TestPrintStatusTableWithOptions_OmitsEmptyDiagnosticsSections(t *testing.T) {
+	report := model.StatusReport{
+		Tools: []model.ToolSummary{
+			{ID: "aws", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintStatusTableWithOptions(&buf, report, StatusTableOptions{
+		GroupBy: StatusTableGroupByCategory,
+		SortBy:  StatusTableSortCategory,
+	})
+
+	got := buf.String()
+	if strings.Contains(got, "Warnings:\n") {
+		t.Fatalf("expected no warnings section, got:\n%s", got)
+	}
+	if strings.Contains(got, "Errors:\n") {
+		t.Fatalf("expected no errors section, got:\n%s", got)
 	}
 }

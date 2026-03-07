@@ -18,7 +18,7 @@ help:
     just --list
 
 ## Local CI checks (same as GitHub CI workflow)
-ci: verify-tidy test
+ci: verify-tidy vet test
 
 ## Ensure go.mod/go.sum are tidy and unchanged
 verify-tidy:

@@ -120,7 +120,10 @@ func toolFileConfigured(id, displayName, category, binary string, fn func() (boo
 			HasContexts: false,
 			CanSwitch:   false,
 		},
-		ConfigCheck: func(_ context.Context, _ execx.Runner, _ bool) (model.ConfiguredState, []string, []string) {
+		ConfigCheck: func(_ context.Context, _ execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
+			if !installed {
+				return model.ConfiguredUnknown, nil, nil
+			}
 			ok, warnings, errs := fn()
 			if ok {
 				return model.ConfiguredYes, warnings, errs
