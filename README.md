@@ -50,21 +50,45 @@ go test ./...
 
 ```bash
 brew install just
+just help
 just ci
+just check
 just build
 just status --tools kubectl,docker --group-by none
 ```
 
-Common high-frequency recipes:
+Recommended day-to-day flow:
 
-- `just run status --json`
-- `just test-race`
-- `just test-cover`
-- `just build-release`
-- `just release-check`
-- `just release-snapshot`
+```bash
+# run CI-equivalent checks
+just ci
 
-If you hit a local Go toolchain mismatch like `compile: version "go1.x.y" does not match go tool version "go1.x.z"`, your shell is likely exporting a stale `GOROOT` or `GOTOOLDIR`. Clear those vars for the command (for example `env -u GOROOT -u GOTOOLDIR go test ./...`) or fix the shell config that exports them.
+# run stricter local checks (ci + race + format check)
+just check
+
+# build and run quick smoke checks
+just smoke
+```
+
+High-frequency recipes:
+
+- `just ci`: same checks as GitHub CI (`verify-tidy + vet + test`)
+- `just check`: stronger local gate (`ci + test-race + fmt-check`)
+- `just fmt` / `just fmt-check`: format code or enforce formatting
+- `just test-cover`: run coverage and print per-package function coverage
+- `just coverage-html`: write `coverage.html` for detailed coverage browsing
+- `just build` / `just build-release`: normal build or release-style build
+- `just run ...`: run from source (for example `just run status --json`)
+- `just status ...` / `just status-json ...`: run status from the local built binary
+- `just smoke`: quick binary sanity check (`version` + `status`)
+- `just release-check` / `just release-snapshot`: validate or dry-run GoReleaser
+- `just release`: publish release artifacts (with confirm prompt)
+- `just tag vX.Y.Z`: create and push annotated tag (with confirm prompt)
+
+Note about Go toolchain mismatch:
+
+- `justfile` now runs all Go commands through `env -u GOROOT -u GOTOOLDIR go`, which avoids common stale shell variable mismatches.
+- If you still need to debug your shell environment, run `just go-env`.
 
 ## Usage
 
