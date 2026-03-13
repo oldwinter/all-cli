@@ -69,11 +69,7 @@ build:
 
 ## Build binary with release-style ldflags
 build-release:
-<<<<<<< Updated upstream
-    {{go_cmd}} build -trimpath -ldflags '{{ldflags}}' -o {{bin_path}} {{main_pkg}}
-=======
-    go build -trimpath -ldflags "-s -w -X github.com/oldwinter/all-cli/internal/cli.version={{version}} -X github.com/oldwinter/all-cli/internal/cli.commit={{commit}} -X github.com/oldwinter/all-cli/internal/cli.date={{build_date}}" -o {{bin_path}} {{main_pkg}}
->>>>>>> Stashed changes
+    {{go_cmd}} build -trimpath -ldflags "-s -w -X github.com/oldwinter/all-cli/internal/cli.version={{version}} -X github.com/oldwinter/all-cli/internal/cli.commit={{commit}} -X github.com/oldwinter/all-cli/internal/cli.date={{build_date}}" -o {{bin_path}} {{main_pkg}}
 
 ## Install binary to GOPATH/bin
 install:
