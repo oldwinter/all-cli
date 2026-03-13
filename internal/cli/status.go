@@ -62,11 +62,8 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				reg = filtered
 			}
 
-			report := model.StatusReport{
-				SchemaVersion: model.SchemaVersionV01,
-				GeneratedAt:   time.Now(),
-				Tools:         make([]model.ToolSummary, len(reg)),
-			}
+			report := model.NewStatusReport(len(reg))
+			report.GeneratedAt = time.Now()
 
 			var spinner *progressSpinner
 			if !opts.JSON && isTerminal(os.Stderr) {

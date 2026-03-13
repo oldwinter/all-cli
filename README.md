@@ -108,6 +108,50 @@ all-cli status --sort category-desc
 all-cli status --timeout 10s
 ```
 
+### AI-friendly JSON additions
+
+`all-cli status --json` now includes additive English metadata for machine callers:
+
+- Top-level `legend`: explains shared fields such as `installed`, `configured_state`, `capabilities`, `warnings`, `errors`, and the meaning of metadata fields.
+- Per-tool `metadata`: explains `purpose`, `configured_when`, known keys inside `current`, suggested `agent_actions`, and short interpretation notes.
+
+Example shape:
+
+```json
+{
+  "schema_version": "v0.1",
+  "legend": {
+    "configured_state": {
+      "yes": "all-cli found enough local state to treat the tool as configured"
+    },
+    "metadata_fields": {
+      "purpose": "Short English description of what the tool is for"
+    }
+  },
+  "tools": [
+    {
+      "id": "kubectl",
+      "current": {
+        "context": "example-cluster"
+      },
+      "metadata": {
+        "purpose": "Kubernetes CLI used to inspect and operate clusters through kubeconfig contexts.",
+        "configured_when": "At least one kubeconfig context is available and readable.",
+        "current_field_descriptions": {
+          "context": "The active kubeconfig context name."
+        },
+        "agent_actions": [
+          "inspect_status",
+          "show_current",
+          "list_contexts",
+          "switch_context"
+        ]
+      }
+    }
+  ]
+}
+```
+
 ### kubectl
 
 ```bash
