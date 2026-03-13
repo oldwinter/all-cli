@@ -32,6 +32,7 @@ func Evaluate(ctx context.Context, def ToolDefinition, runner execx.Runner) mode
 		},
 		ConfiguredState: model.ConfiguredUnknown,
 		Configured:      false,
+		Metadata:        MetadataForTool(def.ID),
 	}
 	if installed {
 		summary.InstallPath = installPath

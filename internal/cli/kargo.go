@@ -39,7 +39,8 @@ func newKargoStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), summary)
 			}
-			report := model.StatusReport{SchemaVersion: model.SchemaVersionV01, Tools: []model.ToolSummary{summary}}
+			report := model.NewStatusReport(1)
+			report.Tools[0] = summary
 			output.PrintStatusTable(cmd.OutOrStdout(), report)
 			return nil
 		},
