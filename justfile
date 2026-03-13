@@ -10,7 +10,6 @@ go_cmd := "env -u GOROOT -u GOTOOLDIR go"
 version := `git describe --tags --always --dirty 2>/dev/null || echo "dev"`
 commit := `git rev-parse --short=7 HEAD 2>/dev/null || echo "unknown"`
 build_date := `date -u +"%Y-%m-%dT%H:%M:%SZ"`
-ldflags := "-s -w -X github.com/oldwinter/all-cli/internal/cli.version={{version}} -X github.com/oldwinter/all-cli/internal/cli.commit={{commit}} -X github.com/oldwinter/all-cli/internal/cli.date={{build_date}}"
 
 default: help
 
@@ -70,7 +69,11 @@ build:
 
 ## Build binary with release-style ldflags
 build-release:
+<<<<<<< Updated upstream
     {{go_cmd}} build -trimpath -ldflags '{{ldflags}}' -o {{bin_path}} {{main_pkg}}
+=======
+    go build -trimpath -ldflags "-s -w -X github.com/oldwinter/all-cli/internal/cli.version={{version}} -X github.com/oldwinter/all-cli/internal/cli.commit={{commit}} -X github.com/oldwinter/all-cli/internal/cli.date={{build_date}}" -o {{bin_path}} {{main_pkg}}
+>>>>>>> Stashed changes
 
 ## Install binary to GOPATH/bin
 install:

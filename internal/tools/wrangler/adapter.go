@@ -2,6 +2,7 @@ package wrangler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -24,6 +25,13 @@ func New(runner execx.Runner) Adapter {
 type Whoami struct {
 	LoggedIn   bool
 	AccountIDs []string
+}
+
+type whoamiJSON struct {
+	LoggedIn bool `json:"loggedIn"`
+	Accounts []struct {
+		ID string `json:"id"`
+	} `json:"accounts"`
 }
 
 func (a Adapter) Configured(ctx context.Context) (bool, []string, []string, error) {
@@ -55,6 +63,22 @@ func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []st
 }
 
 func (a Adapter) Whoami(ctx context.Context) (Whoami, []string, []string, error) {
+	res := a.runner.Run(ctx, "wrangler", "whoami", "--json")
+	if res.Err != nil {
+		if errors.Is(res.Err, context.DeadlineExceeded) || errors.Is(res.Err, context.Canceled) {
+			return Whoami{}, nil, nil, res.Err
+		}
+		return a.whoamiFromText(ctx)
+	}
+
+	if w, ok := parseWhoamiJSON(res.Stdout); ok {
+		return w, nil, nil, nil
+	}
+
+	return a.whoamiFromText(ctx)
+}
+
+func (a Adapter) whoamiFromText(ctx context.Context) (Whoami, []string, []string, error) {
 	res := a.runner.Run(ctx, "wrangler", "whoami")
 	if res.Err != nil {
 		if errors.Is(res.Err, context.DeadlineExceeded) || errors.Is(res.Err, context.Canceled) {
@@ -72,6 +96,28 @@ func (a Adapter) Whoami(ctx context.Context) (Whoami, []string, []string, error)
 	ids := accountIDRe.FindAllString(text, -1)
 	w.AccountIDs = uniqueSorted(ids)
 	return w, nil, nil, nil
+}
+
+func parseWhoamiJSON(stdout string) (Whoami, bool) {
+	stdout = strings.TrimSpace(stdout)
+	if stdout == "" {
+		return Whoami{}, false
+	}
+
+	var payload whoamiJSON
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		return Whoami{}, false
+	}
+
+	accountIDs := make([]string, 0, len(payload.Accounts))
+	for _, account := range payload.Accounts {
+		accountIDs = append(accountIDs, account.ID)
+	}
+
+	return Whoami{
+		LoggedIn:   payload.LoggedIn,
+		AccountIDs: uniqueSorted(accountIDs),
+	}, true
 }
 
 func stdoutOrStderr(res execx.CmdResult) string {

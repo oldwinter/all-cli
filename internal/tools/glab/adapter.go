@@ -85,13 +85,12 @@ func (a Adapter) ListInstances(ctx context.Context) (List, []string, []string, e
 
 	warnings := []string{}
 	errs := []string{}
-	if res.ExitCode != 0 {
-		warnings = append(warnings, fmt.Sprintf("glab auth status --all exited with code %d", res.ExitCode))
-	}
-
 	instances, wParse, eParse, err := parseAuthStatusAll(stdoutOrStderr(res))
 	warnings = append(warnings, wParse...)
 	errs = append(errs, eParse...)
+	if res.ExitCode != 0 && !hasOKInstance(instances) {
+		warnings = append(warnings, fmt.Sprintf("glab auth status --all exited with code %d", res.ExitCode))
+	}
 
 	if len(instances) == 0 && res.ExitCode != 0 && err == nil {
 		err = fmt.Errorf("glab auth status --all returned no instances")
@@ -99,6 +98,15 @@ func (a Adapter) ListInstances(ctx context.Context) (List, []string, []string, e
 
 	sort.Slice(instances, func(i, j int) bool { return instances[i].Host < instances[j].Host })
 	return List{Instances: instances}, warnings, errs, err
+}
+
+func hasOKInstance(instances []Instance) bool {
+	for _, inst := range instances {
+		if inst.OK {
+			return true
+		}
+	}
+	return false
 }
 
 func (a Adapter) EffectiveStatus(ctx context.Context) (Instance, []string, []string, error) {

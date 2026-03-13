@@ -37,8 +37,21 @@ type ToolDefinition struct {
 
 func DefaultRegistry() []ToolDefinition {
 	return []ToolDefinition{
+		toolNA("fd", "fd", "navigation", "fd"),
+		toolNA("rg", "ripgrep", "navigation", "rg"),
+		toolNA("fzf", "fzf", "navigation", "fzf"),
+		toolNA("zoxide", "zoxide", "navigation", "zoxide"),
+
+		toolNA("eza", "eza", "shell", "eza"),
+		toolNA("bat", "bat", "shell", "bat"),
+		toolNA("yq", "yq", "shell", "yq"),
+
 		toolNA("brew", "Homebrew", "env", "brew"),
 		miseTool(),
+		toolNA("uv", "uv", "env", "uv"),
+		toolNA("just", "just", "env", "just"),
+
+		toolNA("obsidian", "Obsidian", "notes", "obsidian"),
 
 		toolNA("yazi", "Yazi", "tui", "yazi"),
 		k9sTool(),
@@ -50,11 +63,28 @@ func DefaultRegistry() []ToolDefinition {
 
 		toolNA("eksctl", "eksctl", "k8s", "eksctl"),
 		kubectlTool(),
+		toolNA("kubectx", "kubectx", "k8s", "kubectx"),
+		toolNA("kubens", "kubens", "k8s", "kubens"),
+		toolNA("kubecolor", "kubecolor", "k8s", "kubecolor"),
+		toolNA("krew", "krew", "k8s", "kubectl-krew"),
+		toolNA("kubefwd", "kubefwd", "k8s", "kubefwd"),
+		toolNA("kubeshark", "kubeshark", "k8s", "kubeshark"),
 
 		dockerTool(),
 
 		ghTool(),
 		glabTool(),
+		toolNA("linear", "Linear CLI", "code", "linear"),
+
+		toolNA("claude", "Claude Code", "ai", "claude"),
+		toolNA("codex", "Codex CLI", "ai", "codex"),
+		toolNA("openclaw", "openclaw", "ai", "openclaw"),
+		toolNA("opencode", "opencode", "ai", "opencode"),
+		toolNA("gemini", "Gemini CLI", "ai", "gemini"),
+		toolNA("ccusage", "ccusage", "ai", "ccusage"),
+		toolNA("litellm-proxy", "LiteLLM Proxy", "ai", "litellm-proxy"),
+
+		toolNA("simplex-cli", "simplex-cli", "internal", "simplex-cli"),
 
 		toolFileConfigured("rclone", "rclone", "transfer", "rclone", rcloneConfigured),
 		kargoTool(),
