@@ -67,7 +67,7 @@ func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []st
 
 	format := strings.TrimSpace(os.Getenv("AWS_DEFAULT_OUTPUT"))
 	if format == "" {
-		f, w, e, _ := a.configureGet(ctx, profile, "output")
+		f, w, e, _ := a.configureGetOptional(ctx, profile, "output")
 		warnings = append(warnings, w...)
 		errs = append(errs, e...)
 		format = strings.TrimSpace(f)
@@ -90,6 +90,22 @@ func currentProfile() string {
 func (a Adapter) configureGet(ctx context.Context, profile, key string) (string, []string, []string, error) {
 	res := a.runner.Run(ctx, "aws", "configure", "get", key, "--profile", profile)
 	if res.Err != nil {
+		errMsg := strings.TrimSpace(res.Stderr)
+		if errMsg == "" {
+			errMsg = res.Err.Error()
+		}
+		return "", nil, []string{errMsg}, fmt.Errorf("aws configure get %s failed (exit=%d)", key, res.ExitCode)
+	}
+	return strings.TrimSpace(res.Stdout), nil, nil, nil
+}
+
+func (a Adapter) configureGetOptional(ctx context.Context, profile, key string) (string, []string, []string, error) {
+	res := a.runner.Run(ctx, "aws", "configure", "get", key, "--profile", profile)
+	if res.Err != nil {
+		// AWS CLI returns exit 1 with empty stderr when an optional config value is unset.
+		if strings.TrimSpace(res.Stderr) == "" && res.ExitCode == 1 {
+			return "", nil, nil, nil
+		}
 		errMsg := strings.TrimSpace(res.Stderr)
 		if errMsg == "" {
 			errMsg = res.Err.Error()

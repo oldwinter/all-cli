@@ -2,8 +2,11 @@ package cli
 
 import (
 	"testing"
+	"time"
 
+	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
+	"github.com/oldwinter/all-cli/internal/tools"
 )
 
 func TestParseStatusGroupBy(t *testing.T) {
@@ -86,5 +89,33 @@ func TestSortToolSummaries(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("tool sort desc: got %v, want %v", got, want)
 		}
+	}
+}
+
+func TestRunnerForToolUsesToolTimeoutOverride(t *testing.T) {
+	base := execx.DefaultRunner{}
+	def := tools.ToolDefinition{ID: "wrangler", Timeout: 10 * time.Second}
+
+	got := runnerForTool(base, 5*time.Second, def)
+	timeoutRunner, ok := got.(execx.TimeoutRunner)
+	if !ok {
+		t.Fatalf("expected execx.TimeoutRunner, got %T", got)
+	}
+	if timeoutRunner.Timeout != 10*time.Second {
+		t.Fatalf("timeout = %v, want %v", timeoutRunner.Timeout, 10*time.Second)
+	}
+}
+
+func TestRunnerForToolUsesDefaultTimeoutWhenNoOverride(t *testing.T) {
+	base := execx.DefaultRunner{}
+	def := tools.ToolDefinition{ID: "aws"}
+
+	got := runnerForTool(base, 5*time.Second, def)
+	timeoutRunner, ok := got.(execx.TimeoutRunner)
+	if !ok {
+		t.Fatalf("expected execx.TimeoutRunner, got %T", got)
+	}
+	if timeoutRunner.Timeout != 5*time.Second {
+		t.Fatalf("timeout = %v, want %v", timeoutRunner.Timeout, 5*time.Second)
 	}
 }

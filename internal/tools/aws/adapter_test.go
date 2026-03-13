@@ -83,3 +83,40 @@ func TestAdapterCurrent_PrefersEnvironment(t *testing.T) {
 		t.Fatalf("unexpected current: %#v", cur)
 	}
 }
+
+func TestAdapterCurrent_IgnoresUnsetOptionalOutput(t *testing.T) {
+	t.Setenv("AWS_PROFILE", "default")
+	t.Setenv("AWS_REGION", "")
+	t.Setenv("AWS_DEFAULT_REGION", "")
+	t.Setenv("AWS_DEFAULT_OUTPUT", "")
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"aws configure get region --profile default": {
+				ExitCode: 0,
+				Stdout:   "us-east-1\n",
+			},
+			"aws configure get output --profile default": {
+				ExitCode: 1,
+				Err:      errors.New("exit status 1"),
+			},
+		},
+	})
+
+	cur, warnings, errs, err := a.Current(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %#v", warnings)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("expected no errors for unset optional output, got %#v", errs)
+	}
+	if cur["profile"] != "default" || cur["region"] != "us-east-1" {
+		t.Fatalf("unexpected current: %#v", cur)
+	}
+	if _, ok := cur["output"]; ok {
+		t.Fatalf("expected output to be omitted when unset, got %#v", cur)
+	}
+}
