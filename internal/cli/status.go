@@ -43,7 +43,6 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				return err
 			}
 
-			runnerT := execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout}
 			reg := tools.DefaultRegistry()
 			if strings.TrimSpace(toolsFilter) != "" {
 				filterSet, err := parseToolsFilter(toolsFilter)
@@ -77,7 +76,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				wg.Add(1)
 				go func(i int, def tools.ToolDefinition) {
 					defer wg.Done()
-					report.Tools[i] = tools.Evaluate(baseCtx, def, runnerT)
+					report.Tools[i] = tools.Evaluate(baseCtx, def, runnerForTool(runner, opts.Timeout, def))
 					if spinner != nil {
 						spinner.Inc(def.ID)
 					}
@@ -106,6 +105,14 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	cmd.Flags().StringVar(&groupBy, "group-by", statusGroupByCategory, "Group output: category|none")
 	cmd.Flags().StringVar(&sortBy, "sort", statusSortTool, "Sort order: tool|tool-desc|category|category-desc")
 	return cmd
+}
+
+func runnerForTool(baseRunner execx.Runner, defaultTimeout time.Duration, def tools.ToolDefinition) execx.Runner {
+	timeout := defaultTimeout
+	if def.Timeout > 0 {
+		timeout = def.Timeout
+	}
+	return execx.TimeoutRunner{Runner: baseRunner, Timeout: timeout}
 }
 
 func parseToolsFilter(s string) (map[string]bool, error) {

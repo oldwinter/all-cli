@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
@@ -28,6 +29,7 @@ type ToolDefinition struct {
 	DisplayName string
 	Category    string
 	Binary      string
+	Timeout     time.Duration
 
 	Capabilities model.Capability
 
@@ -519,6 +521,7 @@ func wranglerTool() ToolDefinition {
 		DisplayName: "wrangler",
 		Category:    "cloud",
 		Binary:      "wrangler",
+		Timeout:     10 * time.Second,
 		Capabilities: model.Capability{
 			HasContexts: true,
 			CanSwitch:   false,
