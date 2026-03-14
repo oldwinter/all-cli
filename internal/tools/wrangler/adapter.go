@@ -88,7 +88,7 @@ func (a Adapter) whoamiFromText(ctx context.Context) (Whoami, []string, []string
 		return Whoami{LoggedIn: false}, nil, nil, nil
 	}
 
-	text := stdoutOrStderr(res)
+	text := execx.StdoutOrStderr(res)
 	w := Whoami{
 		LoggedIn: strings.Contains(text, "You are logged in"),
 	}
@@ -118,13 +118,6 @@ func parseWhoamiJSON(stdout string) (Whoami, bool) {
 		LoggedIn:   payload.LoggedIn,
 		AccountIDs: uniqueSorted(accountIDs),
 	}, true
-}
-
-func stdoutOrStderr(res execx.CmdResult) string {
-	if strings.TrimSpace(res.Stdout) != "" {
-		return res.Stdout
-	}
-	return res.Stderr
 }
 
 func uniqueSorted(in []string) []string {
