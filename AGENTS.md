@@ -41,3 +41,13 @@
 ## Security & Configuration Tips
 - Do not print or depend on plaintext tokens/secrets.
 - Preserve timeout-safe command execution patterns (`internal/execx` + configured timeouts).
+
+## Cursor Cloud specific instructions
+
+This is a pure Go CLI with zero runtime service dependencies. The update script handles `go mod tidy`; `just` is installed separately during initial VM setup.
+
+- **Service**: `all-cli` — a standalone CLI binary; no servers, databases, or Docker required.
+- **Build & run**: see `justfile` recipes or the "Build, Test, and Development Commands" section above. `just ci` is the fastest way to verify correctness; `just smoke` builds and runs a quick sanity check.
+- **Go toolchain**: The project requires Go 1.25 (declared in `go.mod`). The Go toolchain auto-downloads the correct version on first use, so no manual version management is needed.
+- **justfile quirk**: All Go commands in the justfile use `env -u GOROOT -u GOTOOLDIR go` to avoid stale shell variable mismatches. Run `just go-env` to debug toolchain issues.
+- **No external services**: The CLI shells out to other tools (kubectl, docker, gh, etc.) to inspect their status at runtime, but none of these are required for building or testing `all-cli` itself.

@@ -2,11 +2,8 @@ package tools
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/oldwinter/all-cli/internal/execx"
@@ -24,6 +21,89 @@ import (
 	"github.com/oldwinter/all-cli/internal/tools/wrangler"
 )
 
+// ToolAdapter is the standard interface implemented by tool-specific adapters
+// that expose both a Configured check and a Current context snapshot.
+type ToolAdapter interface {
+	Configured(ctx context.Context) (bool, []string, []string, error)
+	Current(ctx context.Context) (map[string]string, []string, []string, error)
+}
+
+// toolFromAdapter generates a ToolDefinition from a ToolAdapter factory.
+// The adapter instance is created once and reused for both ConfigCheck and Current
+// within a single evaluation cycle.
+func toolFromAdapter(id, displayName, category, binary string, caps model.Capability, factory func(execx.Runner) ToolAdapter) ToolDefinition {
+	var adapter ToolAdapter
+	getAdapter := func(runner execx.Runner) ToolAdapter {
+		if adapter == nil {
+			adapter = factory(runner)
+		}
+		return adapter
+	}
+	return ToolDefinition{
+		ID:           id,
+		DisplayName:  displayName,
+		Category:     category,
+		Binary:       binary,
+		Capabilities: caps,
+		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
+			if !installed {
+				return model.ConfiguredUnknown, nil, nil
+			}
+			a := getAdapter(runner)
+			ok, warnings, errs, err := a.Configured(ctx)
+			if err != nil {
+				errs = append(errs, err.Error())
+				return model.ConfiguredUnknown, warnings, errs
+			}
+			if ok {
+				return model.ConfiguredYes, warnings, errs
+			}
+			return model.ConfiguredNo, warnings, errs
+		},
+		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
+			if !installed {
+				return nil, nil, nil
+			}
+			a := getAdapter(runner)
+			cur, warnings, errs, err := a.Current(ctx)
+			if err != nil {
+				errs = append(errs, err.Error())
+			}
+			return cur, warnings, errs
+		},
+	}
+}
+
+// toolWithCurrent generates a ToolDefinition for tools that only expose a
+// Current context snapshot (config check is always n/a).
+func toolWithCurrent(id, displayName, category, binary string, caps model.Capability, currentFn func(ctx context.Context, runner execx.Runner) (map[string]string, []string, []string, error)) ToolDefinition {
+	return ToolDefinition{
+		ID:           id,
+		DisplayName:  displayName,
+		Category:     category,
+		Binary:       binary,
+		Capabilities: caps,
+		ConfigCheck: func(_ context.Context, _ execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
+			if installed {
+				return model.ConfiguredNA, nil, nil
+			}
+			return model.ConfiguredUnknown, nil, nil
+		},
+		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
+			if !installed {
+				return nil, nil, nil
+			}
+			cur, warnings, errs, err := currentFn(ctx, runner)
+			if err != nil {
+				errs = append(errs, err.Error())
+			}
+			return cur, warnings, errs
+		},
+	}
+}
+
+// ToolDefinition describes a CLI tool: its binary, capabilities, and how to
+// check its configuration and current context.
 type ToolDefinition struct {
 	ID          string
 	DisplayName string
@@ -37,6 +117,7 @@ type ToolDefinition struct {
 	Current     func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string)
 }
 
+// DefaultRegistry returns the built-in list of tracked CLI tools.
 func DefaultRegistry() []ToolDefinition {
 	return []ToolDefinition{
 		toolNA("fd", "fd", "navigation", "fd"),
@@ -166,219 +247,49 @@ func toolFileConfigured(id, displayName, category, binary string, fn func() (boo
 }
 
 func kubectlTool() ToolDefinition {
-	return ToolDefinition{
-		ID:          "kubectl",
-		DisplayName: "kubectl",
-		Category:    "k8s",
-		Binary:      "kubectl",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   true,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			a := kubectl.New(runner)
-			ok, warnings, errs, err := a.Configured(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if ok {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := kubectl.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
-		},
-	}
+	return toolFromAdapter("kubectl", "kubectl", "k8s", "kubectl",
+		model.Capability{HasContexts: true, CanSwitch: true},
+		func(r execx.Runner) ToolAdapter { return kubectl.New(r) },
+	)
 }
 
 func miseTool() ToolDefinition {
-	return ToolDefinition{
-		ID:          "mise",
-		DisplayName: "Mise",
-		Category:    "env",
-		Binary:      "mise",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   false,
+	return toolWithCurrent("mise", "Mise", "env", "mise",
+		model.Capability{HasContexts: true},
+		func(ctx context.Context, runner execx.Runner) (map[string]string, []string, []string, error) {
+			return mise.New(runner).Current(ctx)
 		},
-		ConfigCheck: func(_ context.Context, _ execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if installed {
-				return model.ConfiguredNA, nil, nil
-			}
-			return model.ConfiguredUnknown, nil, nil
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := mise.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
-		},
-	}
+	)
 }
 
 func k9sTool() ToolDefinition {
-	return ToolDefinition{
-		ID:          "k9s",
-		DisplayName: "k9s",
-		Category:    "tui",
-		Binary:      "k9s",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   false,
+	return toolWithCurrent("k9s", "k9s", "tui", "k9s",
+		model.Capability{HasContexts: true},
+		func(ctx context.Context, runner execx.Runner) (map[string]string, []string, []string, error) {
+			return k9s.New(runner).Current(ctx)
 		},
-		ConfigCheck: func(_ context.Context, _ execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if installed {
-				return model.ConfiguredNA, nil, nil
-			}
-			return model.ConfiguredUnknown, nil, nil
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := k9s.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
-		},
-	}
+	)
 }
 
 func dockerTool() ToolDefinition {
-	return ToolDefinition{
-		ID:          "docker",
-		DisplayName: "docker",
-		Category:    "containers",
-		Binary:      "docker",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   true,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			a := docker.New(runner)
-			ok, warnings, errs, err := a.Configured(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if ok {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := docker.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
-		},
-	}
+	return toolFromAdapter("docker", "docker", "containers", "docker",
+		model.Capability{HasContexts: true, CanSwitch: true},
+		func(r execx.Runner) ToolAdapter { return docker.New(r) },
+	)
 }
 
 func ghTool() ToolDefinition {
-	return ToolDefinition{
-		ID:          "gh",
-		DisplayName: "gh",
-		Category:    "code",
-		Binary:      "gh",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   true,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			a := gh.New(runner)
-			ok, warnings, errs, err := a.Configured(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if ok {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := gh.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
-		},
-	}
+	return toolFromAdapter("gh", "gh", "code", "gh",
+		model.Capability{HasContexts: true, CanSwitch: true},
+		func(r execx.Runner) ToolAdapter { return gh.New(r) },
+	)
 }
 
 func glabTool() ToolDefinition {
-	return ToolDefinition{
-		ID:          "glab",
-		DisplayName: "glab",
-		Category:    "code",
-		Binary:      "glab",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   true,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			a := glab.New(runner)
-			ok, warnings, errs, err := a.Configured(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if ok {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := glab.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
-		},
-	}
+	return toolFromAdapter("glab", "glab", "code", "glab",
+		model.Capability{HasContexts: true, CanSwitch: true},
+		func(r execx.Runner) ToolAdapter { return glab.New(r) },
+	)
 }
 
 func rcloneConfigured() (bool, []string, []string) {
@@ -399,343 +310,38 @@ func rcloneConfigured() (bool, []string, []string) {
 }
 
 func awsTool() ToolDefinition {
-	return ToolDefinition{
-		ID:          "aws",
-		DisplayName: "AWS CLI",
-		Category:    "cloud",
-		Binary:      "aws",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   false,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			a := aws.New(runner)
-			ok, warnings, errs, err := a.Configured(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if ok {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := aws.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
-		},
-	}
+	return toolFromAdapter("aws", "AWS CLI", "cloud", "aws",
+		model.Capability{HasContexts: true},
+		func(r execx.Runner) ToolAdapter { return aws.New(r) },
+	)
 }
 
 func aliyunTool() ToolDefinition {
-	var (
-		once     sync.Once
-		cached   []aliyun.Profile
-		cWarn    []string
-		cErrs    []string
-		cErr     error
-		cachedOk bool
+	return toolFromAdapter("aliyun", "Aliyun CLI", "cloud", "aliyun",
+		model.Capability{HasContexts: true},
+		func(r execx.Runner) ToolAdapter { return aliyun.New(r) },
 	)
-	get := func(ctx context.Context, runner execx.Runner) ([]aliyun.Profile, []string, []string, error) {
-		once.Do(func() {
-			a := aliyun.New(runner)
-			var warnings, errs []string
-			cached, warnings, errs, cErr = a.ListProfiles(ctx)
-			cWarn = warnings
-			cErrs = errs
-			cachedOk = true
-		})
-		if !cachedOk {
-			return nil, nil, nil, fmt.Errorf("failed to initialize cache")
-		}
-		return cached, cWarn, cErrs, cErr
-	}
-
-	return ToolDefinition{
-		ID:          "aliyun",
-		DisplayName: "Aliyun CLI",
-		Category:    "cloud",
-		Binary:      "aliyun",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   false,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			profiles, warnings, errs, err := get(ctx, runner)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if len(profiles) > 0 {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			profiles, warnings, errs, err := get(ctx, runner)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return nil, warnings, errs
-			}
-			cur, moreWarnings := aliyunCurrentFromProfiles(profiles)
-			warnings = append(warnings, moreWarnings...)
-			return cur, warnings, errs
-		},
-	}
 }
 
 func wranglerTool() ToolDefinition {
-	var (
-		once   sync.Once
-		cached wrangler.Whoami
-		cWarn  []string
-		cErrs  []string
-		cErr   error
+	def := toolFromAdapter("wrangler", "wrangler", "cloud", "wrangler",
+		model.Capability{HasContexts: true},
+		func(r execx.Runner) ToolAdapter { return wrangler.New(r) },
 	)
-	get := func(ctx context.Context, runner execx.Runner) (wrangler.Whoami, []string, []string, error) {
-		once.Do(func() {
-			a := wrangler.New(runner)
-			cached, cWarn, cErrs, cErr = a.Whoami(ctx)
-		})
-		return cached, cWarn, cErrs, cErr
-	}
-
-	return ToolDefinition{
-		ID:          "wrangler",
-		DisplayName: "wrangler",
-		Category:    "cloud",
-		Binary:      "wrangler",
-		Timeout:     10 * time.Second,
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   false,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			w, warnings, errs, err := get(ctx, runner)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if w.LoggedIn {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			w, warnings, errs, err := get(ctx, runner)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return nil, warnings, errs
-			}
-			cur, moreWarnings := wranglerCurrentFromWhoami(w)
-			warnings = append(warnings, moreWarnings...)
-			return cur, warnings, errs
-		},
-	}
+	def.Timeout = 10 * time.Second
+	return def
 }
 
 func kargoTool() ToolDefinition {
-	var (
-		once   sync.Once
-		cached kargo.Config
-		cWarn  []string
-		cErrs  []string
-		cErr   error
+	return toolFromAdapter("kargo", "kargo", "cicd", "kargo",
+		model.Capability{HasContexts: true, CanSwitch: true},
+		func(r execx.Runner) ToolAdapter { return kargo.New(r) },
 	)
-	get := func(ctx context.Context, runner execx.Runner) (kargo.Config, []string, []string, error) {
-		once.Do(func() {
-			a := kargo.New(runner)
-			cached, cWarn, cErrs, cErr = a.ViewConfig(ctx)
-		})
-		return cached, cWarn, cErrs, cErr
-	}
-
-	return ToolDefinition{
-		ID:          "kargo",
-		DisplayName: "kargo",
-		Category:    "cicd",
-		Binary:      "kargo",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   true,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			cfg, warnings, errs, err := get(ctx, runner)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if strings.TrimSpace(cfg.APIAddress) != "" {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			cfg, warnings, errs, err := get(ctx, runner)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return nil, warnings, errs
-			}
-			cur := kargoCurrentFromConfig(cfg)
-			return cur, warnings, errs
-		},
-	}
 }
 
 func argocdTool() ToolDefinition {
-	var (
-		once   sync.Once
-		cached []argocd.Context
-		cWarn  []string
-		cErrs  []string
-		cErr   error
+	return toolFromAdapter("argocd", "Argo CD", "cicd", "argocd",
+		model.Capability{HasContexts: true, CanSwitch: true},
+		func(r execx.Runner) ToolAdapter { return argocd.New(r) },
 	)
-	get := func(ctx context.Context, runner execx.Runner) ([]argocd.Context, []string, []string, error) {
-		once.Do(func() {
-			a := argocd.New(runner)
-			cached, cWarn, cErrs, cErr = a.ListContexts(ctx)
-		})
-		return cached, cWarn, cErrs, cErr
-	}
-
-	return ToolDefinition{
-		ID:          "argocd",
-		DisplayName: "Argo CD",
-		Category:    "cicd",
-		Binary:      "argocd",
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   true,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			contexts, warnings, errs, err := get(ctx, runner)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if len(contexts) > 0 {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			contexts, warnings, errs, err := get(ctx, runner)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return nil, warnings, errs
-			}
-			cur := argocdCurrentFromContexts(contexts)
-			return cur, warnings, errs
-		},
-	}
-}
-
-func aliyunCurrentFromProfiles(profiles []aliyun.Profile) (map[string]string, []string) {
-	if len(profiles) == 0 {
-		return nil, nil
-	}
-	warnings := []string{}
-	cur := profiles[0]
-	for _, p := range profiles {
-		if p.IsCurrent {
-			cur = p
-			break
-		}
-	}
-	if !cur.IsCurrent {
-		warnings = append(warnings, "no current aliyun profile marked; using the first profile")
-	}
-	out := map[string]string{
-		"profile": cur.Name,
-	}
-	if strings.TrimSpace(cur.Region) != "" {
-		out["region"] = cur.Region
-	}
-	if strings.TrimSpace(cur.Language) != "" {
-		out["language"] = cur.Language
-	}
-	if strings.TrimSpace(cur.Valid) != "" {
-		out["valid"] = cur.Valid
-	}
-	return out, warnings
-}
-
-func wranglerCurrentFromWhoami(w wrangler.Whoami) (map[string]string, []string) {
-	warnings := []string{}
-	out := map[string]string{
-		"logged_in": "no",
-	}
-	if w.LoggedIn {
-		out["logged_in"] = "yes"
-	}
-	if len(w.AccountIDs) > 0 {
-		out["accounts_count"] = fmt.Sprintf("%d", len(w.AccountIDs))
-		if len(w.AccountIDs) == 1 {
-			out["account_id"] = w.AccountIDs[0]
-		}
-	}
-	if len(w.AccountIDs) > 1 {
-		warnings = append(warnings, "multiple wrangler accounts detected; no single global default")
-	}
-	return out, warnings
-}
-
-func kargoCurrentFromConfig(cfg kargo.Config) map[string]string {
-	out := map[string]string{}
-	if strings.TrimSpace(cfg.APIAddress) != "" {
-		out["api_address"] = cfg.APIAddress
-	}
-	if strings.TrimSpace(cfg.DefaultProject) != "" {
-		out["project"] = cfg.DefaultProject
-	}
-	return out
-}
-
-func argocdCurrentFromContexts(contexts []argocd.Context) map[string]string {
-	for _, c := range contexts {
-		if c.IsCurrent {
-			out := map[string]string{
-				"context": c.Name,
-			}
-			if strings.TrimSpace(c.Server) != "" {
-				out["server"] = c.Server
-			}
-			return out
-		}
-	}
-	return nil
 }

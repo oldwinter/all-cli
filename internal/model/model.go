@@ -1,9 +1,12 @@
+// Package model defines shared types for tool status reporting.
 package model
 
 import "time"
 
+// SchemaVersionV01 is the current JSON schema version for status output.
 const SchemaVersionV01 = "v0.1"
 
+// ConfiguredState represents the configuration status of a CLI tool.
 type ConfiguredState string
 
 const (
@@ -13,11 +16,13 @@ const (
 	ConfiguredUnknown ConfiguredState = "unknown"
 )
 
+// Capability describes what context-like features a tool supports.
 type Capability struct {
 	HasContexts bool `json:"has_contexts"`
 	CanSwitch   bool `json:"can_switch"`
 }
 
+// ToolMetadata provides human- and agent-readable context about a tool.
 type ToolMetadata struct {
 	Purpose                  string            `json:"purpose,omitempty"`
 	ConfiguredWhen           string            `json:"configured_when,omitempty"`
@@ -36,6 +41,7 @@ type StatusLegend struct {
 	MetadataFields  map[string]string `json:"metadata_fields,omitempty"`
 }
 
+// ToolSummary is the per-tool evaluation result included in a StatusReport.
 type ToolSummary struct {
 	ID              string            `json:"id"`
 	DisplayName     string            `json:"display_name"`
@@ -51,6 +57,7 @@ type ToolSummary struct {
 	Errors          []string          `json:"errors,omitempty"`
 }
 
+// StatusReport is the top-level structure for status output.
 type StatusReport struct {
 	SchemaVersion string        `json:"schema_version"`
 	GeneratedAt   time.Time     `json:"generated_at"`
@@ -58,6 +65,7 @@ type StatusReport struct {
 	Tools         []ToolSummary `json:"tools"`
 }
 
+// UseResult is returned by context-switching commands.
 type UseResult struct {
 	OK      bool              `json:"ok"`
 	ToolID  string            `json:"tool_id"`
@@ -65,6 +73,7 @@ type UseResult struct {
 	Error   string            `json:"error,omitempty"`
 }
 
+// NewStatusReport creates a StatusReport pre-populated with the legend.
 func NewStatusReport(toolCount int) StatusReport {
 	return StatusReport{
 		SchemaVersion: SchemaVersionV01,

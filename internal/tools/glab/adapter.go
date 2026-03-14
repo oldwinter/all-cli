@@ -85,7 +85,7 @@ func (a Adapter) ListInstances(ctx context.Context) (List, []string, []string, e
 
 	warnings := []string{}
 	errs := []string{}
-	instances, wParse, eParse, err := parseAuthStatusAll(stdoutOrStderr(res))
+	instances, wParse, eParse, err := parseAuthStatusAll(execx.StdoutOrStderr(res))
 	warnings = append(warnings, wParse...)
 	errs = append(errs, eParse...)
 	if res.ExitCode != 0 && !hasOKInstance(instances) {
@@ -116,7 +116,7 @@ func (a Adapter) EffectiveStatus(ctx context.Context) (Instance, []string, []str
 	if res.ExitCode != 0 {
 		warnings = append(warnings, fmt.Sprintf("glab auth status exited with code %d", res.ExitCode))
 	}
-	instances, wParse, eParse, err := parseAuthStatusAll(stdoutOrStderr(res))
+	instances, wParse, eParse, err := parseAuthStatusAll(execx.StdoutOrStderr(res))
 	warnings = append(warnings, wParse...)
 	errs = append(errs, eParse...)
 	if err != nil {
@@ -241,7 +241,7 @@ func parseAuthStatusAll(stdout string) ([]Instance, []string, []string, error) {
 
 		if strings.Contains(t, "No token found") {
 			cur.HasToken = false
-			cur.Error = firstNonEmpty(cur.Error, "no token found")
+			cur.Error = execx.FirstNonEmpty(cur.Error, "no token found")
 			continue
 		}
 	}
@@ -252,13 +252,6 @@ func parseAuthStatusAll(stdout string) ([]Instance, []string, []string, error) {
 		warnings = append(warnings, "glab output parsed but no instances detected")
 	}
 	return instances, warnings, errs, nil
-}
-
-func stdoutOrStderr(res execx.CmdResult) string {
-	if strings.TrimSpace(res.Stdout) != "" {
-		return res.Stdout
-	}
-	return res.Stderr
 }
 
 func extractAfter(s, needle string) string {
@@ -297,13 +290,4 @@ func parseProtocolTokenAfter(line, needle string) string {
 		return ""
 	}
 	return strings.TrimSpace(fields[0])
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }

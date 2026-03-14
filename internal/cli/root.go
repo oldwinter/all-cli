@@ -35,6 +35,7 @@ func NewRootCommand() *cobra.Command {
 
 	cmd.AddCommand(newStatusCommand(opts, runner))
 	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(newCompletionCommand())
 
 	cmd.AddCommand(newKubectlCommand(opts, runner))
 	cmd.AddCommand(newDockerCommand(opts, runner))

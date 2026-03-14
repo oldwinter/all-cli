@@ -54,7 +54,7 @@ func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []st
 	warnings := []string{}
 	errs := []string{}
 
-	region := strings.TrimSpace(firstNonEmpty(os.Getenv("AWS_REGION"), os.Getenv("AWS_DEFAULT_REGION")))
+	region := execx.FirstNonEmpty(os.Getenv("AWS_REGION"), os.Getenv("AWS_DEFAULT_REGION"))
 	if region == "" {
 		r, w, e, _ := a.configureGet(ctx, profile, "region")
 		warnings = append(warnings, w...)
@@ -80,7 +80,7 @@ func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []st
 }
 
 func currentProfile() string {
-	p := strings.TrimSpace(firstNonEmpty(os.Getenv("AWS_PROFILE"), os.Getenv("AWS_DEFAULT_PROFILE")))
+	p := execx.FirstNonEmpty(os.Getenv("AWS_PROFILE"), os.Getenv("AWS_DEFAULT_PROFILE"))
 	if p == "" {
 		return "default"
 	}
@@ -113,13 +113,4 @@ func (a Adapter) configureGetOptional(ctx context.Context, profile, key string) 
 		return "", nil, []string{errMsg}, fmt.Errorf("aws configure get %s failed (exit=%d)", key, res.ExitCode)
 	}
 	return strings.TrimSpace(res.Stdout), nil, nil, nil
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }
