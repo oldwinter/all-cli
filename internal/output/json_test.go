@@ -15,8 +15,8 @@ func TestPrintJSONIncludesLegendAndMetadata(t *testing.T) {
 	report.Tools[0] = model.ToolSummary{
 		ID: "kubectl",
 		Metadata: model.ToolMetadata{
-			Purpose:        "Kubernetes CLI.",
-			AgentActions:   []string{"inspect_status", "show_current"},
+			Purpose:                  "Kubernetes CLI.",
+			AgentActions:             []string{"inspect_status", "show_current"},
 			CurrentFieldDescriptions: map[string]string{"context": "The active kubeconfig context name."},
 		},
 	}

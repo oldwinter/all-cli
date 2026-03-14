@@ -8,6 +8,7 @@ import (
 	"github.com/oldwinter/all-cli/internal/model"
 )
 
+// FindByID looks up a tool definition by its unique ID.
 func FindByID(id string) (ToolDefinition, bool) {
 	for _, def := range DefaultRegistry() {
 		if def.ID == id {
@@ -17,6 +18,7 @@ func FindByID(id string) (ToolDefinition, bool) {
 	return ToolDefinition{}, false
 }
 
+// Evaluate checks whether a tool is installed and configured, returning a ToolSummary.
 func Evaluate(ctx context.Context, def ToolDefinition, runner execx.Runner) model.ToolSummary {
 	installPath, err := execx.LookPath(def.Binary)
 	installed := err == nil

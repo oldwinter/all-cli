@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// CmdResult holds the outcome of an external command execution.
 type CmdResult struct {
 	Stdout   string
 	Stderr   string
@@ -15,12 +16,15 @@ type CmdResult struct {
 	Err      error
 }
 
+// OK returns true when the command exited with code 0 and no error.
 func (r CmdResult) OK() bool { return r.Err == nil && r.ExitCode == 0 }
 
+// Runner abstracts external command execution for testing.
 type Runner interface {
 	Run(ctx context.Context, name string, args ...string) CmdResult
 }
 
+// DefaultRunner executes commands via os/exec.
 type DefaultRunner struct{}
 
 func (DefaultRunner) Run(ctx context.Context, name string, args ...string) CmdResult {
@@ -55,10 +59,12 @@ func (DefaultRunner) Run(ctx context.Context, name string, args ...string) CmdRe
 	}
 }
 
+// LookPath searches for an executable in PATH.
 func LookPath(name string) (string, error) {
 	return exec.LookPath(name)
 }
 
+// TimeoutRunner wraps another Runner with a per-call timeout.
 type TimeoutRunner struct {
 	Runner  Runner
 	Timeout time.Duration

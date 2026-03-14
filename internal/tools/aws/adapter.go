@@ -114,4 +114,3 @@ func (a Adapter) configureGetOptional(ctx context.Context, profile, key string) 
 	}
 	return strings.TrimSpace(res.Stdout), nil, nil, nil
 }
-

@@ -291,4 +291,3 @@ func parseProtocolTokenAfter(line, needle string) string {
 	}
 	return strings.TrimSpace(fields[0])
 }
-

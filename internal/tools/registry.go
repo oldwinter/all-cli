@@ -102,6 +102,8 @@ func toolWithCurrent(id, displayName, category, binary string, caps model.Capabi
 	}
 }
 
+// ToolDefinition describes a CLI tool: its binary, capabilities, and how to
+// check its configuration and current context.
 type ToolDefinition struct {
 	ID          string
 	DisplayName string
@@ -115,6 +117,7 @@ type ToolDefinition struct {
 	Current     func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string)
 }
 
+// DefaultRegistry returns the built-in list of tracked CLI tools.
 func DefaultRegistry() []ToolDefinition {
 	return []ToolDefinition{
 		toolNA("fd", "fd", "navigation", "fd"),
@@ -342,4 +345,3 @@ func argocdTool() ToolDefinition {
 		func(r execx.Runner) ToolAdapter { return argocd.New(r) },
 	)
 }
-
