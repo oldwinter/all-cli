@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -117,5 +118,75 @@ func TestRunnerForToolUsesDefaultTimeoutWhenNoOverride(t *testing.T) {
 	}
 	if timeoutRunner.Timeout != 5*time.Second {
 		t.Fatalf("timeout = %v, want %v", timeoutRunner.Timeout, 5*time.Second)
+	}
+}
+
+func TestParseToolsFilter(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantIDs []string
+		ok      bool
+	}{
+		{name: "single valid", input: "kubectl", wantIDs: []string{"kubectl"}, ok: true},
+		{name: "multiple valid", input: "kubectl,docker", wantIDs: []string{"docker", "kubectl"}, ok: true},
+		{name: "with spaces", input: " kubectl , docker ", wantIDs: []string{"docker", "kubectl"}, ok: true},
+		{name: "unknown tool", input: "nonexistent", ok: false},
+		{name: "mixed valid and unknown", input: "kubectl,nonexistent", ok: false},
+		{name: "empty string", input: "", ok: false},
+		{name: "only commas", input: ",,", ok: false},
+	}
+
+	for _, tt := range tests {
+		got, err := parseToolsFilter(tt.input)
+		if tt.ok && err != nil {
+			t.Fatalf("%s: unexpected error: %v", tt.name, err)
+		}
+		if !tt.ok && err == nil {
+			t.Fatalf("%s: expected error", tt.name)
+		}
+		if tt.ok {
+			gotIDs := make([]string, 0, len(got))
+			for id := range got {
+				gotIDs = append(gotIDs, id)
+			}
+			sort.Strings(gotIDs)
+			sort.Strings(tt.wantIDs)
+			if len(gotIDs) != len(tt.wantIDs) {
+				t.Fatalf("%s: got %v, want %v", tt.name, gotIDs, tt.wantIDs)
+			}
+			for i := range gotIDs {
+				if gotIDs[i] != tt.wantIDs[i] {
+					t.Fatalf("%s: got %v, want %v", tt.name, gotIDs, tt.wantIDs)
+				}
+			}
+		}
+	}
+}
+
+func TestSortToolSummariesCategory(t *testing.T) {
+	toolsList := []model.ToolSummary{
+		{ID: "kubectl", Category: "k8s"},
+		{ID: "aws", Category: "cloud"},
+		{ID: "glab", Category: "code"},
+		{ID: "gh", Category: "code"},
+	}
+
+	sortToolSummaries(toolsList, statusSortCategory)
+	got := []string{toolsList[0].Category, toolsList[1].Category, toolsList[2].Category, toolsList[3].Category}
+	want := []string{"cloud", "code", "code", "k8s"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("category sort: got %v, want %v", got, want)
+		}
+	}
+
+	sortToolSummaries(toolsList, statusSortCategoryDesc)
+	got = []string{toolsList[0].Category, toolsList[1].Category, toolsList[2].Category, toolsList[3].Category}
+	want = []string{"k8s", "code", "code", "cloud"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("category desc sort: got %v, want %v", got, want)
+		}
 	}
 }

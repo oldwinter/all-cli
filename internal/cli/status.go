@@ -29,6 +29,8 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
 	var groupBy string
 	var sortBy string
+	var quiet bool
+	var installedOnly bool
 
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -90,6 +92,26 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 
 			sortToolSummaries(report.Tools, sortByValue)
 
+			if installedOnly {
+				filtered := report.Tools[:0]
+				for _, t := range report.Tools {
+					if t.Installed {
+						filtered = append(filtered, t)
+					}
+				}
+				report.Tools = filtered
+			}
+			if quiet {
+				filtered := report.Tools[:0]
+				for _, t := range report.Tools {
+					if !t.Installed || t.ConfiguredState == model.ConfiguredNo ||
+						len(t.Warnings) > 0 || len(t.Errors) > 0 {
+						filtered = append(filtered, t)
+					}
+				}
+				report.Tools = filtered
+			}
+
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
@@ -104,6 +126,8 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to check (e.g. kubectl,docker)")
 	cmd.Flags().StringVar(&groupBy, "group-by", statusGroupByCategory, "Group output: category|none")
 	cmd.Flags().StringVar(&sortBy, "sort", statusSortTool, "Sort order: tool|tool-desc|category|category-desc")
+	cmd.Flags().BoolVar(&quiet, "quiet", false, "Only show tools with issues (not installed, unconfigured, warnings, or errors)")
+	cmd.Flags().BoolVar(&installedOnly, "installed-only", false, "Only show installed tools")
 	return cmd
 }
 
