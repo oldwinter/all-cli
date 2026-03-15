@@ -7,7 +7,6 @@ import (
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/output"
-	"github.com/oldwinter/all-cli/internal/tools"
 	"github.com/oldwinter/all-cli/internal/tools/docker"
 	"github.com/spf13/cobra"
 )
@@ -31,19 +30,7 @@ func newDockerStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 		Use:   "status",
 		Short: "Show docker status and current context",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			runnerT := execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout}
-			def, ok := tools.FindByID("docker")
-			if !ok {
-				return fmt.Errorf("docker tool definition not found")
-			}
-			summary := tools.Evaluate(cmd.Context(), def, runnerT)
-			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), summary)
-			}
-			report := model.NewStatusReport(1)
-			report.Tools[0] = summary
-			output.PrintStatusTable(cmd.OutOrStdout(), report)
-			return nil
+			return runSingleToolStatusCommand(cmd, opts, runner, "docker")
 		},
 	}
 }
@@ -55,19 +42,16 @@ func newDockerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, warnings, errs, err := a.Current(ctx)
+			cur, _, errs, err := a.Current(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
-					"warnings": warnings,
+					"warnings": []string(nil),
 					"errors":   errs,
 				})
-			}
-			for _, w := range warnings {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
 			}
 			for _, e := range errs {
 				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)

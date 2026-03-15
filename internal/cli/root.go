@@ -37,6 +37,11 @@ func NewRootCommand() *cobra.Command {
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newCompletionCommand())
 
+	cmd.AddCommand(newAWSCommand(opts, runner))
+	cmd.AddCommand(newAliyunCommand(opts, runner))
+	cmd.AddCommand(newWranglerCommand(opts, runner))
+	cmd.AddCommand(newMiseCommand(opts, runner))
+	cmd.AddCommand(newK9sCommand(opts, runner))
 	cmd.AddCommand(newKubectlCommand(opts, runner))
 	cmd.AddCommand(newDockerCommand(opts, runner))
 	cmd.AddCommand(newGHCommand(opts, runner))

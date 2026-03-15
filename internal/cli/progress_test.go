@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -110,5 +111,79 @@ func TestProgressSpinner_ClearsLineOnEachUpdate(t *testing.T) {
 
 	if !strings.HasPrefix(first, "\r\033[K") {
 		t.Fatalf("expected spinner update to clear line (\\r\\033[K prefix), got %q", first)
+	}
+}
+
+func TestProgressSpinner_ShowsLastTool(t *testing.T) {
+	w := newCaptureWriter()
+	p := newProgressSpinner(w, 2)
+	p.Inc("kubectl")
+	p.Start()
+	defer p.Stop()
+
+	var first string
+	select {
+	case first = <-w.ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("spinner did not write within timeout")
+	}
+
+	if !strings.Contains(first, "(last: kubectl)") {
+		t.Fatalf("expected last tool in spinner output, got %q", first)
+	}
+}
+
+func TestProgressSpinner_IncUpdatesCounters(t *testing.T) {
+	p := newProgressSpinner(&bytes.Buffer{}, 3)
+
+	p.Inc("kubectl")
+	p.Inc("")
+
+	if got := p.done.Load(); got != 2 {
+		t.Fatalf("done = %d, want 2", got)
+	}
+	last, _ := p.last.Load().(string)
+	if last != "kubectl" {
+		t.Fatalf("last = %q, want %q", last, "kubectl")
+	}
+}
+
+func TestIsTerminalFalseOnClosedFile(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "closed")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	name := f.Name()
+	if err := f.Close(); err != nil {
+		t.Fatalf("close temp: %v", err)
+	}
+	_ = name
+
+	if isTerminal(f) {
+		t.Fatal("expected closed file to be non-terminal")
+	}
+}
+
+func TestIsTerminalFalseOnRegularFile(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "regular")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer f.Close()
+
+	if isTerminal(f) {
+		t.Fatal("expected regular file to be non-terminal")
+	}
+}
+
+func TestIsTerminalTrueOnDevNull(t *testing.T) {
+	f, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatalf("open /dev/null: %v", err)
+	}
+	defer f.Close()
+
+	if !isTerminal(f) {
+		t.Fatal("expected /dev/null to be treated as a character device")
 	}
 }

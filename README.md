@@ -187,6 +187,43 @@ all-cli glab list
 all-cli glab use <host>
 ```
 
+### aws
+
+```bash
+all-cli aws status
+all-cli aws current
+all-cli aws list
+```
+
+### aliyun
+
+```bash
+all-cli aliyun status
+all-cli aliyun current
+all-cli aliyun list
+```
+
+### wrangler
+
+```bash
+all-cli wrangler status
+all-cli wrangler current
+```
+
+### mise
+
+```bash
+all-cli mise status
+all-cli mise current
+```
+
+### k9s
+
+```bash
+all-cli k9s status
+all-cli k9s current
+```
+
 ### argocd
 
 ```bash

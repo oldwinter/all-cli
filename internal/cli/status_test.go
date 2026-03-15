@@ -190,3 +190,70 @@ func TestSortToolSummariesCategory(t *testing.T) {
 		}
 	}
 }
+
+func TestSortToolSummariesDefaultFallback(t *testing.T) {
+	toolsList := []model.ToolSummary{
+		{ID: "b", Category: "x"},
+		{ID: "a", Category: "y"},
+	}
+
+	sortToolSummaries(toolsList, "unknown")
+	if toolsList[0].ID != "a" || toolsList[1].ID != "b" {
+		t.Fatalf("unexpected default sort order: %#v", toolsList)
+	}
+}
+
+func TestDedupeMessages(t *testing.T) {
+	got := dedupeMessages([]string{" warning ", "warning", "", "error", "error"})
+	want := []string{"warning", "error"}
+	if len(got) != len(want) {
+		t.Fatalf("unexpected length: got %#v want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %#v want %#v", got, want)
+		}
+	}
+}
+
+func TestSortToolSummariesToolDescTieBreak(t *testing.T) {
+	toolsList := []model.ToolSummary{
+		{ID: "a", Category: "z"},
+		{ID: "a", Category: "b"},
+	}
+
+	sortToolSummaries(toolsList, statusSortToolDesc)
+	if toolsList[0].Category != "b" || toolsList[1].Category != "z" {
+		t.Fatalf("unexpected tool-desc tiebreak order: %#v", toolsList)
+	}
+}
+
+func TestSortToolSummariesCategoryDescTieBreak(t *testing.T) {
+	toolsList := []model.ToolSummary{
+		{ID: "z", Category: "code"},
+		{ID: "a", Category: "code"},
+	}
+
+	sortToolSummaries(toolsList, statusSortCategoryDesc)
+	if toolsList[0].ID != "a" || toolsList[1].ID != "z" {
+		t.Fatalf("unexpected category-desc tiebreak order: %#v", toolsList)
+	}
+}
+
+func TestSortToolSummariesToolTieBreakByCategory(t *testing.T) {
+	toolsList := []model.ToolSummary{
+		{ID: "aws", Category: "z"},
+		{ID: "aws", Category: "a"},
+	}
+
+	sortToolSummaries(toolsList, statusSortTool)
+	if toolsList[0].Category != "a" || toolsList[1].Category != "z" {
+		t.Fatalf("unexpected tool tiebreak order: %#v", toolsList)
+	}
+}
+
+func TestShowStatusSpinnerDefaultFunction(t *testing.T) {
+	if got := showStatusSpinner(); got {
+		t.Fatalf("expected non-terminal stderr to disable spinner")
+	}
+}

@@ -32,10 +32,7 @@ func newGLabStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
+			cur, warnings, errs, _ := a.Current(ctx)
 
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{

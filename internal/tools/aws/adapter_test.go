@@ -120,3 +120,50 @@ func TestAdapterCurrent_IgnoresUnsetOptionalOutput(t *testing.T) {
 		t.Fatalf("expected output to be omitted when unset, got %#v", cur)
 	}
 }
+
+func TestAdapterListProfiles_Success(t *testing.T) {
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"aws configure list-profiles": {
+				Stdout: "default\nprod\n",
+			},
+		},
+	})
+
+	profiles, warnings, errs, err := a.ListProfiles(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v %#v", warnings, errs)
+	}
+	if len(profiles) != 2 || profiles[0] != "default" || profiles[1] != "prod" {
+		t.Fatalf("unexpected profiles: %#v", profiles)
+	}
+}
+
+func TestAdapterListProfiles_Failure(t *testing.T) {
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"aws configure list-profiles": {
+				ExitCode: 1,
+				Err:      errors.New("exit status 1"),
+				Stderr:   "broken config",
+			},
+		},
+	})
+
+	profiles, warnings, errs, err := a.ListProfiles(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if len(profiles) != 0 {
+		t.Fatalf("expected no profiles, got %#v", profiles)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %#v", warnings)
+	}
+	if len(errs) != 1 || errs[0] != "broken config" {
+		t.Fatalf("unexpected errs: %#v", errs)
+	}
+}

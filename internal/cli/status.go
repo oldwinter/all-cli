@@ -25,6 +25,13 @@ const (
 	statusSortCategoryDesc = "category-desc"
 )
 
+var (
+	defaultRegistry   = tools.DefaultRegistry
+	showStatusSpinner = func() bool {
+		return isTerminal(os.Stderr)
+	}
+)
+
 func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
 	var groupBy string
@@ -45,7 +52,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				return err
 			}
 
-			reg := tools.DefaultRegistry()
+			reg := defaultRegistry()
 			if strings.TrimSpace(toolsFilter) != "" {
 				filterSet, err := parseToolsFilter(toolsFilter)
 				if err != nil {
@@ -57,9 +64,6 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 						filtered = append(filtered, def)
 					}
 				}
-				if len(filtered) == 0 {
-					return fmt.Errorf("no tools matched --tools=%q", toolsFilter)
-				}
 				reg = filtered
 			}
 
@@ -67,7 +71,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			report.GeneratedAt = time.Now()
 
 			var spinner *progressSpinner
-			if !opts.JSON && isTerminal(os.Stderr) {
+			if !opts.JSON && showStatusSpinner() {
 				spinner = newProgressSpinner(cmd.ErrOrStderr(), len(reg))
 				spinner.Start()
 			}
@@ -78,7 +82,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				wg.Add(1)
 				go func(i int, def tools.ToolDefinition) {
 					defer wg.Done()
-					report.Tools[i] = tools.Evaluate(baseCtx, def, runnerForTool(runner, opts.Timeout, def))
+					report.Tools[i] = evaluateToolSummary(baseCtx, def, runnerForTool(runner, opts.Timeout, def))
 					if spinner != nil {
 						spinner.Inc(def.ID)
 					}
@@ -154,7 +158,7 @@ func parseToolsFilter(s string) (map[string]bool, error) {
 
 	// Validate IDs
 	valid := map[string]bool{}
-	for _, def := range tools.DefaultRegistry() {
+	for _, def := range defaultRegistry() {
 		valid[def.ID] = true
 	}
 	var unknown []string

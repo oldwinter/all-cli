@@ -7,7 +7,6 @@ import (
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/output"
-	"github.com/oldwinter/all-cli/internal/tools"
 	"github.com/oldwinter/all-cli/internal/tools/kubectl"
 	"github.com/spf13/cobra"
 )
@@ -32,19 +31,7 @@ func newKubectlStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 		Use:   "status",
 		Short: "Show kubectl status and current context",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			runnerT := execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout}
-			def, ok := tools.FindByID("kubectl")
-			if !ok {
-				return fmt.Errorf("kubectl tool definition not found")
-			}
-			summary := tools.Evaluate(cmd.Context(), def, runnerT)
-			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), summary)
-			}
-			report := model.NewStatusReport(1)
-			report.Tools[0] = summary
-			output.PrintStatusTable(cmd.OutOrStdout(), report)
-			return nil
+			return runSingleToolStatusCommand(cmd, opts, runner, "kubectl")
 		},
 	}
 }
@@ -56,19 +43,13 @@ func newKubectlCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Com
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
+			cur, _, errs, _ := a.Current(ctx)
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
-					"warnings": warnings,
+					"warnings": []string(nil),
 					"errors":   errs,
 				})
-			}
-			for _, w := range warnings {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
 			}
 			for _, e := range errs {
 				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
@@ -92,7 +73,7 @@ func newKubectlListCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 			ctx := cmd.Context()
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
 
-			contexts, warnings, errs, err := a.ListContexts(ctx)
+			contexts, _, errs, err := a.ListContexts(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
@@ -115,13 +96,9 @@ func newKubectlListCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"contexts": items,
-					"warnings": warnings,
+					"warnings": []string(nil),
 					"errors":   errs,
 				})
-			}
-
-			for _, w := range warnings {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
 			}
 			for _, e := range errs {
 				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
