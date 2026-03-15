@@ -20,7 +20,7 @@
 - Without `just`: `go test ./...`, `go vet ./...`, `go build ./cmd/all-cli`.
 
 ## Coding Style & Naming Conventions
-- Target Go `1.25` (see `go.mod`).
+- Target Go `1.26.1` (see `go.mod`).
 - Always format with `gofmt` (`just fmt` or `just fmt-check` in pre-PR checks).
 - Follow Go naming defaults: package names lowercase, exported identifiers in `CamelCase`, test names `TestXxx`.
 - Keep command constructors in `internal/cli` as `new<Name>Command`.
@@ -48,6 +48,6 @@ This is a pure Go CLI with zero runtime service dependencies. The update script 
 
 - **Service**: `all-cli` — a standalone CLI binary; no servers, databases, or Docker required.
 - **Build & run**: see `justfile` recipes or the "Build, Test, and Development Commands" section above. `just ci` is the fastest way to verify correctness; `just smoke` builds and runs a quick sanity check.
-- **Go toolchain**: The project requires Go 1.25 (declared in `go.mod`). The Go toolchain auto-downloads the correct version on first use, so no manual version management is needed.
+- **Go toolchain**: The project requires Go 1.26.1 (declared in `go.mod`). The Go toolchain auto-downloads the correct version on first use, so no manual version management is needed.
 - **justfile quirk**: All Go commands in the justfile use `env -u GOROOT -u GOTOOLDIR go` to avoid stale shell variable mismatches. Run `just go-env` to debug toolchain issues.
 - **No external services**: The CLI shells out to other tools (kubectl, docker, gh, etc.) to inspect their status at runtime, but none of these are required for building or testing `all-cli` itself.

@@ -155,7 +155,7 @@ Notes:
 - Effective tool versions for the current directory/shell environment.
 
 ### Read current (v0.1)
-- `mise current` parsed into a map like `go=1.26.0`, `node=22.20.0`, etc.
+- `mise current` parsed into a map like `go=1.26.1`, `node=25.8.1`, etc.
 
 ## k9s
 
