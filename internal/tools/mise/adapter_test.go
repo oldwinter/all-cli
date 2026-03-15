@@ -26,8 +26,8 @@ func (f fakeRunner) Run(_ context.Context, name string, args ...string) execx.Cm
 
 func TestParseMiseCurrent(t *testing.T) {
 	stdout := `bun 1.3.0
-go 1.26.0
-node 22.20.0
+go 1.26.1
+node 25.8.1
 python 3.14.0
 `
 	cur, warnings, errs, err := parseMiseCurrent(stdout)
@@ -40,15 +40,15 @@ python 3.14.0
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errs: %#v", errs)
 	}
-	if cur["go"] != "1.26.0" || cur["python"] != "3.14.0" {
+	if cur["go"] != "1.26.1" || cur["python"] != "3.14.0" {
 		t.Fatalf("unexpected current map: %#v", cur)
 	}
 }
 
 func TestParseMiseCurrent_WarnsOnMalformedLine(t *testing.T) {
-	stdout := `go 1.26.0
+	stdout := `go 1.26.1
 broken-line
-node 22.20.0
+node 25.8.1
 `
 	cur, warnings, errs, err := parseMiseCurrent(stdout)
 	if err != nil {
@@ -57,7 +57,7 @@ node 22.20.0
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errs: %#v", errs)
 	}
-	if cur["go"] != "1.26.0" || cur["node"] != "22.20.0" {
+	if cur["go"] != "1.26.1" || cur["node"] != "25.8.1" {
 		t.Fatalf("unexpected current map: %#v", cur)
 	}
 	if len(warnings) != 1 || warnings[0] != "unexpected mise current output line: broken-line" {

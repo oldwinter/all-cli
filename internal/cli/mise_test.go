@@ -20,7 +20,7 @@ func TestMiseStatusJSON(t *testing.T) {
 		ConfiguredState: model.ConfiguredNA,
 		Configured:      true,
 		Capabilities:    model.Capability{HasContexts: true},
-		Current:         map[string]string{"go": "1.26.0"},
+		Current:         map[string]string{"go": "1.26.1"},
 	}
 	stubToolEvaluation(t, "mise", summary)
 
@@ -37,7 +37,7 @@ func TestMiseStatusJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
-	if got.ID != "mise" || got.Current["go"] != "1.26.0" {
+	if got.ID != "mise" || got.Current["go"] != "1.26.1" {
 		t.Fatalf("unexpected summary: %#v", got)
 	}
 }
@@ -74,7 +74,7 @@ func TestMiseCurrentJSON(t *testing.T) {
 	runner := cliFakeRunner{
 		results: map[string]execx.CmdResult{
 			"mise current": {
-				Stdout: "node 22.20.0\ngo 1.26.0\n",
+				Stdout: "node 25.8.1\ngo 1.26.1\n",
 			},
 		},
 	}
@@ -93,7 +93,7 @@ func TestMiseCurrentJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
-	if got.Current["go"] != "1.26.0" || got.Current["node"] != "22.20.0" {
+	if got.Current["go"] != "1.26.1" || got.Current["node"] != "25.8.1" {
 		t.Fatalf("unexpected current: %#v", got.Current)
 	}
 }
@@ -103,7 +103,7 @@ func TestMiseCurrentPlainSorted(t *testing.T) {
 	runner := cliFakeRunner{
 		results: map[string]execx.CmdResult{
 			"mise current": {
-				Stdout: "python 3.14.0\ngo 1.26.0\nnode 22.20.0\n",
+				Stdout: "python 3.14.0\ngo 1.26.1\nnode 25.8.1\n",
 			},
 		},
 	}
@@ -117,7 +117,7 @@ func TestMiseCurrentPlainSorted(t *testing.T) {
 	}
 
 	lines := strings.Split(strings.TrimSpace(stdout), "\n")
-	want := []string{"go: 1.26.0", "node: 22.20.0", "python: 3.14.0"}
+	want := []string{"go: 1.26.1", "node: 25.8.1", "python: 3.14.0"}
 	if len(lines) != len(want) {
 		t.Fatalf("unexpected output lines: %#v", lines)
 	}
@@ -133,7 +133,7 @@ func TestMiseCurrentPlainWithWarning(t *testing.T) {
 	runner := cliFakeRunner{
 		results: map[string]execx.CmdResult{
 			"mise current": {
-				Stdout: "go 1.26.0\nbroken-line\n",
+				Stdout: "go 1.26.1\nbroken-line\n",
 			},
 		},
 	}
@@ -142,7 +142,7 @@ func TestMiseCurrentPlainWithWarning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(stdout, "go: 1.26.0") {
+	if !strings.Contains(stdout, "go: 1.26.1") {
 		t.Fatalf("unexpected stdout:\n%s", stdout)
 	}
 	if !strings.Contains(stderr, "warning: unexpected mise current output line: broken-line") {
