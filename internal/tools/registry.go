@@ -196,33 +196,6 @@ func toolNA(id, displayName, category, binary string) ToolDefinition {
 	}
 }
 
-func toolCommandConfigured(id, displayName, category, binary string, fn func(ctx context.Context, runner execx.Runner) (bool, []string, []string, error)) ToolDefinition {
-	return ToolDefinition{
-		ID:          id,
-		DisplayName: displayName,
-		Category:    category,
-		Binary:      binary,
-		Capabilities: model.Capability{
-			HasContexts: false,
-			CanSwitch:   false,
-		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			ok, warnings, errs, err := fn(ctx, runner)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if ok {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
-		},
-	}
-}
-
 func toolFileConfigured(id, displayName, category, binary string, fn func() (bool, []string, []string)) ToolDefinition {
 	return ToolDefinition{
 		ID:          id,
