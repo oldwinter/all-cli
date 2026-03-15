@@ -47,9 +47,6 @@ func newGHStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				return output.PrintJSON(cmd.OutOrStdout(), ghStatusOutput{Hosts: st.Hosts, Warnings: warnings, Errors: errs})
 			}
 
-			for _, w := range warnings {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
-			}
 			for _, e := range errs {
 				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
 			}

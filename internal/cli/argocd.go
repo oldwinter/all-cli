@@ -7,7 +7,6 @@ import (
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/output"
-	"github.com/oldwinter/all-cli/internal/tools"
 	"github.com/oldwinter/all-cli/internal/tools/argocd"
 	"github.com/spf13/cobra"
 )
@@ -31,19 +30,7 @@ func newArgoCDStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 		Use:   "status",
 		Short: "Show argocd status and current context",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			runnerT := execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout}
-			def, ok := tools.FindByID("argocd")
-			if !ok {
-				return fmt.Errorf("argocd tool definition not found")
-			}
-			summary := tools.Evaluate(cmd.Context(), def, runnerT)
-			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), summary)
-			}
-			report := model.NewStatusReport(1)
-			report.Tools[0] = summary
-			output.PrintStatusTable(cmd.OutOrStdout(), report)
-			return nil
+			return runSingleToolStatusCommand(cmd, opts, runner, "argocd")
 		},
 	}
 }
@@ -128,12 +115,7 @@ func newArgoCDListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				if c.IsCurrent {
 					mark = "*"
 				}
-				server := strings.TrimSpace(c.Server)
-				if server != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s %s (server=%s)\n", mark, c.Name, server)
-				} else {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", mark, c.Name)
-				}
+				fmt.Fprintf(cmd.OutOrStdout(), "%s %s (server=%s)\n", mark, c.Name, strings.TrimSpace(c.Server))
 			}
 			return nil
 		},

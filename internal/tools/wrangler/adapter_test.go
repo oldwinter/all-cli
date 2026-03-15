@@ -98,3 +98,53 @@ Getting User settings...
 		t.Fatalf("expected 3 ids, got %d: %#v", len(got.AccountIDs), got.AccountIDs)
 	}
 }
+
+func TestCurrentWarnsOnMultipleAccounts(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				Stdout: `{"loggedIn":true,"accounts":[{"id":"3ba1294bcdfb7a6f8c113ebc120411df"},{"id":"2371c3163e63aba96bd280648d9ffffc"}]}`,
+			},
+		},
+	})
+
+	cur, warnings, errs, err := a.Current(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errs: %#v", errs)
+	}
+	if cur["logged_in"] != "yes" || cur["accounts_count"] != "2" {
+		t.Fatalf("unexpected current: %#v", cur)
+	}
+	if _, ok := cur["account_id"]; ok {
+		t.Fatalf("did not expect single account_id when multiple accounts exist: %#v", cur)
+	}
+	if len(warnings) != 1 || warnings[0] != "multiple wrangler accounts detected; no single global default" {
+		t.Fatalf("unexpected warnings: %#v", warnings)
+	}
+}
+
+func TestWhoamiPropagatesTimeout(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				ExitCode: 1,
+				Err:      context.DeadlineExceeded,
+			},
+		},
+	})
+
+	_, warnings, errs, err := a.Whoami(context.Background())
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected deadline exceeded, got %v", err)
+	}
+	if len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v %#v", warnings, errs)
+	}
+}
