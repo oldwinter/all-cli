@@ -34,6 +34,9 @@ func TestDefaultRegistryIncludesToolsFromToolsMD(t *testing.T) {
 		"yq":            {category: "shell", binary: "yq"},
 		"kubefwd":       {category: "k8s", binary: "kubefwd"},
 		"kubeshark":     {category: "k8s", binary: "kubeshark"},
+		"vercel":        {category: "cloud", binary: "vercel"},
+		"railway":       {category: "cloud", binary: "railway"},
+		"netlify":       {category: "cloud", binary: "netlify"},
 	}
 
 	for id, want := range expected {
