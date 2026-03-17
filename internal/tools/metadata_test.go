@@ -26,6 +26,47 @@ func TestMetadataForToolKubectl(t *testing.T) {
 	}
 }
 
+func TestMetadataForCloudPlatformTools(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		id         string
+		field      string
+		wantAction string
+	}{
+		{id: "vercel", field: "email", wantAction: "show_current"},
+		{id: "railway", field: "email", wantAction: "show_current"},
+		{id: "netlify", field: "email", wantAction: "show_current"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.id, func(t *testing.T) {
+			meta := MetadataForTool(tt.id)
+
+			if meta.Purpose == "" {
+				t.Fatalf("expected purpose for %s", tt.id)
+			}
+			if meta.ConfiguredWhen == "" {
+				t.Fatalf("expected configured_when for %s", tt.id)
+			}
+			if meta.CurrentFieldDescriptions[tt.field] == "" {
+				t.Fatalf("expected current field description for %s.%s", tt.id, tt.field)
+			}
+
+			found := false
+			for _, action := range meta.AgentActions {
+				if action == tt.wantAction {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("expected %s action for %s, got %#v", tt.wantAction, tt.id, meta.AgentActions)
+			}
+		})
+	}
+}
+
 func TestEvaluateAddsMetadataToToolSummary(t *testing.T) {
 	t.Parallel()
 

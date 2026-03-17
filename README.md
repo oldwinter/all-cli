@@ -9,9 +9,9 @@
 - `argocd` (Argo CD CLI contexts)
 - `kargo` (default project)
 
-It also detects “current context” for other common tools in `all-cli status` (read-only), including `aws`, `aliyun`, `wrangler`, `argocd`, `kargo`, `mise`, and `k9s`.
+It also detects “current context” for other common tools in `all-cli status` (read-only), including `aws`, `aliyun`, `wrangler`, `vercel`, `railway`, `netlify`, `argocd`, `kargo`, `mise`, and `k9s`.
 
-The inventory is intentionally broader than the context-switching set. It now also tracks common local CLIs grouped by category, including navigation (`fd`, `rg`, `fzf`, `zoxide`), shell/data helpers (`eza`, `bat`, `yq`), task/runtime tools (`uv`, `just`, `mise`), Kubernetes helpers (`kubectx`, `kubens`, `kubecolor`, `krew`), AI terminals (`claude`, `codex`, `openclaw`, `opencode`, `gemini`, `ccusage`, `litellm-proxy`), and a few workflow tools such as `linear` and `simplex-cli`.
+The inventory is intentionally broader than the context-switching set. It now also tracks common local CLIs grouped by category, including navigation (`fd`, `rg`, `fzf`, `zoxide`), shell/data helpers (`eza`, `bat`, `yq`), task/runtime tools (`uv`, `just`, `mise`), cloud/deployment CLIs (`aws`, `aliyun`, `wrangler`, `vercel`, `railway`, `netlify`), Kubernetes helpers (`kubectx`, `kubens`, `kubecolor`, `krew`), AI terminals (`claude`, `codex`, `openclaw`, `opencode`, `gemini`, `ccusage`, `litellm-proxy`), and a few workflow tools such as `linear` and `simplex-cli`.
 
 It defaults to human-friendly output and supports `--json` for stable machine-readable output (e.g. a future SwiftUI macOS app).
 

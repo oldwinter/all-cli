@@ -21,6 +21,9 @@ import (
 	"github.com/oldwinter/all-cli/internal/tools/kargo"
 	"github.com/oldwinter/all-cli/internal/tools/kubectl"
 	"github.com/oldwinter/all-cli/internal/tools/mise"
+	"github.com/oldwinter/all-cli/internal/tools/netlify"
+	"github.com/oldwinter/all-cli/internal/tools/railway"
+	"github.com/oldwinter/all-cli/internal/tools/vercel"
 	"github.com/oldwinter/all-cli/internal/tools/wrangler"
 )
 
@@ -62,6 +65,9 @@ func DefaultRegistry() []ToolDefinition {
 		awsTool(),
 		aliyunTool(),
 		wranglerTool(),
+		vercelTool(),
+		railwayTool(),
+		netlifyTool(),
 
 		toolNA("eksctl", "eksctl", "k8s", "eksctl"),
 		kubectlTool(),
@@ -551,6 +557,168 @@ func wranglerTool() ToolDefinition {
 			}
 			cur, moreWarnings := wranglerCurrentFromWhoami(w)
 			warnings = append(warnings, moreWarnings...)
+			return cur, warnings, errs
+		},
+	}
+}
+
+func vercelTool() ToolDefinition {
+	var (
+		once   sync.Once
+		cached vercel.Whoami
+		cWarn  []string
+		cErrs  []string
+		cErr   error
+	)
+	get := func(ctx context.Context, runner execx.Runner) (vercel.Whoami, []string, []string, error) {
+		once.Do(func() {
+			a := vercel.New(runner)
+			cached, cWarn, cErrs, cErr = a.Whoami(ctx)
+		})
+		return cached, cWarn, cErrs, cErr
+	}
+
+	return ToolDefinition{
+		ID:          "vercel",
+		DisplayName: "Vercel CLI",
+		Category:    "cloud",
+		Binary:      "vercel",
+		Timeout:     10 * time.Second,
+		Capabilities: model.Capability{
+			HasContexts: true,
+			CanSwitch:   false,
+		},
+		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
+			if !installed {
+				return model.ConfiguredUnknown, nil, nil
+			}
+			who, warnings, errs, err := get(ctx, runner)
+			if err != nil {
+				errs = append(errs, err.Error())
+				return model.ConfiguredUnknown, warnings, errs
+			}
+			if strings.TrimSpace(who.Username) != "" || strings.TrimSpace(who.Email) != "" {
+				return model.ConfiguredYes, warnings, errs
+			}
+			return model.ConfiguredNo, warnings, errs
+		},
+		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
+			if !installed {
+				return nil, nil, nil
+			}
+			a := vercel.New(runner)
+			cur, warnings, errs, err := a.Current(ctx)
+			if err != nil {
+				errs = append(errs, err.Error())
+			}
+			return cur, warnings, errs
+		},
+	}
+}
+
+func railwayTool() ToolDefinition {
+	var (
+		once   sync.Once
+		cached railway.Whoami
+		cWarn  []string
+		cErrs  []string
+		cErr   error
+	)
+	get := func(ctx context.Context, runner execx.Runner) (railway.Whoami, []string, []string, error) {
+		once.Do(func() {
+			a := railway.New(runner)
+			cached, cWarn, cErrs, cErr = a.Whoami(ctx)
+		})
+		return cached, cWarn, cErrs, cErr
+	}
+
+	return ToolDefinition{
+		ID:          "railway",
+		DisplayName: "Railway CLI",
+		Category:    "cloud",
+		Binary:      "railway",
+		Timeout:     10 * time.Second,
+		Capabilities: model.Capability{
+			HasContexts: true,
+			CanSwitch:   false,
+		},
+		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
+			if !installed {
+				return model.ConfiguredUnknown, nil, nil
+			}
+			who, warnings, errs, err := get(ctx, runner)
+			if err != nil {
+				errs = append(errs, err.Error())
+				return model.ConfiguredUnknown, warnings, errs
+			}
+			if strings.TrimSpace(who.Email) != "" {
+				return model.ConfiguredYes, warnings, errs
+			}
+			return model.ConfiguredNo, warnings, errs
+		},
+		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
+			if !installed {
+				return nil, nil, nil
+			}
+			a := railway.New(runner)
+			cur, warnings, errs, err := a.Current(ctx)
+			if err != nil {
+				errs = append(errs, err.Error())
+			}
+			return cur, warnings, errs
+		},
+	}
+}
+
+func netlifyTool() ToolDefinition {
+	var (
+		once   sync.Once
+		cached netlify.CurrentUser
+		cWarn  []string
+		cErrs  []string
+		cErr   error
+	)
+	get := func(ctx context.Context, runner execx.Runner) (netlify.CurrentUser, []string, []string, error) {
+		once.Do(func() {
+			a := netlify.New(runner)
+			cached, cWarn, cErrs, cErr = a.CurrentUser(ctx)
+		})
+		return cached, cWarn, cErrs, cErr
+	}
+
+	return ToolDefinition{
+		ID:          "netlify",
+		DisplayName: "Netlify CLI",
+		Category:    "cloud",
+		Binary:      "netlify",
+		Timeout:     10 * time.Second,
+		Capabilities: model.Capability{
+			HasContexts: true,
+			CanSwitch:   false,
+		},
+		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
+			if !installed {
+				return model.ConfiguredUnknown, nil, nil
+			}
+			user, warnings, errs, err := get(ctx, runner)
+			if err != nil {
+				errs = append(errs, err.Error())
+				return model.ConfiguredUnknown, warnings, errs
+			}
+			if strings.TrimSpace(user.ID) != "" || strings.TrimSpace(user.Email) != "" {
+				return model.ConfiguredYes, warnings, errs
+			}
+			return model.ConfiguredNo, warnings, errs
+		},
+		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
+			if !installed {
+				return nil, nil, nil
+			}
+			a := netlify.New(runner)
+			cur, warnings, errs, err := a.Current(ctx)
+			if err != nil {
+				errs = append(errs, err.Error())
+			}
 			return cur, warnings, errs
 		},
 	}

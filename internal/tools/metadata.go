@@ -80,6 +80,41 @@ func MetadataForTool(id string) model.ToolMetadata {
 			[]string{"inspect_status", "show_current"},
 			"Multiple accounts are not an error, but they mean there is no single globally implied target account.",
 		)
+	case "vercel":
+		return currentMetadata(
+			"Vercel CLI for deployments, projects, teams, and hosted application operations.",
+			"The current Vercel CLI session can resolve the authenticated user.",
+			map[string]string{
+				"user":  "The authenticated Vercel username.",
+				"email": "The email address of the authenticated Vercel user.",
+				"scope": "The current Vercel team scope slug when the CLI reports one.",
+			},
+			[]string{"inspect_status", "show_current"},
+		)
+	case "railway":
+		return currentMetadata(
+			"Railway CLI for deployment, project, environment, and service operations.",
+			"The Railway CLI can resolve the currently authenticated user.",
+			map[string]string{
+				"name":             "The display name of the authenticated Railway user, if available.",
+				"email":            "The email address of the authenticated Railway user.",
+				"workspaces_count": "How many Railway workspaces are visible to the authenticated user.",
+				"workspace":        "The single visible workspace name when exactly one workspace is available.",
+			},
+			[]string{"inspect_status", "show_current"},
+			"Multiple workspaces are not an error, but they mean there is no single globally implied Railway workspace.",
+		)
+	case "netlify":
+		return currentMetadata(
+			"Netlify CLI for site, deploy, environment, and account operations.",
+			"The Netlify CLI can resolve the currently authenticated user through the Netlify API.",
+			map[string]string{
+				"user_id": "The Netlify user ID of the authenticated account.",
+				"name":    "The display name of the authenticated Netlify user, if available.",
+				"email":   "The email address of the authenticated Netlify user.",
+			},
+			[]string{"inspect_status", "show_current"},
+		)
 	case "eksctl":
 		return naMetadata("CLI for managing Amazon EKS clusters and related resources.")
 	case "kubectl":
