@@ -37,6 +37,7 @@ func TestDefaultRegistryIncludesToolsFromToolsMD(t *testing.T) {
 		"vercel":        {category: "cloud", binary: "vercel"},
 		"railway":       {category: "cloud", binary: "railway"},
 		"netlify":       {category: "cloud", binary: "netlify"},
+		"opencli":       {category: "web", binary: "opencli"},
 	}
 
 	for id, want := range expected {
