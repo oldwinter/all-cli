@@ -67,6 +67,30 @@ func TestMetadataForCloudPlatformTools(t *testing.T) {
 	}
 }
 
+func TestMetadataForOpenCLI(t *testing.T) {
+	t.Parallel()
+
+	meta := MetadataForTool("opencli")
+	if meta.Purpose == "" {
+		t.Fatalf("expected purpose for opencli")
+	}
+	if meta.ConfiguredWhen == "" {
+		t.Fatalf("expected configured_when for opencli")
+	}
+	if meta.CurrentFieldDescriptions["bridge"] == "" {
+		t.Fatalf("expected bridge field description for opencli")
+	}
+	if meta.CurrentFieldDescriptions["token"] == "" {
+		t.Fatalf("expected token field description for opencli")
+	}
+	if meta.CurrentFieldDescriptions["targets"] == "" {
+		t.Fatalf("expected targets field description for opencli")
+	}
+	if len(meta.AgentActions) == 0 {
+		t.Fatalf("expected agent actions for opencli")
+	}
+}
+
 func TestEvaluateAddsMetadataToToolSummary(t *testing.T) {
 	t.Parallel()
 

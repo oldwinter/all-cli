@@ -21,6 +21,7 @@ import (
 	"github.com/oldwinter/all-cli/internal/tools/kubectl"
 	"github.com/oldwinter/all-cli/internal/tools/mise"
 	"github.com/oldwinter/all-cli/internal/tools/netlify"
+	"github.com/oldwinter/all-cli/internal/tools/opencli"
 	"github.com/oldwinter/all-cli/internal/tools/railway"
 	"github.com/oldwinter/all-cli/internal/tools/vercel"
 	"github.com/oldwinter/all-cli/internal/tools/wrangler"
@@ -174,6 +175,7 @@ func DefaultRegistry() []ToolDefinition {
 		toolNA("gemini", "Gemini CLI", "ai", "gemini"),
 		toolNA("ccusage", "ccusage", "ai", "ccusage"),
 		toolNA("litellm-proxy", "LiteLLM Proxy", "ai", "litellm-proxy"),
+		opencliTool(),
 
 		toolNA("simplex-cli", "simplex-cli", "internal", "simplex-cli"),
 
@@ -202,6 +204,19 @@ func toolNA(id, displayName, category, binary string) ToolDefinition {
 			return model.ConfiguredUnknown, nil, nil
 		},
 	}
+}
+
+func opencliTool() ToolDefinition {
+	return toolFromAdapter(
+		"opencli",
+		"OpenCLI",
+		"web",
+		"opencli",
+		model.Capability{HasContexts: false, CanSwitch: false},
+		func(runner execx.Runner) ToolAdapter {
+			return opencli.New(runner)
+		},
+	)
 }
 
 func toolFileConfigured(id, displayName, category, binary string, fn func() (bool, []string, []string)) ToolDefinition {

@@ -187,6 +187,19 @@ func MetadataForTool(id string) model.ToolMetadata {
 		return naMetadata("CLI for inspecting Claude Code usage and related local usage data.")
 	case "litellm-proxy":
 		return naMetadata("LiteLLM proxy CLI for local or staging model routing and smoke tests.")
+	case "opencli":
+		return currentMetadata(
+			"CLI that turns supported websites into command-line interfaces by reusing Chrome browser sessions.",
+			"The OpenCLI browser bridge is installed and `opencli` can detect the Playwright MCP extension token.",
+			map[string]string{
+				"bridge":  "Whether the Playwright MCP Bridge browser extension is installed.",
+				"token":   "Whether `opencli doctor` detected the browser extension token.",
+				"env":     "Whether PLAYWRIGHT_MCP_EXTENSION_TOKEN is exported in the current environment.",
+				"targets": "Comma-separated client configs that already contain the Playwright extension token.",
+			},
+			[]string{"inspect_status", "show_current"},
+			"`configured_state=yes` does not guarantee that target websites are logged in; it only verifies the local browser bridge prerequisites that OpenCLI reports.",
+		)
 	case "simplex-cli":
 		return naMetadata("Internal operations CLI for Simplex product and account workflows.")
 	case "rclone":
