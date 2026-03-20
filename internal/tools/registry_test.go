@@ -2,6 +2,20 @@ package tools
 
 import "testing"
 
+func TestRegistryToolIDsAreUnique(t *testing.T) {
+	t.Parallel()
+
+	seen := map[string]int{}
+	for _, def := range DefaultRegistry() {
+		seen[def.ID]++
+	}
+	for id, n := range seen {
+		if n != 1 {
+			t.Errorf("tool id %q appears %d times in registry", id, n)
+		}
+	}
+}
+
 func TestDefaultRegistryIncludesToolsFromToolsMD(t *testing.T) {
 	t.Parallel()
 

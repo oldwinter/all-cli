@@ -110,6 +110,8 @@ all-cli status --timeout 10s
 
 ### AI-friendly JSON additions
 
+Machine-readable shape for `status --json` is also summarized as [JSON Schema](schemas/status-report-v0.1.json) (`schema_version` `v0.1`).
+
 `all-cli status --json` now includes additive English metadata for machine callers:
 
 - Top-level `legend`: explains shared fields such as `installed`, `configured_state`, `capabilities`, `warnings`, `errors`, and the meaning of metadata fields.

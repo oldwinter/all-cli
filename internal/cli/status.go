@@ -156,14 +156,9 @@ func parseToolsFilter(s string) (map[string]bool, error) {
 		return nil, fmt.Errorf("invalid --tools value")
 	}
 
-	// Validate IDs
-	valid := map[string]bool{}
-	for _, def := range defaultRegistry() {
-		valid[def.ID] = true
-	}
 	var unknown []string
 	for id := range out {
-		if !valid[id] {
+		if _, ok := tools.FindByID(id); !ok {
 			unknown = append(unknown, id)
 		}
 	}

@@ -123,8 +123,7 @@ type ToolDefinition struct {
 	Current     func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string)
 }
 
-// DefaultRegistry returns the built-in list of tracked CLI tools.
-func DefaultRegistry() []ToolDefinition {
+func buildDefaultRegistrySlice() []ToolDefinition {
 	return []ToolDefinition{
 		toolNA("fd", "fd", "navigation", "fd"),
 		toolNA("rg", "ripgrep", "navigation", "rg"),
@@ -329,19 +328,9 @@ func wranglerTool() ToolDefinition {
 }
 
 func vercelTool() ToolDefinition {
-	var (
-		once   sync.Once
-		cached vercel.Whoami
-		cWarn  []string
-		cErrs  []string
-		cErr   error
-	)
-	get := func(ctx context.Context, runner execx.Runner) (vercel.Whoami, []string, []string, error) {
-		once.Do(func() {
-			a := vercel.New(runner)
-			cached, cWarn, cErrs, cErr = a.Whoami(ctx)
-		})
-		return cached, cWarn, cErrs, cErr
+	var cache whoamiOnce[vercel.Whoami]
+	fetch := func(ctx context.Context, runner execx.Runner) (vercel.Whoami, []string, []string, error) {
+		return vercel.New(runner).Whoami(ctx)
 	}
 
 	return ToolDefinition{
@@ -358,7 +347,7 @@ func vercelTool() ToolDefinition {
 			if !installed {
 				return model.ConfiguredUnknown, nil, nil
 			}
-			who, warnings, errs, err := get(ctx, runner)
+			who, warnings, errs, err := cache.load(ctx, runner, fetch)
 			if err != nil {
 				errs = append(errs, err.Error())
 				return model.ConfiguredUnknown, warnings, errs
@@ -383,19 +372,9 @@ func vercelTool() ToolDefinition {
 }
 
 func railwayTool() ToolDefinition {
-	var (
-		once   sync.Once
-		cached railway.Whoami
-		cWarn  []string
-		cErrs  []string
-		cErr   error
-	)
-	get := func(ctx context.Context, runner execx.Runner) (railway.Whoami, []string, []string, error) {
-		once.Do(func() {
-			a := railway.New(runner)
-			cached, cWarn, cErrs, cErr = a.Whoami(ctx)
-		})
-		return cached, cWarn, cErrs, cErr
+	var cache whoamiOnce[railway.Whoami]
+	fetch := func(ctx context.Context, runner execx.Runner) (railway.Whoami, []string, []string, error) {
+		return railway.New(runner).Whoami(ctx)
 	}
 
 	return ToolDefinition{
@@ -412,7 +391,7 @@ func railwayTool() ToolDefinition {
 			if !installed {
 				return model.ConfiguredUnknown, nil, nil
 			}
-			who, warnings, errs, err := get(ctx, runner)
+			who, warnings, errs, err := cache.load(ctx, runner, fetch)
 			if err != nil {
 				errs = append(errs, err.Error())
 				return model.ConfiguredUnknown, warnings, errs
@@ -437,19 +416,9 @@ func railwayTool() ToolDefinition {
 }
 
 func netlifyTool() ToolDefinition {
-	var (
-		once   sync.Once
-		cached netlify.CurrentUser
-		cWarn  []string
-		cErrs  []string
-		cErr   error
-	)
-	get := func(ctx context.Context, runner execx.Runner) (netlify.CurrentUser, []string, []string, error) {
-		once.Do(func() {
-			a := netlify.New(runner)
-			cached, cWarn, cErrs, cErr = a.CurrentUser(ctx)
-		})
-		return cached, cWarn, cErrs, cErr
+	var cache whoamiOnce[netlify.CurrentUser]
+	fetch := func(ctx context.Context, runner execx.Runner) (netlify.CurrentUser, []string, []string, error) {
+		return netlify.New(runner).CurrentUser(ctx)
 	}
 
 	return ToolDefinition{
@@ -466,7 +435,7 @@ func netlifyTool() ToolDefinition {
 			if !installed {
 				return model.ConfiguredUnknown, nil, nil
 			}
-			user, warnings, errs, err := get(ctx, runner)
+			user, warnings, errs, err := cache.load(ctx, runner, fetch)
 			if err != nil {
 				errs = append(errs, err.Error())
 				return model.ConfiguredUnknown, warnings, errs
@@ -502,4 +471,36 @@ func argocdTool() ToolDefinition {
 		model.Capability{HasContexts: true, CanSwitch: true},
 		func(r execx.Runner) ToolAdapter { return argocd.New(r) },
 	)
+}
+
+var (
+	defaultRegistryOnce sync.Once
+	defaultRegistryList []ToolDefinition
+	defaultRegistryByID map[string]ToolDefinition
+)
+
+func initBuiltInRegistry() {
+	defaultRegistryList = buildDefaultRegistrySlice()
+	defaultRegistryByID = make(map[string]ToolDefinition, len(defaultRegistryList))
+	for _, def := range defaultRegistryList {
+		if _, exists := defaultRegistryByID[def.ID]; exists {
+			panic("tools: duplicate registry id " + def.ID)
+		}
+		defaultRegistryByID[def.ID] = def
+	}
+}
+
+// DefaultRegistry returns a copy of the built-in list of tracked CLI tools.
+func DefaultRegistry() []ToolDefinition {
+	defaultRegistryOnce.Do(initBuiltInRegistry)
+	out := make([]ToolDefinition, len(defaultRegistryList))
+	copy(out, defaultRegistryList)
+	return out
+}
+
+// FindByID looks up a tool definition by its unique ID.
+func FindByID(id string) (ToolDefinition, bool) {
+	defaultRegistryOnce.Do(initBuiltInRegistry)
+	def, ok := defaultRegistryByID[id]
+	return def, ok
 }
