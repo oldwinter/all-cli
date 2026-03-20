@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oldwinter/all-cli/schemas/status-report-v0.1.json",
+  "title": "all-cli status report",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "tools"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "JSON output schema version; matches model.SchemaVersionV01."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the report was built."
+    },
+    "legend": {
+      "type": "object",
+      "description": "Human- and agent-oriented explanations of status fields.",
+      "properties": {
+        "installed": { "type": "string" },
+        "configured_state": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "current": { "type": "string" },
+        "warnings": { "type": "string" },
+        "errors": { "type": "string" },
+        "metadata_fields": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "tools": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tool_summary" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "capability": {
+      "type": "object",
+      "required": ["has_contexts", "can_switch"],
+      "properties": {
+        "has_contexts": { "type": "boolean" },
+        "can_switch": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "tool_metadata": {
+      "type": "object",
+      "properties": {
+        "purpose": { "type": "string" },
+        "configured_when": { "type": "string" },
+        "current_field_descriptions": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "agent_actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "tool_summary": {
+      "type": "object",
+      "required": [
+        "id",
+        "display_name",
+        "category",
+        "installed",
+        "configured_state",
+        "configured",
+        "capabilities"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "display_name": { "type": "string" },
+        "category": { "type": "string" },
+        "installed": { "type": "boolean" },
+        "install_path": { "type": "string" },
+        "configured_state": {
+          "type": "string",
+          "enum": ["yes", "no", "n/a", "unknown"]
+        },
+        "configured": { "type": "boolean" },
+        "capabilities": { "$ref": "#/$defs/capability" },
+        "current": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "metadata": { "$ref": "#/$defs/tool_metadata" },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "errors": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
