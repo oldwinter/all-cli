@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/oldwinter/all-cli/internal/execx"
@@ -88,6 +89,18 @@ func TestMetadataForOpenCLI(t *testing.T) {
 	}
 	if len(meta.AgentActions) == 0 {
 		t.Fatalf("expected agent actions for opencli")
+	}
+}
+
+func TestMetadataRegistryCoversAllTools(t *testing.T) {
+	t.Parallel()
+
+	fallback := defaultToolMetadata()
+	for _, def := range DefaultRegistry() {
+		meta := MetadataForTool(def.ID)
+		if reflect.DeepEqual(meta, fallback) {
+			t.Fatalf("registry tool %q still uses generic metadata; add an explicit case in MetadataForTool", def.ID)
+		}
 	}
 }
 

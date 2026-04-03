@@ -241,11 +241,15 @@ func MetadataForTool(id string) model.ToolMetadata {
 			[]string{"inspect_status", "show_current"},
 		)
 	default:
-		return model.ToolMetadata{
-			Purpose:        "Command-line tool tracked by all-cli.",
-			ConfiguredWhen: "Configuration semantics are tool-specific and may not be available in this build.",
-			AgentActions:   []string{"inspect_status"},
-		}
+		return defaultToolMetadata()
+	}
+}
+
+func defaultToolMetadata() model.ToolMetadata {
+	return model.ToolMetadata{
+		Purpose:        "Command-line tool tracked by all-cli.",
+		ConfiguredWhen: "Configuration semantics are tool-specific and may not be available in this build.",
+		AgentActions:   []string{"inspect_status"},
 	}
 }
 
