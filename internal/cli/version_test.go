@@ -6,6 +6,20 @@ import (
 	"testing"
 )
 
+func TestVersionStringDev(t *testing.T) {
+	oldVersion, oldCommit, oldDate := version, commit, date
+	version = "dev"
+	commit = ""
+	date = ""
+	defer func() {
+		version, commit, date = oldVersion, oldCommit, oldDate
+	}()
+
+	if got := VersionString(); got != "dev" {
+		t.Fatalf("VersionString = %q, want dev", got)
+	}
+}
+
 func TestVersionCommandDevOutput(t *testing.T) {
 	buf := &bytes.Buffer{}
 	cmd := newVersionCommand()

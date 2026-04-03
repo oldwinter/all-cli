@@ -28,7 +28,36 @@ func NewRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "all-cli",
 		Short: "Inspect and manage common CLI tool contexts",
+		Long: `all-cli inspects locally installed CLI tools and reports configuration and
+current context in one place. Use a broad status overview or per-tool subcommands
+(for example kubectl, docker, gh) that mirror the same read-only checks you use in scripts.
+
+Machine-readable output uses --json on the root command. External tool invocations
+respect --timeout.`,
+		Example: `  # Full overview as JSON (stable schema)
+  all-cli status --json
+
+  # Limit to specific tools
+  all-cli status --tools kubectl,docker --group-by none
+
+  # Per-tool context (same runner options as root)
+  all-cli kubectl current
+  all-cli docker list`,
+		Version: VersionString(),
 	}
+
+	cmd.SetVersionTemplate("{{.Version}}\n")
+	cmd.SilenceUsage = true
+	cmd.CompletionOptions.DisableDefaultCmd = true
+	cmd.SetHelpCommandGroupID("other")
+	cmd.SetCompletionCommandGroupID("other")
+
+	cmd.AddGroup(
+		&cobra.Group{ID: "primary", Title: "Primary commands:"},
+		&cobra.Group{ID: "cloud", Title: "Cloud platforms:"},
+		&cobra.Group{ID: "tools", Title: "Tool integrations:"},
+		&cobra.Group{ID: "other", Title: "Other commands:"},
+	)
 
 	cmd.PersistentFlags().BoolVar(&opts.JSON, "json", false, "Output JSON")
 	cmd.PersistentFlags().DurationVar(&opts.Timeout, "timeout", opts.Timeout, "External command timeout (e.g. 3s)")
@@ -49,5 +78,22 @@ func NewRootCommand() *cobra.Command {
 	cmd.AddCommand(newArgoCDCommand(opts, runner))
 	cmd.AddCommand(newKargoCommand(opts, runner))
 
+	setSubcommandGroups(cmd)
+
 	return cmd
+}
+
+func setSubcommandGroups(root *cobra.Command) {
+	for _, c := range root.Commands() {
+		switch c.Name() {
+		case "status":
+			c.GroupID = "primary"
+		case "aws", "aliyun", "wrangler":
+			c.GroupID = "cloud"
+		case "mise", "k9s", "kubectl", "docker", "gh", "glab", "argocd", "kargo":
+			c.GroupID = "tools"
+		case "version", "completion":
+			c.GroupID = "other"
+		}
+	}
 }
