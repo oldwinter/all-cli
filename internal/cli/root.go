@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/oldwinter/all-cli/internal/execx"
@@ -61,6 +62,13 @@ respect --timeout.`,
 
 	cmd.PersistentFlags().BoolVar(&opts.JSON, "json", false, "Output JSON")
 	cmd.PersistentFlags().DurationVar(&opts.Timeout, "timeout", opts.Timeout, "External command timeout (e.g. 3s)")
+
+	cmd.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
+		if opts.Timeout <= 0 {
+			return fmt.Errorf("invalid --timeout: must be positive, got %s", opts.Timeout)
+		}
+		return nil
+	}
 
 	cmd.AddCommand(newStatusCommand(opts, runner))
 	cmd.AddCommand(newVersionCommand())

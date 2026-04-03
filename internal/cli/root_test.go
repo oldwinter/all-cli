@@ -5,6 +5,33 @@ import (
 	"testing"
 )
 
+func TestRootRejectsNonPositiveTimeout(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		flag string
+	}{
+		{name: "zero", flag: "0s"},
+		{name: "negative", flag: "-1s"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cmd := NewRootCommand()
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			cmd.SetArgs([]string{"--timeout", tt.flag, "options"})
+			err := cmd.Execute()
+			if err == nil || !strings.Contains(err.Error(), "invalid --timeout") {
+				t.Fatalf("expected invalid --timeout error, got %v", err)
+			}
+		})
+	}
+}
+
 func TestRootVersionFlagMatchesVersionSubcommand(t *testing.T) {
 	t.Parallel()
 
