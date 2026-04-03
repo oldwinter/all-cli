@@ -94,4 +94,14 @@ func TestRootHelpGroupsCommands(t *testing.T) {
 	if !strings.Contains(help, "options") {
 		t.Fatalf("help should list options command, got:\n%s", help)
 	}
+	for _, needle := range []string{
+		"NO_COLOR",
+		"ALL_CLI_NO_PROGRESS",
+		"TERM",
+		"CI",
+	} {
+		if !strings.Contains(help, needle) {
+			t.Fatalf("help should mention %q, got:\n%s", needle, help)
+		}
+	}
 }

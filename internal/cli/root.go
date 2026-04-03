@@ -34,7 +34,13 @@ current context in one place. Use a broad status overview or per-tool subcommand
 (for example kubectl, docker, gh) that mirror the same read-only checks you use in scripts.
 
 Machine-readable output uses --json on the root command. External tool invocations
-respect --timeout.`,
+respect --timeout.
+
+Environment:
+  NO_COLOR            If set (any value), disable ANSI colors and escape sequences.
+  TERM                If "dumb", ANSI output is disabled.
+  CI                  If set, the status command skips the stderr progress spinner.
+  ALL_CLI_NO_PROGRESS If 1, true, yes, or on, disable the status spinner (any environment).`,
 		Example: `  # Full overview as JSON (stable schema)
   all-cli status --json
 
