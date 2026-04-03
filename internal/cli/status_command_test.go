@@ -97,6 +97,23 @@ func TestStatusCommandErrorsOnInvalidSort(t *testing.T) {
 	}
 }
 
+func TestStatusHelpIncludesDescription(t *testing.T) {
+	t.Parallel()
+
+	cmd := newStatusCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{})
+	var out strings.Builder
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("help: %v", err)
+	}
+	help := out.String()
+	if !strings.Contains(help, "registry") {
+		t.Fatalf("expected status long help to mention registry, got:\n%s", help)
+	}
+}
+
 func TestStatusCommandErrorsOnUnknownToolsFilter(t *testing.T) {
 	stubShowStatusSpinner(t, false)
 	opts := &rootOptions{Timeout: time.Second}

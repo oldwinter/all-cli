@@ -64,6 +64,7 @@ respect --timeout.`,
 
 	cmd.AddCommand(newStatusCommand(opts, runner))
 	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(newOptionsCommand(opts))
 	cmd.AddCommand(newCompletionCommand())
 
 	cmd.AddCommand(newAWSCommand(opts, runner))
@@ -92,7 +93,7 @@ func setSubcommandGroups(root *cobra.Command) {
 			c.GroupID = "cloud"
 		case "mise", "k9s", "kubectl", "docker", "gh", "glab", "argocd", "kargo":
 			c.GroupID = "tools"
-		case "version", "completion":
+		case "version", "options", "completion":
 			c.GroupID = "other"
 		}
 	}

@@ -42,6 +42,13 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show installed/configured status for common CLI tools",
+		Long: `Evaluates each tracked tool in the built-in registry: installation path,
+configuration state, capabilities, and optional current context snapshot.
+
+When not using --json, a progress indicator may be shown on stderr while tools are checked.`,
+		Example: `  all-cli status
+  all-cli status --tools kubectl,docker --group-by none
+  all-cli status --installed-only --quiet`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			groupByValue, err := parseStatusGroupBy(groupBy)
 			if err != nil {

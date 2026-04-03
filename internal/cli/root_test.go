@@ -64,4 +64,7 @@ func TestRootHelpGroupsCommands(t *testing.T) {
 			t.Fatalf("help missing %q", title)
 		}
 	}
+	if !strings.Contains(help, "options") {
+		t.Fatalf("help should list options command, got:\n%s", help)
+	}
 }
