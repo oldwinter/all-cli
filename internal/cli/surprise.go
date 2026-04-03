@@ -31,7 +31,7 @@ func newSurpriseCommand() *cobra.Command {
 }
 
 func rainbowLine(s string) string {
-	if !isTerminal(os.Stdout) {
+	if !terminalAnsiEnabled(os.Stdout) {
 		return s
 	}
 	const reset = "\033[0m"
@@ -52,7 +52,7 @@ func rainbowLine(s string) string {
 }
 
 func dimIfTTY(s string) string {
-	if !isTerminal(os.Stdout) {
+	if !terminalAnsiEnabled(os.Stdout) {
 		return s
 	}
 	return "\033[2m" + s + "\033[0m"

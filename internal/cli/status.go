@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -28,7 +27,7 @@ const (
 var (
 	defaultRegistry   = tools.DefaultRegistry
 	showStatusSpinner = func() bool {
-		return isTerminal(os.Stderr)
+		return statusSpinnerEnabled()
 	}
 )
 
