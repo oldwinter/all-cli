@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func moduleRoot(t *testing.T) string {
@@ -89,5 +91,71 @@ func TestStatusReportJSONKeyContract(t *testing.T) {
 		if _, ok := row[key]; !ok {
 			t.Errorf("missing tool key %q", key)
 		}
+	}
+}
+
+const statusReportSchemaURL = "https://github.com/oldwinter/all-cli/schemas/status-report-v0.1.json"
+
+func TestStatusReportMarshalsAgainstStatusSchema(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(moduleRoot(t), "schemas", "status-report-v0.1.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read schema: %v", err)
+	}
+	var schemaDoc any
+	if err := json.Unmarshal(raw, &schemaDoc); err != nil {
+		t.Fatalf("parse schema: %v", err)
+	}
+
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource(statusReportSchemaURL, schemaDoc); err != nil {
+		t.Fatalf("add schema resource: %v", err)
+	}
+	sch, err := c.Compile(statusReportSchemaURL)
+	if err != nil {
+		t.Fatalf("compile schema: %v", err)
+	}
+
+	report := NewStatusReport(1)
+	report.GeneratedAt = time.Date(2026, 3, 20, 12, 0, 0, 0, time.UTC)
+	report.Tools[0] = ToolSummary{
+		ID:              "example",
+		DisplayName:     "Example",
+		Category:        "test",
+		Installed:       true,
+		InstallPath:     "/usr/bin/example",
+		ConfiguredState: ConfiguredYes,
+		Configured:      true,
+		Capabilities: Capability{
+			HasContexts: true,
+			CanSwitch:   false,
+		},
+		Current: map[string]string{"context": "dev"},
+		Metadata: ToolMetadata{
+			Purpose:        "Exercise every metadata field for schema validation.",
+			ConfiguredWhen: "A synthetic positive case for contract testing.",
+			CurrentFieldDescriptions: map[string]string{
+				"context": "Synthetic current field for schema validation.",
+			},
+			AgentActions: []string{"inspect_status"},
+			Notes:        []string{"Synthetic note for schema validation."},
+		},
+		Warnings: []string{"synthetic warning"},
+		Errors:   []string{"synthetic error"},
+	}
+
+	payload, err := json.Marshal(report)
+	if err != nil {
+		t.Fatalf("marshal report: %v", err)
+	}
+	var instance any
+	if err := json.Unmarshal(payload, &instance); err != nil {
+		t.Fatalf("unmarshal instance: %v", err)
+	}
+
+	if err := sch.Validate(instance); err != nil {
+		t.Fatalf("instance does not validate against %s: %v", statusReportSchemaURL, err)
 	}
 }
