@@ -159,3 +159,87 @@ func TestStatusReportMarshalsAgainstStatusSchema(t *testing.T) {
 		t.Fatalf("instance does not validate against %s: %v", statusReportSchemaURL, err)
 	}
 }
+
+const diagnosticReportSchemaURL = "https://github.com/oldwinter/all-cli/schemas/diagnostic-report-v0.1.json"
+
+func TestDiagnosticReportMarshalsAgainstDiagnosticSchema(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(moduleRoot(t), "schemas", "diagnostic-report-v0.1.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read schema: %v", err)
+	}
+	var schemaDoc any
+	if err := json.Unmarshal(raw, &schemaDoc); err != nil {
+		t.Fatalf("parse schema: %v", err)
+	}
+
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource(diagnosticReportSchemaURL, schemaDoc); err != nil {
+		t.Fatalf("add schema resource: %v", err)
+	}
+	statusRaw, err := os.ReadFile(filepath.Join(moduleRoot(t), "schemas", "status-report-v0.1.json"))
+	if err != nil {
+		t.Fatalf("read status schema: %v", err)
+	}
+	var statusSchemaDoc any
+	if err := json.Unmarshal(statusRaw, &statusSchemaDoc); err != nil {
+		t.Fatalf("parse status schema: %v", err)
+	}
+	if err := c.AddResource(statusReportSchemaURL, statusSchemaDoc); err != nil {
+		t.Fatalf("add status schema resource: %v", err)
+	}
+	sch, err := c.Compile(diagnosticReportSchemaURL)
+	if err != nil {
+		t.Fatalf("compile schema: %v", err)
+	}
+
+	report := DiagnosticReport{
+		SchemaVersion:       DiagnosticSchemaVersionV01,
+		GeneratedAt:         time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC),
+		SourceSchemaVersion: SchemaVersionV01,
+		Profile:             "agent",
+		Summary: DiagnosticSummary{
+			Total:   1,
+			Warning: 1,
+		},
+		Tools: []ToolSummary{{
+			ID:              "kubectl",
+			DisplayName:     "kubectl",
+			Category:        "k8s",
+			Installed:       true,
+			ConfiguredState: ConfiguredNo,
+			Capabilities:    Capability{HasContexts: true, CanSwitch: true},
+		}},
+		Diagnostics: []DiagnosticItem{{
+			ID:            "kubectl.configured_state",
+			Severity:      DiagnosticWarning,
+			Problem:       "kubectl is installed but not configured.",
+			Evidence:      []string{"configured_state=no"},
+			RelatedTool:   "kubectl",
+			SafeToAutofix: false,
+			SuggestedActions: []SuggestedAction{{
+				ID:          "configure_tool",
+				Title:       "Configure kubectl",
+				Description: "Authenticate or create local configuration before using kubectl.",
+				Kind:        "configure",
+				Command:     []string{"kubectl", "config", "get-contexts"},
+				Mutates:     false,
+			}},
+		}},
+	}
+
+	payload, err := json.Marshal(report)
+	if err != nil {
+		t.Fatalf("marshal report: %v", err)
+	}
+	var instance any
+	if err := json.Unmarshal(payload, &instance); err != nil {
+		t.Fatalf("unmarshal instance: %v", err)
+	}
+
+	if err := sch.Validate(instance); err != nil {
+		t.Fatalf("instance does not validate against %s: %v", diagnosticReportSchemaURL, err)
+	}
+}

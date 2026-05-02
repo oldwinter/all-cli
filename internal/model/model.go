@@ -6,6 +6,15 @@ import "time"
 // SchemaVersionV01 is the current JSON schema version for status output.
 const SchemaVersionV01 = "v0.1"
 
+// DiagnosticSchemaVersionV01 is the current JSON schema version for diagnostic output.
+const DiagnosticSchemaVersionV01 = "diagnostic-v0.1"
+
+// FixPlanSchemaVersionV01 is the current JSON schema version for fix dry-run output.
+const FixPlanSchemaVersionV01 = "fix-plan-v0.1"
+
+// SnapshotDiffSchemaVersionV01 is the current JSON schema version for snapshot diff output.
+const SnapshotDiffSchemaVersionV01 = "snapshot-diff-v0.1"
+
 // ConfiguredState represents the configuration status of a CLI tool.
 type ConfiguredState string
 
@@ -29,6 +38,115 @@ type ToolMetadata struct {
 	CurrentFieldDescriptions map[string]string `json:"current_field_descriptions,omitempty"`
 	AgentActions             []string          `json:"agent_actions,omitempty"`
 	Notes                    []string          `json:"notes,omitempty"`
+}
+
+// DiagnosticSeverity describes how urgently a diagnostic item should be handled.
+type DiagnosticSeverity string
+
+const (
+	DiagnosticInfo    DiagnosticSeverity = "info"
+	DiagnosticWarning DiagnosticSeverity = "warning"
+	DiagnosticError   DiagnosticSeverity = "error"
+)
+
+// SuggestedAction is a stable, agent-readable next step for a diagnostic item.
+type SuggestedAction struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Kind        string   `json:"kind,omitempty"`
+	Command     []string `json:"command,omitempty"`
+	Mutates     bool     `json:"mutates"`
+}
+
+// DiagnosticItem describes one issue or observation derived from status output.
+type DiagnosticItem struct {
+	ID               string             `json:"id"`
+	Severity         DiagnosticSeverity `json:"severity"`
+	Problem          string             `json:"problem"`
+	Evidence         []string           `json:"evidence,omitempty"`
+	SuggestedActions []SuggestedAction  `json:"suggested_actions,omitempty"`
+	SafeToAutofix    bool               `json:"safe_to_autofix"`
+	RelatedTool      string             `json:"related_tool,omitempty"`
+}
+
+// DiagnosticSummary stores aggregate diagnostic counts.
+type DiagnosticSummary struct {
+	Total   int `json:"total"`
+	Info    int `json:"info"`
+	Warning int `json:"warning"`
+	Error   int `json:"error"`
+}
+
+// DiagnosticReport is the top-level structure for diagnose/doctor output.
+type DiagnosticReport struct {
+	SchemaVersion       string            `json:"schema_version"`
+	GeneratedAt         time.Time         `json:"generated_at"`
+	SourceSchemaVersion string            `json:"source_schema_version"`
+	Profile             string            `json:"profile,omitempty"`
+	Summary             DiagnosticSummary `json:"summary"`
+	Tools               []ToolSummary     `json:"tools,omitempty"`
+	Diagnostics         []DiagnosticItem  `json:"diagnostics"`
+}
+
+// FixPlanSummary stores aggregate fix plan counts.
+type FixPlanSummary struct {
+	Total     int `json:"total"`
+	Supported int `json:"supported"`
+	Blocked   int `json:"blocked"`
+}
+
+// FixPlanItem describes how a diagnostic would be handled by fix --dry-run.
+type FixPlanItem struct {
+	DiagnosticID string          `json:"diagnostic_id"`
+	RelatedTool  string          `json:"related_tool,omitempty"`
+	Action       SuggestedAction `json:"action"`
+	Supported    bool            `json:"supported"`
+	WillRun      bool            `json:"will_run"`
+	Mutates      bool            `json:"mutates"`
+	Reason       string          `json:"reason,omitempty"`
+}
+
+// FixPlan is the top-level structure for fix --dry-run output.
+type FixPlan struct {
+	SchemaVersion string         `json:"schema_version"`
+	GeneratedAt   time.Time      `json:"generated_at"`
+	DryRun        bool           `json:"dry_run"`
+	Summary       FixPlanSummary `json:"summary"`
+	Items         []FixPlanItem  `json:"items"`
+}
+
+// SnapshotChangeType describes how a tool differs between two snapshots.
+type SnapshotChangeType string
+
+const (
+	SnapshotChangeAdded   SnapshotChangeType = "added"
+	SnapshotChangeRemoved SnapshotChangeType = "removed"
+	SnapshotChangeChanged SnapshotChangeType = "changed"
+)
+
+// SnapshotDiffSummary stores aggregate snapshot diff counts.
+type SnapshotDiffSummary struct {
+	Added   int `json:"added"`
+	Removed int `json:"removed"`
+	Changed int `json:"changed"`
+}
+
+// SnapshotToolChange describes one changed tool between two status snapshots.
+type SnapshotToolChange struct {
+	ToolID     string             `json:"tool_id"`
+	ChangeType SnapshotChangeType `json:"change_type"`
+	Fields     []string           `json:"fields,omitempty"`
+	Before     *ToolSummary       `json:"before,omitempty"`
+	After      *ToolSummary       `json:"after,omitempty"`
+}
+
+// SnapshotDiffReport is the top-level structure for snapshot diff output.
+type SnapshotDiffReport struct {
+	SchemaVersion string               `json:"schema_version"`
+	GeneratedAt   time.Time            `json:"generated_at"`
+	Summary       SnapshotDiffSummary  `json:"summary"`
+	Changes       []SnapshotToolChange `json:"changes"`
 }
 
 type StatusLegend struct {
@@ -59,10 +177,11 @@ type ToolSummary struct {
 
 // StatusReport is the top-level structure for status output.
 type StatusReport struct {
-	SchemaVersion string        `json:"schema_version"`
-	GeneratedAt   time.Time     `json:"generated_at"`
-	Legend        StatusLegend  `json:"legend,omitempty"`
-	Tools         []ToolSummary `json:"tools"`
+	SchemaVersion string           `json:"schema_version"`
+	GeneratedAt   time.Time        `json:"generated_at"`
+	Legend        StatusLegend     `json:"legend,omitempty"`
+	Tools         []ToolSummary    `json:"tools"`
+	Diagnostics   []DiagnosticItem `json:"diagnostics,omitempty"`
 }
 
 // UseResult is returned by context-switching commands.

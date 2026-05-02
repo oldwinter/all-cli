@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oldwinter/all-cli/schemas/diagnostic-report-v0.1.json",
+  "title": "all-cli diagnostic report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "source_schema_version",
+    "summary",
+    "diagnostics"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "diagnostic-v0.1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_schema_version": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["agent", "human", "ci"]
+    },
+    "summary": {
+      "$ref": "#/$defs/diagnostic_summary"
+    },
+    "tools": {
+      "type": "array",
+      "items": { "$ref": "status-report-v0.1.json#/$defs/tool_summary" }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostic_item" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "diagnostic_summary": {
+      "type": "object",
+      "required": ["total", "info", "warning", "error"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "info": { "type": "integer", "minimum": 0 },
+        "warning": { "type": "integer", "minimum": 0 },
+        "error": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "suggested_action": {
+      "type": "object",
+      "required": ["id", "title", "mutates"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "kind": { "type": "string" },
+        "command": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "mutates": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "diagnostic_item": {
+      "type": "object",
+      "required": [
+        "id",
+        "severity",
+        "problem",
+        "safe_to_autofix"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error"]
+        },
+        "problem": { "type": "string" },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "suggested_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suggested_action" }
+        },
+        "safe_to_autofix": { "type": "boolean" },
+        "related_tool": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}
