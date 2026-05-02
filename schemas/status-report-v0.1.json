@@ -40,6 +40,11 @@
     "tools": {
       "type": "array",
       "items": { "$ref": "#/$defs/tool_summary" }
+    },
+    "diagnostics": {
+      "type": "array",
+      "description": "Optional additive diagnostics derived from tool summaries for agent callers.",
+      "items": { "$ref": "#/$defs/diagnostic_item" }
     }
   },
   "additionalProperties": true,
@@ -109,6 +114,50 @@
           "type": "array",
           "items": { "type": "string" }
         }
+      },
+      "additionalProperties": true
+    },
+    "suggested_action": {
+      "type": "object",
+      "required": ["id", "title", "mutates"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "kind": { "type": "string" },
+        "command": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "mutates": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "diagnostic_item": {
+      "type": "object",
+      "required": [
+        "id",
+        "severity",
+        "problem",
+        "safe_to_autofix"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error"]
+        },
+        "problem": { "type": "string" },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "suggested_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suggested_action" }
+        },
+        "safe_to_autofix": { "type": "boolean" },
+        "related_tool": { "type": "string" }
       },
       "additionalProperties": true
     }

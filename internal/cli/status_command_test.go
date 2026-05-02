@@ -81,6 +81,39 @@ func TestStatusCommandPlainToolsFilterAndSpinner(t *testing.T) {
 	}
 }
 
+func TestStatusCommandJSONIncludesAdditiveDiagnostics(t *testing.T) {
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Binary: "aws"},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{
+			ID:              def.ID,
+			DisplayName:     def.DisplayName,
+			Category:        def.Category,
+			Installed:       true,
+			ConfiguredState: model.ConfiguredUnknown,
+			Errors:          []string{"context deadline exceeded"},
+		}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newStatusCommand(opts, cliFakeRunner{}), "--tools", "aws")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var got model.StatusReport
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode json: %v", err)
+	}
+	if len(got.Diagnostics) != 1 || got.Diagnostics[0].RelatedTool != "aws" {
+		t.Fatalf("expected aws diagnostic in status payload, got %#v", got.Diagnostics)
+	}
+}
+
 func TestStatusCommandErrorsOnInvalidGroupBy(t *testing.T) {
 	opts := &rootOptions{Timeout: time.Second}
 	_, _, err := executeTestCommand(t, newStatusCommand(opts, cliFakeRunner{}), "--group-by", "bad")

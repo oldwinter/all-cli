@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	diag "github.com/oldwinter/all-cli/internal/diagnose"
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/output"
@@ -58,23 +60,10 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 				return err
 			}
 
-			reg := defaultRegistry()
-			if strings.TrimSpace(toolsFilter) != "" {
-				filterSet, err := parseToolsFilter(toolsFilter)
-				if err != nil {
-					return err
-				}
-				var filtered []tools.ToolDefinition
-				for _, def := range reg {
-					if filterSet[def.ID] {
-						filtered = append(filtered, def)
-					}
-				}
-				reg = filtered
+			reg, err := registryForToolsFilter(toolsFilter)
+			if err != nil {
+				return err
 			}
-
-			report := model.NewStatusReport(len(reg))
-			report.GeneratedAt = time.Now()
 
 			var spinner *progressSpinner
 			if !opts.JSON && showStatusSpinner() {
@@ -82,19 +71,7 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 				spinner.Start()
 			}
 
-			baseCtx := cmd.Context()
-			var wg sync.WaitGroup
-			for i, def := range reg {
-				wg.Add(1)
-				go func(i int, def tools.ToolDefinition) {
-					defer wg.Done()
-					report.Tools[i] = evaluateToolSummary(baseCtx, def, runnerForTool(runner, opts.Timeout, def))
-					if spinner != nil {
-						spinner.Inc(def.ID)
-					}
-				}(i, def)
-			}
-			wg.Wait()
+			report := evaluateStatusRegistry(cmd.Context(), reg, runner, opts.Timeout, spinner)
 
 			if spinner != nil {
 				spinner.Stop()
@@ -123,6 +100,7 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 			}
 
 			if opts.JSON {
+				report.Diagnostics = diag.Generate(report, diag.Options{Profile: diag.ProfileAgent}).Diagnostics
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
 			output.PrintStatusTableWithOptions(cmd.OutOrStdout(), report, output.StatusTableOptions{
@@ -139,6 +117,53 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Only show tools with issues (not installed, unconfigured, warnings, or errors)")
 	cmd.Flags().BoolVar(&installedOnly, "installed-only", false, "Only show installed tools")
 	return cmd
+}
+
+func buildStatusReport(ctx context.Context, runner execx.Runner, defaultTimeout time.Duration, toolsFilter string) (model.StatusReport, error) {
+	reg, err := registryForToolsFilter(toolsFilter)
+	if err != nil {
+		return model.StatusReport{}, err
+	}
+	report := evaluateStatusRegistry(ctx, reg, runner, defaultTimeout, nil)
+	sortToolSummaries(report.Tools, statusSortTool)
+	return report, nil
+}
+
+func registryForToolsFilter(toolsFilter string) ([]tools.ToolDefinition, error) {
+	reg := defaultRegistry()
+	if strings.TrimSpace(toolsFilter) == "" {
+		return reg, nil
+	}
+	filterSet, err := parseToolsFilter(toolsFilter)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]tools.ToolDefinition, 0, len(filterSet))
+	for _, def := range reg {
+		if filterSet[def.ID] {
+			filtered = append(filtered, def)
+		}
+	}
+	return filtered, nil
+}
+
+func evaluateStatusRegistry(ctx context.Context, reg []tools.ToolDefinition, runner execx.Runner, defaultTimeout time.Duration, spinner *progressSpinner) model.StatusReport {
+	report := model.NewStatusReport(len(reg))
+	report.GeneratedAt = time.Now()
+
+	var wg sync.WaitGroup
+	for i, def := range reg {
+		wg.Add(1)
+		go func(i int, def tools.ToolDefinition) {
+			defer wg.Done()
+			report.Tools[i] = evaluateToolSummary(ctx, def, runnerForTool(runner, defaultTimeout, def))
+			if spinner != nil {
+				spinner.Inc(def.ID)
+			}
+		}(i, def)
+	}
+	wg.Wait()
+	return report
 }
 
 func runnerForTool(baseRunner execx.Runner, defaultTimeout time.Duration, def tools.ToolDefinition) execx.Runner {

@@ -108,6 +108,39 @@ all-cli status --sort category-desc
 all-cli status --timeout 10s
 ```
 
+### Agent diagnostics
+
+`all-cli diagnose` turns the same status facts into agent-readable diagnostic items with severity, evidence, suggested actions, autofix safety, and related tool IDs.
+
+```bash
+all-cli diagnose
+all-cli diagnose --json
+all-cli diagnose --tools kubectl,docker,gh --json
+all-cli diagnose --profile ci --json
+```
+
+`all-cli doctor` is the read-only health-check entrypoint for humans or automation. It returns the same diagnostic report shape as `diagnose`.
+
+```bash
+all-cli doctor
+all-cli doctor --tools kubectl,docker,gh --json
+```
+
+`all-cli fix` is dry-run only in this release. It builds a fix plan from diagnostics and explicitly reports which items are blocked because automatic mutation is not allowlisted.
+
+```bash
+all-cli fix --dry-run
+all-cli fix --dry-run --tools aws,gh --json
+```
+
+Snapshots can be saved and compared later:
+
+```bash
+all-cli snapshot --json > before.json
+all-cli snapshot --json > after.json
+all-cli diff before.json after.json --json
+```
+
 ### AI-friendly JSON additions
 
 Machine-readable shape for `status --json` is also summarized as [JSON Schema](schemas/status-report-v0.1.json) (`schema_version` `v0.1`).
@@ -116,6 +149,13 @@ Machine-readable shape for `status --json` is also summarized as [JSON Schema](s
 
 - Top-level `legend`: explains shared fields such as `installed`, `configured_state`, `capabilities`, `warnings`, `errors`, and the meaning of metadata fields.
 - Per-tool `metadata`: explains `purpose`, `configured_when`, known keys inside `current`, suggested `agent_actions`, and short interpretation notes.
+- Optional top-level `diagnostics`: structured diagnostic items derived from the tool summaries.
+
+`all-cli diagnose --json` and `all-cli doctor --json` emit [diagnostic-report-v0.1](schemas/diagnostic-report-v0.1.json), which includes:
+
+- `summary`: counts by `info`, `warning`, and `error`.
+- `tools`: the source status summaries used for diagnosis.
+- `diagnostics`: `severity`, `problem`, `evidence`, `suggested_actions`, `safe_to_autofix`, and `related_tool`.
 
 Example shape:
 
