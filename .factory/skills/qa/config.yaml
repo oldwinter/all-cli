@@ -1,0 +1,76 @@
+project: all-cli
+imagemagick: true
+environments:
+  local:
+    url: local-binary://./all-cli
+    restrictions:
+      - Runs against the checked-out branch after `just build`.
+      - Context-switching flows may mutate local CLI state; warn before local mutations and restore original context when possible.
+
+default_target: local
+
+auth:
+  method: none
+  provider: none
+
+personas:
+  - name: developer
+    description: 'Developer using all-cli to inspect local tools and manage contexts.'
+    email: null
+    credentials_source: none
+    secret_name: null
+    test_focus:
+      - help and command discovery
+      - status inventory
+      - diagnostics and dry-run fix plans
+      - snapshot and diff workflows
+      - context commands
+    cannot_do:
+      - silently leak plaintext tokens or secrets
+      - mutate external CLI contexts without warning in local runs
+
+apps:
+  all-cli:
+    path_patterns:
+      - cmd/**
+      - internal/**
+      - schemas/**
+      - go.mod
+      - go.sum
+      - justfile
+      - .goreleaser.yaml
+      - .golangci.yml
+    skill: qa-all-cli
+    test_tool: tuistory
+    build_command: 'just build'
+    dev_command: './all-cli'
+    smoke_command: 'just smoke'
+
+feature_flags:
+  provider: none
+  dashboard_url: null
+  how_to_override: 'No feature flag system detected. Use CLI flags and environment variables for runtime behavior toggles.'
+
+integrations:
+  external_cli_registry:
+    provider: local_cli_tools
+    notes: 'all-cli inspects installed external CLIs through PATH and official command output. QA should treat missing external tools as environment-specific and report affected flows as BLOCKED or INCONCLUSIVE, not product failures.'
+
+cleanup:
+  auto_cleanup: false
+  strategy: manual
+  instructions: 'No app data is created. If context-switching flows run, capture the original context first and restore it before finishing when possible.'
+
+mutation_policy:
+  context_switching: allow_with_warning
+  local_runs: warn_before_mutations
+  ci_runs: run_only_when_diff_relevant_and_environment_is_safe
+
+failure_learning: auto_commit
+
+github_action:
+  enabled: true
+  required_check: true
+  preview_deployments: false
+  required_secrets:
+    - FACTORY_API_KEY

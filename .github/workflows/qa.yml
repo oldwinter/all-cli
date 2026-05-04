@@ -1,0 +1,186 @@
+name: QA
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  functional-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve PR metadata
+        id: pr
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+            echo "ref=${{ github.head_ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=" >> "$GITHUB_OUTPUT"
+            echo "ref=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Go
+        uses: actions/setup-go@v6.3.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install test tools
+        run: npm install -g tuistory
+
+      - name: Install droid CLI
+        run: |
+          curl -fsSL https://app.factory.ai/cli | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run QA
+        id: qa
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
+          CI: "true"
+          FACTORY_DISABLE_KEYRING: "true"
+        shell: bash
+        run: |
+          mkdir -p qa-results
+          set -o pipefail
+          droid exec --auto high "You are running in a non-interactive CI environment. There is NO human available. Do NOT use AskUser, do NOT wait for confirmations, do NOT pause for input. Run the qa skill. Write the final report to qa-results/report.md. Use only functional/manual QA flows; do not run unit tests, lint, typecheck, or CI validators." 2>&1 | tee qa-results/qa-output.txt
+
+      - name: Apply skill updates from QA
+        id: apply-updates
+        if: always() && steps.qa.outcome != 'cancelled'
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import json
+          from pathlib import Path
+
+          updates_path = Path('qa-results/skill-updates.json')
+          if not updates_path.exists():
+              print('No skill updates produced by QA.')
+              raise SystemExit(0)
+
+          updates = json.loads(updates_path.read_text())
+          for edit in updates:
+              rel = edit.get('file', '')
+              if not rel.startswith('.factory/skills/'):
+                  raise SystemExit(f'Refusing to edit non-skill file: {rel}')
+              path = Path(rel)
+              section = edit.get('section', '').strip()
+              action = edit.get('action', 'append')
+              content = edit.get('content', '').rstrip() + '\n'
+              text = path.read_text() if path.exists() else ''
+              heading = f'## {section}'
+              if heading not in text:
+                  text = text.rstrip() + f'\n\n{heading}\n\n{content}'
+              else:
+                  start = text.index(heading)
+                  next_pos = text.find('\n## ', start + len(heading))
+                  if action == 'replace':
+                      prefix = text[:start + len(heading)].rstrip() + '\n\n'
+                      suffix = text[next_pos:] if next_pos != -1 else ''
+                      text = prefix + content + suffix
+                  else:
+                      if next_pos == -1:
+                          text = text.rstrip() + '\n' + content
+                      else:
+                          text = text[:next_pos].rstrip() + '\n' + content + text[next_pos:]
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(text)
+              print(f'Applied QA skill update to {rel}')
+          PY
+
+      - name: Commit skill updates
+        if: always() && steps.apply-updates.outcome == 'success' && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          if git diff --quiet .factory/skills/; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .factory/skills/
+          git commit -m "chore(qa): update failure catalog from QA run #${{ github.run_number }}"
+          git push origin HEAD:${{ steps.pr.outputs.ref }}
+
+      - name: Upload QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-results
+          path: qa-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Post QA report as PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- qa-report -->';
+            const reportPath = 'qa-results/report.md';
+            const outputPath = 'qa-results/qa-output.txt';
+            let report;
+            if (fs.existsSync(reportPath)) {
+              report = fs.readFileSync(reportPath, 'utf8');
+            } else if (fs.existsSync(outputPath)) {
+              const output = fs.readFileSync(outputPath, 'utf8');
+              report = `## QA Report\n\n:no_entry: BLOCKED - QA did not produce \`qa-results/report.md\`.\n\n<details><summary>Raw QA output</summary>\n\n\`\`\`\n${output.slice(-12000)}\n\`\`\`\n\n</details>`;
+            } else {
+              report = '## QA Report\n\n:no_entry: BLOCKED - QA did not produce a report or output log.';
+            }
+            if (!report.trimStart().startsWith('## QA Report')) {
+              report = `## QA Report\n\n${report}`;
+            }
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `${marker}\n${report}\n\n---\nArtifacts: download \`qa-results\` from [workflow run](${runUrl}).`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) => comment.body && comment.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
