@@ -1,0 +1,35 @@
+phase: install-qa
+completed: true
+analysis:
+  apps_detected:
+    - name: all-cli
+      type: go_cli
+      path_patterns:
+        - cmd/**
+        - internal/**
+        - schemas/**
+        - go.mod
+        - go.sum
+        - justfile
+  auth_detected: none
+  environments_detected:
+    - local
+  feature_flags: none
+  app_integrations: none
+  ci_provider: github_actions
+  existing_qa_workflows: []
+  imagemagick_detected: true
+answers:
+  default_target: local_built_binary
+  personas_model: single_developer_persona
+  critical_flow_scope: full_cli_flows
+  mutation_policy: allow_local_mutations
+  mutation_safety: warn_before_mutations
+  github_action: required
+  failure_learning: auto_commit
+files_generated:
+  - .factory/skills/qa/SKILL.md
+  - .factory/skills/qa/config.yaml
+  - .factory/skills/qa/REPORT-TEMPLATE.md
+  - .factory/skills/qa-all-cli/SKILL.md
+  - .github/workflows/qa.yml
