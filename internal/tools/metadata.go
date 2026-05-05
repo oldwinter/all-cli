@@ -147,7 +147,8 @@ func MetadataForTool(id string) model.ToolMetadata {
 			map[string]string{
 				"context": "The active Docker context name.",
 			},
-			[]string{"inspect_status", "show_current", "list_contexts", "switch_context"},
+			[]string{"inspect_status", "show_current", "list_contexts", "switch_context", "plan_fix", "plan_image_updates", "pull_image_updates"},
+			"`docker update` in all-cli refreshes image tags with `docker pull`; it does not proxy Docker's container resource-limit update command.",
 		)
 	case "gh":
 		return currentMetadata(

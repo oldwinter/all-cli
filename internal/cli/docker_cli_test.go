@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
+	"github.com/oldwinter/all-cli/internal/tools"
 )
 
 func TestDockerStatusJSON(t *testing.T) {
@@ -413,4 +415,203 @@ func TestDockerUseJSONFailure(t *testing.T) {
 	if got.OK || !strings.Contains(got.Error, "context not found") {
 		t.Fatalf("unexpected result: %#v", got)
 	}
+}
+
+func TestDockerFixRequiresDryRun(t *testing.T) {
+	stubDockerStatusEvaluation(t, model.ToolSummary{ID: "docker", DisplayName: "docker", Category: "containers"})
+
+	opts := &rootOptions{Timeout: time.Second}
+	_, _, err := executeTestCommand(t, newDockerCommand(opts, cliFakeRunner{}), "fix")
+	if err == nil || !strings.Contains(err.Error(), "--dry-run") {
+		t.Fatalf("expected --dry-run error, got %v", err)
+	}
+}
+
+func TestDockerFixDryRunJSON(t *testing.T) {
+	stubDockerStatusEvaluation(t, model.ToolSummary{
+		ID:              "docker",
+		DisplayName:     "docker",
+		Category:        "containers",
+		Installed:       false,
+		ConfiguredState: model.ConfiguredUnknown,
+		Capabilities:    model.Capability{HasContexts: true, CanSwitch: true},
+	})
+
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, cliFakeRunner{}), "fix", "--dry-run")
+	if err != nil {
+		t.Fatalf("docker fix --dry-run: %v", err)
+	}
+	var got model.FixPlan
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode fix plan: %v", err)
+	}
+	if !got.DryRun || got.Summary.Total != 1 || got.Items[0].RelatedTool != "docker" {
+		t.Fatalf("unexpected plan: %#v", got)
+	}
+}
+
+func TestDockerFixDryRunPlain(t *testing.T) {
+	stubDockerStatusEvaluation(t, model.ToolSummary{
+		ID:              "docker",
+		DisplayName:     "docker",
+		Category:        "containers",
+		Installed:       true,
+		ConfiguredState: model.ConfiguredNo,
+	})
+
+	opts := &rootOptions{Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, cliFakeRunner{}), "fix", "--dry-run")
+	if err != nil {
+		t.Fatalf("docker fix --dry-run: %v", err)
+	}
+	if !strings.Contains(stdout, "Fix plan: dry_run=true") || !strings.Contains(stdout, "docker") {
+		t.Fatalf("unexpected stdout:\n%s", stdout)
+	}
+}
+
+func TestDockerUpdateDryRunPlain(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker ps --format {{json .}}": {
+				Stdout: "{\"ID\":\"1\",\"Image\":\"nginx:latest\",\"Names\":\"web\"}\n{\"ID\":\"2\",\"Image\":\"redis:7\",\"Names\":\"cache\"}\n",
+			},
+		},
+	}
+
+	stdout, stderr, err := executeTestCommand(t, newDockerCommand(opts, runner), "update", "--dry-run")
+	if err != nil {
+		t.Fatalf("docker update --dry-run: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	for _, needle := range []string{"Docker update plan (dry-run):", "docker pull nginx:latest", "containers: web", "docker pull redis:7"} {
+		if !strings.Contains(stdout, needle) {
+			t.Fatalf("expected %q in stdout:\n%s", needle, stdout)
+		}
+	}
+}
+
+func TestDockerUpdateDryRunJSON(t *testing.T) {
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker ps --format {{json .}}": {
+				Stdout: "{\"ID\":\"1\",\"Image\":\"nginx:latest\",\"Names\":\"web\"}\n",
+			},
+		},
+	}
+
+	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, runner), "update", "--dry-run")
+	if err != nil {
+		t.Fatalf("docker update --dry-run: %v", err)
+	}
+	var got dockerUpdateResult
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode update result: %v", err)
+	}
+	if !got.DryRun || len(got.Updates) != 1 || got.Updates[0].Image != "nginx:latest" {
+		t.Fatalf("unexpected result: %#v", got)
+	}
+}
+
+func TestDockerUpdateAllUsesAllContainers(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker ps -a --format {{json .}}": {
+				Stdout: "{\"ID\":\"1\",\"Image\":\"nginx:latest\",\"Names\":\"web\"}\n",
+			},
+		},
+	}
+
+	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, runner), "update", "--dry-run", "--all")
+	if err != nil {
+		t.Fatalf("docker update --dry-run --all: %v", err)
+	}
+	if !strings.Contains(stdout, "docker pull nginx:latest") {
+		t.Fatalf("unexpected stdout:\n%s", stdout)
+	}
+}
+
+func TestDockerUpdateExplicitImagesPullsWhenNotDryRun(t *testing.T) {
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker pull nginx:latest": {},
+			"docker pull redis:7":      {},
+		},
+	}
+
+	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, runner), "update", "--image", "redis:7", "--image", "nginx:latest")
+	if err != nil {
+		t.Fatalf("docker update --image: %v", err)
+	}
+	var got dockerUpdateResult
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode update result: %v", err)
+	}
+	if got.DryRun || len(got.Updates) != 2 || !got.Updates[0].Applied || !got.Updates[1].Applied {
+		t.Fatalf("unexpected result: %#v", got)
+	}
+}
+
+func TestDockerUpdateSkipsUnsafeImageRefs(t *testing.T) {
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, cliFakeRunner{}), "update", "--dry-run", "--image", "sha256:abcdef", "--image", "nginx:latest")
+	if err != nil {
+		t.Fatalf("docker update --dry-run --image: %v", err)
+	}
+	var got dockerUpdateResult
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode update result: %v", err)
+	}
+	if len(got.Updates) != 1 || got.Updates[0].Image != "nginx:latest" || len(got.Warnings) == 0 {
+		t.Fatalf("unexpected result: %#v", got)
+	}
+}
+
+func TestDockerUpdateReportsDockerErrors(t *testing.T) {
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker ps --format {{json .}}": {
+				ExitCode: 1,
+				Err:      assertError("exit status 1"),
+				Stderr:   "daemon unavailable",
+			},
+		},
+	}
+
+	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, runner), "update", "--dry-run")
+	if err != nil {
+		t.Fatalf("json mode should report errors in payload, got %v", err)
+	}
+	var got dockerUpdateResult
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode update result: %v", err)
+	}
+	if len(got.Errors) != 2 || got.Errors[0] != "daemon unavailable" {
+		t.Fatalf("unexpected result: %#v", got)
+	}
+}
+
+func stubDockerStatusEvaluation(t *testing.T, summary model.ToolSummary) {
+	t.Helper()
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "docker", DisplayName: "docker", Category: "containers", Binary: "docker"},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		if def.ID != "docker" {
+			t.Fatalf("unexpected tool %s", def.ID)
+		}
+		return summary
+	}
+	t.Cleanup(func() {
+		evaluateToolSummary = oldEvaluate
+	})
+	stubShowStatusSpinner(t, false)
 }
