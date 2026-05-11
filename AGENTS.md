@@ -24,10 +24,17 @@
 
 ## Agent Diagnostics Commands
 - `just run diagnose --json`: emit agent-readable diagnostics from the status facts.
-- `just run doctor --json`: read-only health-check entrypoint with the same diagnostic report shape.
-- `just run fix --dry-run --json`: produce a dry-run fix plan; mutation is not enabled by default.
+- `just run doctor --json`: human-oriented health-check entrypoint with the same diagnostic report shape.
+- `just run doctor --fix --dry-run`: preview supported missing-tool installs; use `--installer auto|brew|npm|pipx|go` to force an installer.
+- `just run doctor --fix --tools <tool>`: install supported missing CLI tools only after reviewing the dry-run plan.
+- `just run fix --dry-run --json`: produce a dry-run diagnostic fix plan; it does not mutate CLI configuration.
 - `just run snapshot --json > before.json` and `just run diff before.json after.json --json`: capture and compare status snapshots.
 - When evolving JSON structs, update the matching schema in `schemas/` and run `go test ./internal/model/...`.
+
+## Tool-Specific Workflows
+- `just run docker fix --dry-run`: produce a Docker-only diagnostic fix plan without running Docker commands.
+- `just run docker update --dry-run`: preview Docker image pulls for running containers; add `--all` for stopped containers or repeat `--image <ref>` for explicit images.
+- `just run docker update`: run planned `docker pull` commands only; it does not stop, recreate, prune, remove containers, or switch contexts.
 
 ## Coding Style & Naming Conventions
 - Target Go `1.26.1` (see `go.mod`).
