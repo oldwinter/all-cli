@@ -35,6 +35,7 @@ var (
 
 func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
+	var categoriesFilter string
 	var groupBy string
 	var sortBy string
 	var quiet bool
@@ -49,6 +50,7 @@ configuration state, capabilities, and optional current context snapshot.
 When not using --json, a progress indicator may be shown on stderr while tools are checked.`,
 		Example: `  all-cli status
   all-cli status --tools kubectl,docker --group-by none
+  all-cli status --categories ai,cloud
   all-cli status --installed-only --quiet`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			groupByValue, err := parseStatusGroupBy(groupBy)
@@ -61,6 +63,10 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 			}
 
 			reg, err := registryForToolsFilter(toolsFilter)
+			if err != nil {
+				return err
+			}
+			reg, err = registryForCategoriesFilter(reg, categoriesFilter)
 			if err != nil {
 				return err
 			}
@@ -112,6 +118,7 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 	}
 
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to check (e.g. kubectl,docker)")
+	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to check (e.g. ai,cloud)")
 	cmd.Flags().StringVar(&groupBy, "group-by", statusGroupByCategory, "Group output: category|none")
 	cmd.Flags().StringVar(&sortBy, "sort", statusSortTool, "Sort order: tool|tool-desc|category|category-desc")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Only show tools with issues (not installed, unconfigured, warnings, or errors)")
