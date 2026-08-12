@@ -108,6 +108,25 @@ all-cli status --sort category-desc
 all-cli status --timeout 10s
 ```
 
+### Current contexts at a glance
+
+`all-cli current` shows the active accounts, clusters, projects, and environments
+reported by every installed context-aware tool in one compact view.
+
+```bash
+all-cli current
+all-cli current --json
+```
+
+Example text output:
+
+```text
+TOOL     CURRENT
+aws      profile=work region=us-west-2
+docker   context=desktop-linux
+railway  none
+```
+
 ### Agent diagnostics
 
 `all-cli diagnose` turns the same status facts into agent-readable diagnostic items with severity, evidence, suggested actions, autofix safety, and related tool IDs.
