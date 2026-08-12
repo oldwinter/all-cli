@@ -118,6 +118,15 @@ all-cli current
 all-cli current --json
 ```
 
+Example text output:
+
+```text
+TOOL     CURRENT
+aws      profile=work region=us-west-2
+docker   context=desktop-linux
+railway  none
+```
+
 ### Agent diagnostics
 
 `all-cli diagnose` turns the same status facts into agent-readable diagnostic items with severity, evidence, suggested actions, autofix safety, and related tool IDs.

@@ -8,7 +8,7 @@ import (
 	"github.com/oldwinter/all-cli/internal/model"
 )
 
-func TestPrintCurrentTable_shows_none_when_context_is_empty(t *testing.T) {
+func TestPrintCurrentTableShowsNoneWhenContextIsEmpty(t *testing.T) {
 	// Given
 	report := model.StatusReport{
 		Tools: []model.ToolSummary{{ID: "mise", Installed: true}},
@@ -24,7 +24,7 @@ func TestPrintCurrentTable_shows_none_when_context_is_empty(t *testing.T) {
 	}
 }
 
-func TestPrintCurrentTable_explains_when_no_context_tools_are_installed(t *testing.T) {
+func TestPrintCurrentTableExplainsWhenNoContextToolsAreInstalled(t *testing.T) {
 	// Given
 	report := model.StatusReport{}
 	var out bytes.Buffer

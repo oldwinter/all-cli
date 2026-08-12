@@ -13,7 +13,7 @@ import (
 	"github.com/oldwinter/all-cli/internal/tools"
 )
 
-func TestCurrentCommand_shows_current_contexts_for_installed_context_tools(t *testing.T) {
+func TestCurrentCommandShowsCurrentContextsForInstalledContextTools(t *testing.T) {
 	// Given
 	stubStatusRegistry(t, []tools.ToolDefinition{
 		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
@@ -62,7 +62,7 @@ func TestCurrentCommand_shows_current_contexts_for_installed_context_tools(t *te
 	}
 }
 
-func TestCurrentCommand_JSON_preserves_status_report_shape(t *testing.T) {
+func TestCurrentCommandJSONPreservesStatusReportShape(t *testing.T) {
 	// Given
 	stubStatusRegistry(t, []tools.ToolDefinition{
 		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true, CanSwitch: true}},
@@ -101,7 +101,7 @@ func TestCurrentCommand_JSON_preserves_status_report_shape(t *testing.T) {
 	}
 }
 
-func TestRoot_registers_current_as_primary_command(t *testing.T) {
+func TestRootRegistersCurrentAsPrimaryCommand(t *testing.T) {
 	// Given
 	root := NewRootCommand()
 
