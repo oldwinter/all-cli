@@ -213,6 +213,16 @@ Example shape:
 }
 ```
 
+### Tool descriptions
+
+Use `all-cli describe <tool>` to inspect the built-in purpose, configuration
+criteria, context capabilities, and agent actions without running the tool:
+
+```bash
+all-cli describe kubectl
+all-cli describe kubectl --json
+```
+
 ### kubectl
 
 ```bash
