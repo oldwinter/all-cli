@@ -215,6 +215,16 @@ Example shape:
 
 ### Tool descriptions
 
+Use `all-cli catalog` to browse every tracked tool without running any external
+commands. Add an optional search term to match tool IDs, names, categories,
+binary names, and purposes:
+
+```bash
+all-cli catalog
+all-cli catalog kubernetes
+all-cli catalog cloud --json
+```
+
 Use `all-cli describe <tool>` to inspect the built-in purpose, configuration
 criteria, context capabilities, and agent actions without running the tool:
 
