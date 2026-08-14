@@ -2,9 +2,83 @@ package cli
 
 import (
 	"fmt"
+	"io"
+	"sort"
+	"strings"
+	"unicode"
 
+	"github.com/oldwinter/all-cli/internal/tools"
 	"github.com/spf13/cobra"
 )
+
+func registerToolFilterCompletions(root *cobra.Command) {
+	for _, cmd := range root.Commands() {
+		if cmd.Flags().Lookup("tools") == nil {
+			continue
+		}
+		if err := cmd.RegisterFlagCompletionFunc("tools", completeToolFilter); err != nil {
+			panic(fmt.Sprintf("register --tools completion for %s: %v", cmd.CommandPath(), err))
+		}
+	}
+}
+
+func completeToolFilter(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	prefix := ""
+	fragment := toComplete
+	selected := map[string]bool{}
+	if comma := strings.LastIndex(toComplete, ","); comma >= 0 {
+		suffix := toComplete[comma+1:]
+		fragment = strings.TrimLeftFunc(suffix, unicode.IsSpace)
+		prefix = toComplete[:len(toComplete)-len(fragment)]
+		fragment = strings.TrimSpace(fragment)
+		for _, id := range strings.Split(toComplete[:comma], ",") {
+			selected[strings.TrimSpace(id)] = true
+		}
+	}
+
+	candidates := make([]string, 0)
+	for _, def := range tools.DefaultRegistry() {
+		if !selected[def.ID] && strings.HasPrefix(def.ID, fragment) {
+			candidates = append(candidates, prefix+def.ID)
+		}
+	}
+	sort.Strings(candidates)
+	return candidates, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+}
+
+func writePatchedCompletion(cmd *cobra.Command, generate func(io.Writer) error, replacements ...string) error {
+	var script strings.Builder
+	if err := generate(&script); err != nil {
+		return err
+	}
+
+	// Cobra v1.10.2 re-evaluates unquoted args, splitting quoted flag values.
+	completion := script.String()
+	for i := 0; i < len(replacements); i += 2 {
+		patched := strings.Replace(completion, replacements[i], replacements[i+1], 1)
+		if patched == completion {
+			return fmt.Errorf("patch completion argument quoting")
+		}
+		completion = patched
+	}
+	_, err := cmd.OutOrStdout().Write([]byte(completion))
+	return err
+}
+
+func writeBashCompletion(cmd *cobra.Command) error {
+	const unquotedRequest = `requestComp="${words[0]} __completeNoDesc ${args[*]}"`
+	const quotedRequest = `printf -v requestComp '%q ' "${words[0]}" __completeNoDesc "${args[@]}"`
+	generate := func(w io.Writer) error { return cmd.Root().GenBashCompletionV2(w, false) }
+	return writePatchedCompletion(cmd, generate, unquotedRequest, quotedRequest)
+}
+
+func writeZshCompletion(cmd *cobra.Command) error {
+	const splitWords = `words=("${=words[1,CURRENT]}")`
+	const quotedWords = `words=("${words[@]:0:$CURRENT}")`
+	const unquotedRequest = `requestComp="${words[1]} __complete ${words[2,-1]}"`
+	const quotedRequest = `printf -v requestComp '%q ' "${words[1]}" __complete "${words[@]:1}"`
+	return writePatchedCompletion(cmd, cmd.Root().GenZshCompletion, splitWords, quotedWords, unquotedRequest, quotedRequest)
+}
 
 func newCompletionCommand() *cobra.Command {
 	return &cobra.Command{
@@ -31,9 +105,9 @@ To load completions:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch args[0] {
 			case "bash":
-				return cmd.Root().GenBashCompletion(cmd.OutOrStdout())
+				return writeBashCompletion(cmd)
 			case "zsh":
-				return cmd.Root().GenZshCompletion(cmd.OutOrStdout())
+				return writeZshCompletion(cmd)
 			case "fish":
 				return cmd.Root().GenFishCompletion(cmd.OutOrStdout(), true)
 			case "powershell":
