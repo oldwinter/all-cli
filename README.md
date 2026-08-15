@@ -119,8 +119,11 @@ reported by every installed context-aware tool in one compact view.
 
 ```bash
 all-cli current
+all-cli current --tools kubectl,docker
 all-cli current --json
 ```
+
+Use `--tools` to check only the contexts you need and avoid invoking unrelated CLIs.
 
 Example text output:
 
