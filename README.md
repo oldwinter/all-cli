@@ -112,6 +112,25 @@ all-cli status --timeout 10s
 Use `--categories` to check one or more registry categories at once. When combined with
 `--tools`, both filters apply, so the result contains only tools matching both selections.
 
+### Current contexts at a glance
+
+`all-cli current` shows the active accounts, clusters, projects, and environments
+reported by every installed context-aware tool in one compact view.
+
+```bash
+all-cli current
+all-cli current --json
+```
+
+Example text output:
+
+```text
+TOOL     CURRENT
+aws      profile=work region=us-west-2
+docker   context=desktop-linux
+railway  none
+```
+
 ### Agent diagnostics
 
 `all-cli diagnose` turns the same status facts into agent-readable diagnostic items with severity, evidence, suggested actions, autofix safety, and related tool IDs.
@@ -196,6 +215,16 @@ Example shape:
     }
   ]
 }
+```
+
+### Tool descriptions
+
+Use `all-cli describe <tool>` to inspect the built-in purpose, configuration
+criteria, context capabilities, and agent actions without running the tool:
+
+```bash
+all-cli describe kubectl
+all-cli describe kubectl --json
 ```
 
 ### kubectl
