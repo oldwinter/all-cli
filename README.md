@@ -102,11 +102,15 @@ Note about Go toolchain mismatch:
 all-cli status
 all-cli status --json
 all-cli status --tools kubectl,docker
+all-cli status --categories ai,cloud
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
 all-cli status --timeout 10s
 ```
+
+Use `--categories` to check one or more registry categories at once. When combined with
+`--tools`, both filters apply, so the result contains only tools matching both selections.
 
 ### Current contexts at a glance
 
@@ -214,6 +218,16 @@ Example shape:
 ```
 
 ### Tool descriptions
+
+Use `all-cli catalog` to browse every tracked tool without running any external
+commands. Add an optional search term to match tool IDs, names, categories,
+binary names, and purposes:
+
+```bash
+all-cli catalog
+all-cli catalog kubernetes
+all-cli catalog cloud --json
+```
 
 Use `all-cli describe <tool>` to inspect the built-in purpose, configuration
 criteria, context capabilities, and agent actions without running the tool:
