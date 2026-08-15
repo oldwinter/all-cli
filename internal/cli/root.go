@@ -103,6 +103,7 @@ Environment:
 	cmd.AddCommand(newKargoCommand(opts, runner))
 
 	setSubcommandGroups(cmd)
+	registerToolFilterCompletions(cmd)
 
 	return cmd
 }
