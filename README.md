@@ -164,6 +164,13 @@ all-cli snapshot --json > after.json
 all-cli diff before.json after.json --json
 ```
 
+Use `-` for either diff input to compare a saved snapshot with a live pipeline
+without creating another file. Standard input snapshots are limited to 1 MiB:
+
+```bash
+all-cli snapshot --json | all-cli diff before.json - --json
+```
+
 ### AI-friendly JSON additions
 
 Machine-readable shape for `status --json` is also summarized as [JSON Schema](schemas/status-report-v0.1.json) (`schema_version` `v0.1`).
