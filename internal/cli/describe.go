@@ -24,6 +24,9 @@ local configuration.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			def, ok := tools.FindByID(args[0])
 			if !ok {
+				if suggestion := toolIDSuggestion(args[0]); suggestion != "" {
+					return fmt.Errorf("unknown tool ID %q; did you mean %q?", args[0], suggestion)
+				}
 				return fmt.Errorf("unknown tool ID %q", args[0])
 			}
 			metadata := tools.MetadataForTool(def.ID)
