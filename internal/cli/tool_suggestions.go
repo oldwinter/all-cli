@@ -53,21 +53,36 @@ func toolIDSuggestion(input string) string {
 	bestMatches := 0
 	for _, def := range tools.DefaultRegistry() {
 		candidateRunes := []rune(def.ID)
+		lengthDelta := len(inputRunes) - len(candidateRunes)
+		if lengthDelta > maxDistance || lengthDelta < -maxDistance {
+			continue
+		}
+
 		previous := make([]int, len(candidateRunes)+1)
 		current := make([]int, len(candidateRunes)+1)
 		for i := range previous {
 			previous[i] = i
 		}
+		exceededDistance := false
 		for i, inputRune := range inputRunes {
 			current[0] = i + 1
+			rowMinimum := current[0]
 			for j, candidateRune := range candidateRunes {
 				cost := 0
 				if inputRune != candidateRune {
 					cost = 1
 				}
 				current[j+1] = min(previous[j+1]+1, current[j]+1, previous[j]+cost)
+				rowMinimum = min(rowMinimum, current[j+1])
 			}
 			previous, current = current, previous
+			if rowMinimum > maxDistance {
+				exceededDistance = true
+				break
+			}
+		}
+		if exceededDistance {
+			continue
 		}
 		distance := previous[len(candidateRunes)]
 		if distance < bestDistance {

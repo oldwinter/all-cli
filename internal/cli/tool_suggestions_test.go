@@ -88,3 +88,18 @@ func TestRootCommandEscapesUnknownToolsFilter(t *testing.T) {
 		t.Fatalf("error does not escape terminal controls: %q", err)
 	}
 }
+
+func TestToolIDSuggestionSkipsImpossibleLengthsBeforeAllocatingMatrix(t *testing.T) {
+	// Given
+	input := strings.Repeat("x", 64)
+
+	// When
+	allocations := testing.AllocsPerRun(10, func() {
+		_ = toolIDSuggestion(input)
+	})
+
+	// Then
+	if allocations > 4 {
+		t.Fatalf("allocations = %.0f, want at most 4", allocations)
+	}
+}
