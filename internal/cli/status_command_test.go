@@ -151,7 +151,7 @@ func TestStatusCommandErrorsOnUnknownToolsFilter(t *testing.T) {
 	stubShowStatusSpinner(t, false)
 	opts := &rootOptions{Timeout: time.Second}
 	_, _, err := executeTestCommand(t, newStatusCommand(opts, cliFakeRunner{}), "--tools", "does-not-exist")
-	if err == nil || !strings.Contains(err.Error(), "unknown tool IDs: does-not-exist") {
+	if err == nil || !strings.Contains(err.Error(), `unknown tool ID "does-not-exist"`) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -201,17 +201,7 @@ func parseToolsFilter(s string) (map[string]bool, error) {
 		}
 	}
 	if len(unknown) > 0 {
-		sort.Strings(unknown)
-		suggestions := make([]string, 0, len(unknown))
-		for _, id := range unknown {
-			if suggestion := toolIDSuggestion(id); suggestion != "" {
-				suggestions = append(suggestions, fmt.Sprintf("%s -> %s", id, suggestion))
-			}
-		}
-		if len(suggestions) > 0 {
-			return nil, fmt.Errorf("unknown tool IDs: %s; suggestions: %s", strings.Join(unknown, ", "), strings.Join(suggestions, ", "))
-		}
-		return nil, fmt.Errorf("unknown tool IDs: %s", strings.Join(unknown, ", "))
+		return nil, unknownToolIDError(unknown)
 	}
 
 	return out, nil
