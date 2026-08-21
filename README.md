@@ -94,6 +94,16 @@ Note about Go toolchain mismatch:
 
 ## Usage
 
+### Version metadata
+
+`all-cli version` keeps its compact human-readable output. Add `--json` when a
+script needs the version and build metadata as separate fields:
+
+```bash
+all-cli version
+all-cli version --json
+```
+
 ### Global overview
 
 `all-cli status` defaults to grouping by `category` and sorting tools by `tool` (A-Z).
