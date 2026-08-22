@@ -22,6 +22,17 @@ func registerToolFilterCompletions(root *cobra.Command) {
 	}
 }
 
+func registerCategoryFilterCompletions(root *cobra.Command) {
+	for _, cmd := range root.Commands() {
+		if cmd.Flags().Lookup("categories") == nil {
+			continue
+		}
+		if err := cmd.RegisterFlagCompletionFunc("categories", completeCategoryFilter); err != nil {
+			panic(fmt.Sprintf("register --categories completion for %s: %v", cmd.CommandPath(), err))
+		}
+	}
+}
+
 func completeToolFilter(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	prefix := ""
 	fragment := toComplete
@@ -41,6 +52,35 @@ func completeToolFilter(_ *cobra.Command, _ []string, toComplete string) ([]stri
 		if !selected[def.ID] && strings.HasPrefix(def.ID, fragment) {
 			candidates = append(candidates, prefix+def.ID)
 		}
+	}
+	sort.Strings(candidates)
+	return candidates, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+}
+
+func completeCategoryFilter(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	prefix := ""
+	fragment := toComplete
+	selected := map[string]bool{}
+	if comma := strings.LastIndex(toComplete, ","); comma >= 0 {
+		suffix := toComplete[comma+1:]
+		fragment = strings.TrimLeftFunc(suffix, unicode.IsSpace)
+		prefix = toComplete[:len(toComplete)-len(fragment)]
+		for _, category := range strings.Split(toComplete[:comma], ",") {
+			selected[strings.ToLower(strings.TrimSpace(category))] = true
+		}
+	}
+	fragment = strings.ToLower(strings.TrimSpace(fragment))
+
+	categories := map[string]bool{}
+	for _, def := range tools.DefaultRegistry() {
+		category := strings.ToLower(def.Category)
+		if !selected[category] && strings.HasPrefix(category, fragment) {
+			categories[category] = true
+		}
+	}
+	candidates := make([]string, 0, len(categories))
+	for category := range categories {
+		candidates = append(candidates, prefix+category)
 	}
 	sort.Strings(candidates)
 	return candidates, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
