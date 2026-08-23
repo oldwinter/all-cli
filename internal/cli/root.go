@@ -104,6 +104,7 @@ Environment:
 
 	setSubcommandGroups(cmd)
 	registerToolFilterCompletions(cmd)
+	registerCategoryFilterCompletions(cmd)
 
 	return cmd
 }
