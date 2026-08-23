@@ -189,6 +189,74 @@ func TestDiffCommandJSONReportsChangedTools(t *testing.T) {
 	}
 }
 
+func TestDiffCommandReadsSnapshotFromStdin(t *testing.T) {
+	before := model.NewStatusReport(1)
+	before.Tools[0] = model.ToolSummary{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Installed: false, ConfiguredState: model.ConfiguredUnknown}
+	after := model.NewStatusReport(1)
+	after.Tools[0] = model.ToolSummary{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes}
+
+	tests := []struct {
+		name         string
+		stdinReport  model.StatusReport
+		fileReport   model.StatusReport
+		stdinIsFirst bool
+	}{
+		{name: "before snapshot", stdinReport: before, fileReport: after, stdinIsFirst: true},
+		{name: "after snapshot", stdinReport: after, fileReport: before},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filePath := writeStatusReportFixture(t, t.TempDir(), "snapshot.json", tt.fileReport)
+			stdin, err := json.Marshal(tt.stdinReport)
+			if err != nil {
+				t.Fatalf("marshal stdin snapshot: %v", err)
+			}
+
+			args := []string{filePath, "-"}
+			if tt.stdinIsFirst {
+				args = []string{"-", filePath}
+			}
+			opts := &rootOptions{JSON: true, Timeout: time.Second}
+			cmd := newDiffCommand(opts)
+			cmd.SetIn(strings.NewReader(string(stdin)))
+			stdout, _, err := executeTestCommand(t, cmd, args...)
+			if err != nil {
+				t.Fatalf("diff from stdin: %v", err)
+			}
+
+			var got model.SnapshotDiffReport
+			if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+				t.Fatalf("decode diff: %v", err)
+			}
+			if got.Summary.Changed != 1 || len(got.Changes) != 1 || got.Changes[0].ToolID != "aws" {
+				t.Fatalf("unexpected stdin diff: %#v", got)
+			}
+		})
+	}
+}
+
+func TestDiffCommandRejectsTwoStdinSnapshots(t *testing.T) {
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	_, _, err := executeTestCommand(t, newDiffCommand(opts), "-", "-")
+	if err == nil || !strings.Contains(err.Error(), `accepts "-" for only one snapshot`) {
+		t.Fatalf("expected duplicate stdin error, got %v", err)
+	}
+}
+
+func TestDiffCommandRejectsOversizedStdinSnapshot(t *testing.T) {
+	before := model.NewStatusReport(0)
+	beforePath := writeStatusReportFixture(t, t.TempDir(), "before.json", before)
+
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	cmd := newDiffCommand(opts)
+	cmd.SetIn(strings.NewReader(strings.Repeat(" ", int(maxStdinSnapshotBytes)+1)))
+	_, _, err := executeTestCommand(t, cmd, beforePath, "-")
+	if err == nil || !strings.Contains(err.Error(), "snapshot stdin exceeds 1 MiB limit") {
+		t.Fatalf("expected stdin size error, got %v", err)
+	}
+}
+
 func writeStatusReportFixture(t *testing.T, dir, name string, report model.StatusReport) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
