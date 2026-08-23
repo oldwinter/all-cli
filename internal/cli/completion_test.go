@@ -212,3 +212,54 @@ func TestToolFilterCompletionCandidatesAndDirective(t *testing.T) {
 		})
 	}
 }
+
+func TestCategoryFilterFlagCompletesCategories(t *testing.T) {
+	root := NewRootCommand()
+
+	stdout, _, err := executeTestCommand(t, root, "__complete", "status", "--categories", "cl")
+	if err != nil {
+		t.Fatalf("complete status --categories: %v", err)
+	}
+	if !strings.Contains(stdout, "cloud") {
+		t.Fatalf("cloud completion missing: %q", stdout)
+	}
+}
+
+func TestCategoryFilterCompletionOmitsAlreadySelectedCategories(t *testing.T) {
+	root := NewRootCommand()
+
+	stdout, _, err := executeTestCommand(t, root, "__complete", "status", "--categories", "cloud,")
+	if err != nil {
+		t.Fatalf("complete comma-separated --categories: %v", err)
+	}
+	if !strings.Contains(stdout, "cloud,k8s") {
+		t.Fatalf("remaining category completion missing: %q", stdout)
+	}
+	if strings.Contains(stdout, "cloud,cloud") {
+		t.Fatalf("duplicate category completion offered: %q", stdout)
+	}
+}
+
+func TestCategoryFilterCompletionCandidatesAndDirective(t *testing.T) {
+	tests := []struct {
+		name       string
+		toComplete string
+		want       string
+	}{
+		{name: "single item", toComplete: "cl", want: "cloud"},
+		{name: "case insensitive", toComplete: "CL", want: "cloud"},
+		{name: "whitespace after comma", toComplete: "cloud, k", want: "cloud, k8s"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, directive := completeCategoryFilter(nil, nil, tt.toComplete)
+			if len(got) != 1 || got[0] != tt.want {
+				t.Fatalf("completion = %#v, want %q", got, tt.want)
+			}
+			wantDirective := cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+			if directive != wantDirective {
+				t.Fatalf("directive = %v, want NoFileComp|NoSpace", directive)
+			}
+		})
+	}
+}
