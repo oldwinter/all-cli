@@ -125,6 +125,29 @@ func TestPrometheusMetricsAggregateAcrossRecorderInstances(t *testing.T) {
 	}
 }
 
+func TestStructuredLogFailureDoesNotBlockMetrics(t *testing.T) {
+	root := t.TempDir()
+	notDirectory := filepath.Join(root, "not-a-directory")
+	if err := os.WriteFile(notDirectory, []byte("file"), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", notDirectory, err)
+	}
+	metricsPath := filepath.Join(root, "all-cli.prom")
+	recorder, err := New(Config{
+		LogPath:     filepath.Join(notDirectory, "events.jsonl"),
+		MetricsPath: metricsPath,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, span := recorder.Start(context.Background())
+	recorder.Finish(ctx, span, "status", nil)
+
+	if _, err := os.Stat(metricsPath); err != nil {
+		t.Fatalf("metrics were blocked by structured-log failure: %v", err)
+	}
+}
+
 func readJSONEvent(t *testing.T, path string) map[string]any {
 	t.Helper()
 

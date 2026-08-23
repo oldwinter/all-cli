@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -94,7 +95,7 @@ func (r *Recorder) Finish(ctx context.Context, span Span, command string, comman
 	}
 	command = normalizeCommand(command)
 
-	r.writeStructuredLog(ctx, span, command, result, duration)
+	_ = r.writeStructuredLog(ctx, span, command, result, duration)
 	if r.config.MetricsPath != "" {
 		_ = recordPrometheus(r.config.MetricsPath, command, result, duration)
 	}
@@ -114,18 +115,17 @@ func TraceID(ctx context.Context) string {
 	return traceID
 }
 
-func (r *Recorder) writeStructuredLog(ctx context.Context, span Span, command, result string, duration time.Duration) {
+func (r *Recorder) writeStructuredLog(ctx context.Context, span Span, command, result string, duration time.Duration) error {
 	if strings.TrimSpace(r.config.LogPath) == "" {
-		return
+		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(r.config.LogPath), 0o700); err != nil {
-		return
+		return fmt.Errorf("create structured log directory: %w", err)
 	}
 	file, err := os.OpenFile(r.config.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
-		return
+		return fmt.Errorf("open structured log: %w", err)
 	}
-	defer file.Close()
 
 	logger := slog.New(slog.NewJSONHandler(file, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	logger.InfoContext(
@@ -138,6 +138,10 @@ func (r *Recorder) writeStructuredLog(ctx context.Context, span Span, command, r
 		slog.String("release", r.config.Release),
 		slog.String("trace_id", span.TraceID),
 	)
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close structured log: %w", err)
+	}
+	return nil
 }
 
 func traceIDFromParent(traceParent string) string {
