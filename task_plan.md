@@ -105,3 +105,4 @@ Status: complete
 | Functional QA showed unknown feature flags exited silently | 1 | Traced the pre-Cobra return path, added a failing stderr regression test, rendered startup errors at the execution boundary, and recaptured a passing terminal flow. |
 | First `tctl` QA prompt wait timed out on a visible shell prompt | 1 | Replaced the regex wait with the literal prompt; capture completed. The wrapper still emits a harmless post-close arithmetic warning after finalizing casts. |
 | Comprehensive verification used system Python without PyYAML | 1 | Reused the pre-commit virtual environment, which includes PyYAML, and reran the complete verification successfully. |
+| First PR `test` job reported 78.1% coverage despite a local 81.4% result | 1 | Reproduced with the declared Go 1.26.1 toolchain, identified Go 1.27 coverage-accounting drift, added public registry-contract tests, and cleared the unchanged 80% floor at 80.3%. |

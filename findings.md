@@ -61,7 +61,7 @@
 ## Quality-gate implementation findings
 
 - The live repository policy passes with limits of 1 MiB and 1,500 lines and requires issue links for debt markers in code-bearing comments.
-- The coverage gate passes at 80.4% after adding repository-policy tests, above the enforced 80.0% floor.
+- The coverage gate passes at 80.3% on the declared Go 1.26.1 toolchain after adding repository-policy and registry-contract tests, above the enforced 80.0% floor.
 - A 120-token duplication threshold found 34 mostly structural CLI test-fixture matches. A calibrated 200-token threshold still found a real 43-line Vercel/Netlify production duplicate.
 - The cloud registry now uses one typed constructor for Vercel, Railway, and Netlify whoami/current behavior.
 - Simple tool metadata moved from a 47-complexity switch into a lookup table; the glab parser was split into a detail parser.
@@ -85,3 +85,10 @@
 - The exact successful required CI context is `test`.
 - Sixteen versioned priority/type/area/dependency labels were created and read back with matching colors and descriptions; default labels were preserved.
 - `main` protection is active and strict: `test` required, one approval, stale review dismissal, code-owner review, conversation resolution, linear history, admin enforcement, no force pushes, and no deletion.
+
+## Pull-request validation findings
+
+- PR [#26](https://github.com/oldwinter/all-cli/pull/26) passed the required `test` job, functional QA, CodeQL, dependency review, golangci-lint SARIF, and GitGuardian.
+- The first CI run exposed compiler-sensitive coverage accounting: Go 1.27.0 reported 81.4%, while the repository-declared Go 1.26.1 reported 78.1%.
+- Public `ToolDefinition` contract tests now cover installed-state handling, adapter reuse, diagnostic propagation, cloud identity caching, file-backed configuration, and default-registry dispatch.
+- The exact Go 1.26.1 gate now passes at 80.3% without weakening the threshold.
