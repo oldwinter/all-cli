@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/oldwinter/all-cli/security/advisories/new
+    about: Privately report vulnerabilities instead of opening a public issue.

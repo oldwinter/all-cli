@@ -1,0 +1,82 @@
+[
+  {
+    "name": "priority:P0",
+    "color": "B60205",
+    "description": "Critical incident requiring immediate response."
+  },
+  {
+    "name": "priority:P1",
+    "color": "D93F0B",
+    "description": "High-impact work requiring response within one hour."
+  },
+  {
+    "name": "priority:P2",
+    "color": "FBCA04",
+    "description": "Normal defect or degradation requiring prompt backlog review."
+  },
+  {
+    "name": "priority:P3",
+    "color": "0E8A16",
+    "description": "Low-impact improvement handled through normal prioritization."
+  },
+  {
+    "name": "type:bug",
+    "color": "D73A4A",
+    "description": "Incorrect or regressed behavior."
+  },
+  {
+    "name": "type:feature",
+    "color": "A2EEEF",
+    "description": "New user-visible capability."
+  },
+  {
+    "name": "type:chore",
+    "color": "D4C5F9",
+    "description": "Maintenance, tooling, or dependency work."
+  },
+  {
+    "name": "type:security",
+    "color": "5319E7",
+    "description": "Security hardening or vulnerability remediation."
+  },
+  {
+    "name": "area:cli",
+    "color": "1D76DB",
+    "description": "CLI command wiring, output, options, or schemas."
+  },
+  {
+    "name": "area:tools",
+    "color": "0052CC",
+    "description": "Tool registry, adapter, detection, or context behavior."
+  },
+  {
+    "name": "area:ci",
+    "color": "006B75",
+    "description": "Continuous integration, QA, or release automation."
+  },
+  {
+    "name": "area:docs",
+    "color": "0075CA",
+    "description": "Documentation, runbooks, or contributor guidance."
+  },
+  {
+    "name": "area:dependencies",
+    "color": "0366D6",
+    "description": "Go modules, actions, images, and supply-chain policy."
+  },
+  {
+    "name": "area:observability",
+    "color": "C2E0C6",
+    "description": "Logging, traces, metrics, errors, analytics, or alerts."
+  },
+  {
+    "name": "area:security",
+    "color": "7057FF",
+    "description": "Security automation, findings, controls, or privacy."
+  },
+  {
+    "name": "dependencies",
+    "color": "0366D6",
+    "description": "Automated dependency update."
+  }
+]

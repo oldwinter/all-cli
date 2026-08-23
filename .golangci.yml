@@ -1,6 +1,11 @@
 version: "2"
 linters:
+  enable:
+    - dupl
+    - gocyclo
   settings:
+    dupl:
+      threshold: 200
     errcheck:
       exclude-functions:
         - fmt.Fprintf
@@ -8,6 +13,8 @@ linters:
         - fmt.Fprint
         - (io.Writer).Write
         - (*text/tabwriter.Writer).Flush
+    gocyclo:
+      min-complexity: 20
   exclusions:
     generated: lax
     presets:

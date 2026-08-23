@@ -40,7 +40,15 @@ Environment:
   NO_COLOR            If set (any value), disable ANSI colors and escape sequences.
   TERM                If "dumb", ANSI output is disabled.
   CI                  If set, the status command skips the stderr progress spinner.
-  ALL_CLI_NO_PROGRESS If 1, true, yes, or on, disable the status spinner (any environment).`,
+  ALL_CLI_NO_PROGRESS If 1, true, yes, or on, disable the status spinner (any environment).
+  ALL_CLI_FEATURES    Comma-separated opt-in feature flags; telemetry-v1 enables telemetry.
+  ALL_CLI_LOG_PATH    JSON structured event log path when telemetry-v1 is enabled.
+  ALL_CLI_METRICS_PATH Prometheus textfile path when telemetry-v1 is enabled.
+  ALL_CLI_TRACEPARENT W3C traceparent used to correlate this command.
+  SENTRY_DSN          Optional Sentry error-tracking DSN.
+  SENTRY_ENVIRONMENT  Optional Sentry environment name.
+  POSTHOG_API_KEY     Optional PostHog project key for minimized command-use analytics.
+  POSTHOG_HOST        Optional PostHog ingestion host.`,
 		Example: `  # Full overview as JSON (stable schema)
   all-cli status --json
 

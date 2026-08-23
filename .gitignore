@@ -1,6 +1,19 @@
 .DS_Store
 .idea/
 .vscode/
+.worktrees/
+
+# Local secrets and environment configuration
+.env
+.env.*
+!.env.example
+.secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.local.*
+secrets.local.*
 
 # Go
 bin/
@@ -9,6 +22,13 @@ dist/
 *.test
 *.out
 coverage.out
+coverage.html
+quality-metrics/
+qa-results/
 
 # Local builds
 /all-cli
+
+# Opt-in local telemetry state and textfile metrics
+.all-cli-telemetry/
+all-cli.prom

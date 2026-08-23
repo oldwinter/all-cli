@@ -13,8 +13,12 @@
 - Tests are colocated with code as `*_test.go`.
 
 ## Build, Test, and Development Commands
-- `just ci`: CI-equivalent checks (`verify-tidy`, `vet`, `test`).
-- `just check`: stricter local gate (`ci` + `test-race` + `fmt-check`).
+- `just ci`: CI-equivalent quality gate (`verify-tidy`, formatting, repository policy, vet, tests, coverage threshold, complexity, and duplication checks).
+- `just check`: stricter local gate (`ci` + race tests + three-pass stability tests).
+- `just policy`: validate file-size/line limits, issue-linked debt markers, and AGENTS.md command/link freshness.
+- `just coverage-check`: enforce the 80% total statement coverage floor.
+- `just lint`: run golangci-lint, including a maximum cyclomatic complexity of 19 and duplicate-block detection at 200 tokens.
+- `just pre-commit`: run every configured commit-time hook against all files.
 - `just build`: build local binary at `./all-cli`.
 - `just run status --json`: run from source without building manually.
 - `just smoke`: quick sanity check (`version` + `status --group-by none`).
@@ -47,7 +51,14 @@
 - Use Go’s standard `testing` package.
 - Add or update `*_test.go` for any behavior change.
 - Prefer table-driven tests for parsing/validation branches and adapter edge cases.
+- Keep total statement coverage at or above 80%; `just coverage-check` enforces the floor.
+- Treat `just test-stability` failures as flaky-test defects, not as retryable noise.
 - Run `just check` before opening a PR; at minimum ensure `go test ./...` passes.
+
+## Local Commit Hooks
+- Install pre-commit with `pipx install pre-commit`, then run `pre-commit install`.
+- Hooks format staged Go files, reject files over 1 MiB, validate repository policy, run `go vet`, and run the Go test suite.
+- Run `just pre-commit` before a pull request to exercise every hook against the full repository.
 
 ## Commit & Pull Request Guidelines
 - Commit subjects are short and imperative; many commits use Conventional Commit prefixes (`feat:`, `fix:`). Prefer `<type>: <summary>`.

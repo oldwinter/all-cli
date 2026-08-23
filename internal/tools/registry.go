@@ -328,135 +328,51 @@ func wranglerTool() ToolDefinition {
 }
 
 func vercelTool() ToolDefinition {
-	var cache whoamiOnce[vercel.Whoami]
-	fetch := func(ctx context.Context, runner execx.Runner) (vercel.Whoami, []string, []string, error) {
-		return vercel.New(runner).Whoami(ctx)
-	}
-
-	return ToolDefinition{
-		ID:          "vercel",
-		DisplayName: "Vercel CLI",
-		Category:    "cloud",
-		Binary:      "vercel",
-		Timeout:     10 * time.Second,
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   false,
+	return cloudWhoamiTool(
+		"vercel",
+		"Vercel CLI",
+		func(ctx context.Context, runner execx.Runner) (vercel.Whoami, []string, []string, error) {
+			return vercel.New(runner).Whoami(ctx)
 		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			who, warnings, errs, err := cache.load(ctx, runner, fetch)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if strings.TrimSpace(who.Username) != "" || strings.TrimSpace(who.Email) != "" {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
+		func(who vercel.Whoami) bool {
+			return strings.TrimSpace(who.Username) != "" || strings.TrimSpace(who.Email) != ""
 		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := vercel.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
+		func(ctx context.Context, runner execx.Runner) (map[string]string, []string, []string, error) {
+			return vercel.New(runner).Current(ctx)
 		},
-	}
+	)
 }
 
 func railwayTool() ToolDefinition {
-	var cache whoamiOnce[railway.Whoami]
-	fetch := func(ctx context.Context, runner execx.Runner) (railway.Whoami, []string, []string, error) {
-		return railway.New(runner).Whoami(ctx)
-	}
-
-	return ToolDefinition{
-		ID:          "railway",
-		DisplayName: "Railway CLI",
-		Category:    "cloud",
-		Binary:      "railway",
-		Timeout:     10 * time.Second,
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   false,
+	return cloudWhoamiTool(
+		"railway",
+		"Railway CLI",
+		func(ctx context.Context, runner execx.Runner) (railway.Whoami, []string, []string, error) {
+			return railway.New(runner).Whoami(ctx)
 		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			who, warnings, errs, err := cache.load(ctx, runner, fetch)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if strings.TrimSpace(who.Email) != "" {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
+		func(who railway.Whoami) bool {
+			return strings.TrimSpace(who.Email) != ""
 		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := railway.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
+		func(ctx context.Context, runner execx.Runner) (map[string]string, []string, []string, error) {
+			return railway.New(runner).Current(ctx)
 		},
-	}
+	)
 }
 
 func netlifyTool() ToolDefinition {
-	var cache whoamiOnce[netlify.CurrentUser]
-	fetch := func(ctx context.Context, runner execx.Runner) (netlify.CurrentUser, []string, []string, error) {
-		return netlify.New(runner).CurrentUser(ctx)
-	}
-
-	return ToolDefinition{
-		ID:          "netlify",
-		DisplayName: "Netlify CLI",
-		Category:    "cloud",
-		Binary:      "netlify",
-		Timeout:     10 * time.Second,
-		Capabilities: model.Capability{
-			HasContexts: true,
-			CanSwitch:   false,
+	return cloudWhoamiTool(
+		"netlify",
+		"Netlify CLI",
+		func(ctx context.Context, runner execx.Runner) (netlify.CurrentUser, []string, []string, error) {
+			return netlify.New(runner).CurrentUser(ctx)
 		},
-		ConfigCheck: func(ctx context.Context, runner execx.Runner, installed bool) (model.ConfiguredState, []string, []string) {
-			if !installed {
-				return model.ConfiguredUnknown, nil, nil
-			}
-			user, warnings, errs, err := cache.load(ctx, runner, fetch)
-			if err != nil {
-				errs = append(errs, err.Error())
-				return model.ConfiguredUnknown, warnings, errs
-			}
-			if strings.TrimSpace(user.ID) != "" || strings.TrimSpace(user.Email) != "" {
-				return model.ConfiguredYes, warnings, errs
-			}
-			return model.ConfiguredNo, warnings, errs
+		func(user netlify.CurrentUser) bool {
+			return strings.TrimSpace(user.ID) != "" || strings.TrimSpace(user.Email) != ""
 		},
-		Current: func(ctx context.Context, runner execx.Runner, installed bool) (map[string]string, []string, []string) {
-			if !installed {
-				return nil, nil, nil
-			}
-			a := netlify.New(runner)
-			cur, warnings, errs, err := a.Current(ctx)
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
-			return cur, warnings, errs
+		func(ctx context.Context, runner execx.Runner) (map[string]string, []string, []string, error) {
+			return netlify.New(runner).Current(ctx)
 		},
-	}
+	)
 }
 
 func kargoTool() ToolDefinition {

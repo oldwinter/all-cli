@@ -2,35 +2,49 @@ package tools
 
 import "github.com/oldwinter/all-cli/internal/model"
 
+var naToolPurposes = map[string]string{
+	"fd":            "Fast file finder for local filesystem search.",
+	"rg":            "Fast text search tool for recursive code and file content search.",
+	"fzf":           "Interactive fuzzy finder used to select items from terminal input.",
+	"zoxide":        "Smart directory jumper that tracks and ranks frequently used paths.",
+	"eza":           "Modern replacement for ls with richer file listing output.",
+	"bat":           "File viewer with syntax highlighting and line numbers.",
+	"yq":            "Command-line processor for YAML and structured data transformations.",
+	"brew":          "Homebrew package manager for installing and updating local tooling.",
+	"uv":            "Python-oriented package and tool runner used for fast environment and CLI workflows.",
+	"just":          "Task runner for project automation recipes declared in a justfile.",
+	"yazi":          "Terminal file manager for navigating and manipulating local files.",
+	"lazydocker":    "Terminal dashboard for viewing and operating Docker resources.",
+	"eksctl":        "CLI for managing Amazon EKS clusters and related resources.",
+	"kubectx":       "Helper CLI for switching Kubernetes contexts quickly.",
+	"kubens":        "Helper CLI for switching Kubernetes namespaces quickly.",
+	"kubecolor":     "kubectl-compatible wrapper that adds colorized output.",
+	"krew":          "Plugin manager for kubectl extensions.",
+	"kubefwd":       "Utility for forwarding multiple Kubernetes services to localhost for local debugging.",
+	"kubeshark":     "Kubernetes network inspection tool for observing in-cluster traffic.",
+	"linear":        "Linear CLI for issue, project, and workflow management.",
+	"claude":        "Claude Code CLI for AI-assisted coding and terminal workflows.",
+	"codex":         "Codex CLI for AI-assisted coding and terminal workflows.",
+	"openclaw":      "AI coding CLI for terminal-based development workflows.",
+	"opencode":      "AI coding CLI for interactive code and terminal workflows.",
+	"gemini":        "Gemini CLI for AI-assisted terminal and content workflows.",
+	"ccusage":       "CLI for inspecting Claude Code usage and related local usage data.",
+	"litellm-proxy": "LiteLLM proxy CLI for local or staging model routing and smoke tests.",
+	"simplex-cli":   "Internal operations CLI for Simplex product and account workflows.",
+	"opensearch":    "OpenSearch CLI for OpenSearch cluster and index operations.",
+}
+
 func MetadataForTool(id string) model.ToolMetadata {
+	if purpose, ok := naToolPurposes[id]; ok {
+		return naMetadata(purpose)
+	}
+
 	switch id {
-	case "fd":
-		return naMetadata("Fast file finder for local filesystem search.")
-	case "rg":
-		return naMetadata("Fast text search tool for recursive code and file content search.")
-	case "fzf":
-		return naMetadata("Interactive fuzzy finder used to select items from terminal input.")
-	case "zoxide":
-		return naMetadata("Smart directory jumper that tracks and ranks frequently used paths.")
-	case "eza":
-		return naMetadata("Modern replacement for ls with richer file listing output.")
-	case "bat":
-		return naMetadata("File viewer with syntax highlighting and line numbers.")
-	case "yq":
-		return naMetadata("Command-line processor for YAML and structured data transformations.")
-	case "brew":
-		return naMetadata("Homebrew package manager for installing and updating local tooling.")
-	case "uv":
-		return naMetadata("Python-oriented package and tool runner used for fast environment and CLI workflows.")
-	case "just":
-		return naMetadata("Task runner for project automation recipes declared in a justfile.")
 	case "obsidian":
 		return naMetadata(
 			"Obsidian desktop application for local markdown knowledge bases.",
 			"The detected binary launches a desktop app, not a pure command-line workflow.",
 		)
-	case "yazi":
-		return naMetadata("Terminal file manager for navigating and manipulating local files.")
 	case "k9s":
 		return currentMetadata(
 			"Terminal dashboard for inspecting Kubernetes resources through the current kubeconfig context.",
@@ -43,8 +57,6 @@ func MetadataForTool(id string) model.ToolMetadata {
 			[]string{"inspect_status", "show_current"},
 			"Missing namespace is often a normal state because kubeconfig may not pin a default namespace.",
 		)
-	case "lazydocker":
-		return naMetadata("Terminal dashboard for viewing and operating Docker resources.")
 	case "aws":
 		return currentMetadata(
 			"Amazon Web Services CLI for account, infrastructure, and service operations.",
@@ -115,8 +127,6 @@ func MetadataForTool(id string) model.ToolMetadata {
 			},
 			[]string{"inspect_status", "show_current"},
 		)
-	case "eksctl":
-		return naMetadata("CLI for managing Amazon EKS clusters and related resources.")
 	case "kubectl":
 		return currentMetadata(
 			"Kubernetes CLI used to inspect and operate clusters through kubeconfig contexts.",
@@ -128,18 +138,6 @@ func MetadataForTool(id string) model.ToolMetadata {
 			[]string{"inspect_status", "show_current", "list_contexts", "switch_context", "switch_namespace"},
 			"Missing namespace is not always an error because many kubeconfig contexts rely on the cluster default namespace.",
 		)
-	case "kubectx":
-		return naMetadata("Helper CLI for switching Kubernetes contexts quickly.")
-	case "kubens":
-		return naMetadata("Helper CLI for switching Kubernetes namespaces quickly.")
-	case "kubecolor":
-		return naMetadata("kubectl-compatible wrapper that adds colorized output.")
-	case "krew":
-		return naMetadata("Plugin manager for kubectl extensions.")
-	case "kubefwd":
-		return naMetadata("Utility for forwarding multiple Kubernetes services to localhost for local debugging.")
-	case "kubeshark":
-		return naMetadata("Kubernetes network inspection tool for observing in-cluster traffic.")
 	case "docker":
 		return currentMetadata(
 			"Docker CLI for containers, images, networks, and Docker contexts.",
@@ -172,22 +170,6 @@ func MetadataForTool(id string) model.ToolMetadata {
 			[]string{"inspect_status", "show_current", "list_instances", "switch_host"},
 			"`effective_host` and `global_host` may differ when repository or environment settings override the global default.",
 		)
-	case "linear":
-		return naMetadata("Linear CLI for issue, project, and workflow management.")
-	case "claude":
-		return naMetadata("Claude Code CLI for AI-assisted coding and terminal workflows.")
-	case "codex":
-		return naMetadata("Codex CLI for AI-assisted coding and terminal workflows.")
-	case "openclaw":
-		return naMetadata("AI coding CLI for terminal-based development workflows.")
-	case "opencode":
-		return naMetadata("AI coding CLI for interactive code and terminal workflows.")
-	case "gemini":
-		return naMetadata("Gemini CLI for AI-assisted terminal and content workflows.")
-	case "ccusage":
-		return naMetadata("CLI for inspecting Claude Code usage and related local usage data.")
-	case "litellm-proxy":
-		return naMetadata("LiteLLM proxy CLI for local or staging model routing and smoke tests.")
 	case "opencli":
 		return currentMetadata(
 			"CLI that turns supported websites into command-line interfaces by reusing Chrome browser sessions.",
@@ -201,8 +183,6 @@ func MetadataForTool(id string) model.ToolMetadata {
 			[]string{"inspect_status", "show_current"},
 			"`configured_state=yes` does not guarantee that target websites are logged in; it only verifies the local browser bridge prerequisites that OpenCLI reports.",
 		)
-	case "simplex-cli":
-		return naMetadata("Internal operations CLI for Simplex product and account workflows.")
 	case "rclone":
 		return currentMetadata(
 			"File sync and transfer CLI for local and remote storage backends.",
@@ -230,8 +210,6 @@ func MetadataForTool(id string) model.ToolMetadata {
 			},
 			[]string{"inspect_status", "show_current", "list_contexts", "switch_context"},
 		)
-	case "opensearch":
-		return naMetadata("OpenSearch CLI for OpenSearch cluster and index operations.")
 	case "mise":
 		return currentMetadata(
 			"Runtime manager that resolves active tool versions for the current shell and project.",

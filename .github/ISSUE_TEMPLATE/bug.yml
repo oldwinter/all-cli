@@ -1,0 +1,76 @@
+name: Bug report
+description: Report reproducible incorrect behavior in all-cli.
+title: "bug: "
+labels:
+  - type:bug
+  - priority:P2
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include tokens, credentials, or the contents of private tool configuration.
+  - type: input
+    id: version
+    attributes:
+      label: all-cli version
+      description: Paste the output of `all-cli version`.
+      placeholder: v0.0.0 (commit=abc1234 date=2026-08-23)
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - CLI command behavior
+        - Tool detection or context
+        - Installation or doctor fix
+        - JSON schema or output
+        - CI, release, or documentation
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and why it is incorrect.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the shortest safe command sequence that reproduces the problem.
+      placeholder: |
+        1. Run `all-cli ...`
+        2. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: State the output or behavior you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, architecture, shell, and relevant external CLI versions. Remove private paths and identity.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Safe diagnostics
+      description: Add redacted `all-cli diagnose --json` details if useful.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I removed credentials, tokens, private paths, account IDs, and confidential output.
+          required: true
+        - label: I searched existing issues for the same behavior.
+          required: true

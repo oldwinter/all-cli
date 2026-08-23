@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -15,6 +16,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -28,7 +30,7 @@ jobs:
       - name: Verify go.mod tidy
         run: |
           go mod tidy
-          git diff --exit-code
+          git diff --exit-code -- go.mod go.sum
 
       - name: Format check
         run: |
@@ -42,13 +44,85 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Test
-        run: go test ./...
+      - name: Repository policy
+        run: go test ./internal/repopolicy -run TestRepositoryPolicy -count=1
+
+      - name: Build performance
+        shell: bash
+        run: |
+          mkdir -p quality-metrics
+          SECONDS=0
+          go build -o /tmp/all-cli ./cmd/all-cli
+          elapsed="$SECONDS"
+          printf '%s\n' "$elapsed" > quality-metrics/build-seconds.txt
+          {
+            echo "### Build performance"
+            echo
+            echo "- Elapsed: ${elapsed}s"
+            echo "- Regression ceiling: 120s"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if (( elapsed > 120 )); then
+            echo "build exceeded the 120-second regression ceiling" >&2
+            exit 1
+          fi
+
+      - name: Test with timing events
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -json ./... | tee quality-metrics/test-events.json
 
       - name: Test (race detector)
         run: go test -race ./...
+
+      - name: Test stability (three passes)
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -count=3 -json ./... | tee quality-metrics/stability-events.json
+          {
+            echo "### Test stability"
+            echo
+            echo "Every package passed three consecutive executions."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce coverage threshold
+        env:
+          COVERAGE_FILE: quality-metrics/coverage.out
+          COVERAGE_MIN: "80.0"
+        run: bash scripts/check-coverage.sh
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9.2.0
         with:
           version: v2.11.3
+          args: --output.sarif.path=quality-metrics/golangci-lint.sarif
+
+      - name: Upload lint SARIF
+        if: always() && hashFiles('quality-metrics/golangci-lint.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: quality-metrics/golangci-lint.sarif
+          category: golangci-lint
+
+      - name: Summarize quality controls
+        if: always()
+        run: |
+          {
+            echo "### Enforced quality controls"
+            echo
+            echo "- Coverage floor: 80.0%"
+            echo "- Cyclomatic complexity: less than 20"
+            echo "- Duplicate block threshold: 200 tokens"
+            echo "- Source limits: 1 MiB and 1,500 lines"
+            echo "- Stability: three consecutive test passes"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload quality metrics
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: quality-metrics
+          path: quality-metrics/
+          if-no-files-found: error
+          retention-days: 30

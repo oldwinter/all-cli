@@ -15,7 +15,7 @@ http://bad-host:6001
   ✓ API calls for http://bad-host:6001 are made over https protocol.
   ! No token found (checked config file, keyring, and environment variables).
 
-   ERROR  
+   ERROR
 
   X could not authenticate to one or more of the configured GitLab instances..
 `

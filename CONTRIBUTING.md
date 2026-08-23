@@ -6,6 +6,8 @@ Thanks for your interest in contributing! This document covers the development w
 
 - **Go 1.26.1+** (auto-downloads if your Go toolchain supports it; see `go.mod`)
 - **just** (optional but recommended — install via `brew install just` or [just.systems](https://just.systems/))
+- **golangci-lint v2.11.3+** for complexity, duplication, and static analysis
+- **pre-commit 3.7+** for commit-time validation
 
 ## Quick Start
 
@@ -16,15 +18,17 @@ go mod tidy
 go test ./...
 go build ./cmd/all-cli
 ./all-cli status
+pipx install pre-commit
+pre-commit install
 ```
 
 ## Development Workflow
 
 ```bash
-# CI-equivalent checks (tidy + vet + test)
+# CI-equivalent checks, including policy, coverage, and lint thresholds
 just ci
 
-# Stricter local gate (ci + race + format check)
+# Stricter local gate (CI + race and stability tests)
 just check
 
 # Build and run a quick smoke test
@@ -56,6 +60,9 @@ See `just help` for all available recipes.
 - Prefer table-driven tests.
 - Colocate tests as `*_test.go` next to the code.
 - Run `just check` before opening a PR; at minimum ensure `go test ./...` passes.
+- Maintain at least 80% total statement coverage (`just coverage-check`).
+- Link technical-debt markers to a GitHub issue, for example `TODO(#123): remove the compatibility path`.
+- Keep source and documentation files below the repository policy limits of 1 MiB and 1,500 lines.
 
 ## Pull Requests
 

@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  deployments: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -17,6 +18,9 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.release-info.outputs.url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -52,6 +56,7 @@ jobs:
           git push origin "$tag"
 
       - name: GoReleaser
+        id: goreleaser
         uses: goreleaser/goreleaser-action@v7.0.0
         with:
           version: v2.14.3
@@ -59,3 +64,48 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+      - name: Verify published release assets
+        id: release-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        shell: bash
+        run: |
+          gh release view "$TAG" --json url,assets > /tmp/release.json
+          url="$(jq -r '.url' /tmp/release.json)"
+          mapfile -t assets < <(jq -r '.assets[].name' /tmp/release.json)
+          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "${assets[@]}" | grep -qx 'checksums.txt'
+          archive_count="$(printf '%s\n' "${assets[@]}" | grep -Ec '^all-cli_.*_(darwin|linux)_(amd64|arm64)\.tar\.gz$')"
+          if [[ "$archive_count" -ne 4 ]]; then
+            printf 'expected four platform archives, found %s\n' "$archive_count" >&2
+            printf '%s\n' "${assets[@]}" >&2
+            exit 1
+          fi
+          {
+            echo "### Published release"
+            echo
+            echo "- Tag: \`$TAG\`"
+            echo "- Release: $url"
+            echo "- Verified: checksums plus four Darwin/Linux amd64/arm64 archives"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deployment impact links
+        if: always()
+        env:
+          SENTRY_DASHBOARD_URL: ${{ vars.SENTRY_DASHBOARD_URL }}
+          PROMETHEUS_DASHBOARD_URL: ${{ vars.PROMETHEUS_DASHBOARD_URL }}
+          POSTHOG_DASHBOARD_URL: ${{ vars.POSTHOG_DASHBOARD_URL }}
+        shell: bash
+        run: |
+          {
+            echo "### Deployment impact"
+            echo
+            echo "- [Production deployment history]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/deployments)"
+            echo "- [Release runbook]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/main/docs/runbooks/release.md)"
+            echo "- [Telemetry alert workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/telemetry-alerts.yml)"
+            if [[ -n "$SENTRY_DASHBOARD_URL" ]]; then echo "- [Sentry errors]($SENTRY_DASHBOARD_URL)"; fi
+            if [[ -n "$PROMETHEUS_DASHBOARD_URL" ]]; then echo "- [Prometheus performance]($PROMETHEUS_DASHBOARD_URL)"; fi
+            if [[ -n "$POSTHOG_DASHBOARD_URL" ]]; then echo "- [PostHog adoption]($POSTHOG_DASHBOARD_URL)"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
