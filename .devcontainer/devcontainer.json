@@ -1,0 +1,27 @@
+{
+  "name": "all-cli Go 1.26",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "containerEnv": {
+    "GOTOOLCHAIN": "auto"
+  },
+  "postCreateCommand": "go mod download && pre-commit install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "go.toolsManagement.autoUpdate": false,
+        "go.useLanguageServer": true
+      }
+    }
+  },
+  "remoteUser": "vscode"
+}

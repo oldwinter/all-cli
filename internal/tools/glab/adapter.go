@@ -199,51 +199,7 @@ func parseAuthStatusAll(stdout string) ([]Instance, []string, []string, error) {
 			continue
 		}
 
-		t := strings.TrimSpace(line)
-
-		if strings.Contains(t, "API call failed:") {
-			cur.apiFailed = true
-			cur.OK = false
-			cur.Error = extractAfter(t, "API call failed:")
-			continue
-		}
-
-		if strings.Contains(t, "Logged in to ") && strings.Contains(t, " as ") {
-			cur.loggedIn = true
-			cur.User = parseUserFromLoggedInLine(t)
-			continue
-		}
-
-		if strings.Contains(t, "Git operations") && strings.Contains(t, "use ") {
-			cur.GitProtocol = parseProtocolTokenAfter(t, "use ")
-			continue
-		}
-
-		if strings.Contains(t, "API calls") && strings.Contains(t, "over ") {
-			cur.APIProtocol = parseProtocolTokenAfter(t, "over ")
-			continue
-		}
-
-		if strings.Contains(t, "REST API Endpoint:") {
-			cur.RESTEndpoint = strings.TrimSpace(extractAfter(t, "REST API Endpoint:"))
-			continue
-		}
-
-		if strings.Contains(t, "GraphQL Endpoint:") {
-			cur.GraphQLEndpoint = strings.TrimSpace(extractAfter(t, "GraphQL Endpoint:"))
-			continue
-		}
-
-		if strings.Contains(t, "Token found:") {
-			cur.HasToken = true
-			continue
-		}
-
-		if strings.Contains(t, "No token found") {
-			cur.HasToken = false
-			cur.Error = execx.FirstNonEmpty(cur.Error, "no token found")
-			continue
-		}
+		parseAuthStatusDetail(cur, strings.TrimSpace(line))
 	}
 
 	flush()
@@ -252,6 +208,31 @@ func parseAuthStatusAll(stdout string) ([]Instance, []string, []string, error) {
 		warnings = append(warnings, "glab output parsed but no instances detected")
 	}
 	return instances, warnings, errs, nil
+}
+
+func parseAuthStatusDetail(cur *Instance, detail string) {
+	switch {
+	case strings.Contains(detail, "API call failed:"):
+		cur.apiFailed = true
+		cur.OK = false
+		cur.Error = extractAfter(detail, "API call failed:")
+	case strings.Contains(detail, "Logged in to ") && strings.Contains(detail, " as "):
+		cur.loggedIn = true
+		cur.User = parseUserFromLoggedInLine(detail)
+	case strings.Contains(detail, "Git operations") && strings.Contains(detail, "use "):
+		cur.GitProtocol = parseProtocolTokenAfter(detail, "use ")
+	case strings.Contains(detail, "API calls") && strings.Contains(detail, "over "):
+		cur.APIProtocol = parseProtocolTokenAfter(detail, "over ")
+	case strings.Contains(detail, "REST API Endpoint:"):
+		cur.RESTEndpoint = strings.TrimSpace(extractAfter(detail, "REST API Endpoint:"))
+	case strings.Contains(detail, "GraphQL Endpoint:"):
+		cur.GraphQLEndpoint = strings.TrimSpace(extractAfter(detail, "GraphQL Endpoint:"))
+	case strings.Contains(detail, "Token found:"):
+		cur.HasToken = true
+	case strings.Contains(detail, "No token found"):
+		cur.HasToken = false
+		cur.Error = execx.FirstNonEmpty(cur.Error, "no token found")
+	}
 }
 
 func extractAfter(s, needle string) string {

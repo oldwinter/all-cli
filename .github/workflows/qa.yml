@@ -27,11 +27,14 @@ jobs:
 
       - name: Resolve PR metadata
         id: pr
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REF: ${{ github.head_ref }}
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-            echo "ref=${{ github.head_ref }}" >> "$GITHUB_OUTPUT"
+            echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "ref=$PR_HEAD_REF" >> "$GITHUB_OUTPUT"
           else
             echo "number=" >> "$GITHUB_OUTPUT"
             echo "ref=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"

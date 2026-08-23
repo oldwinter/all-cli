@@ -40,6 +40,21 @@ all-cli version
 
 ## Local development
 
+### Dev container
+
+The repository includes a pinned Go development container with GitHub CLI,
+`just`, and `pre-commit`. In VS Code or another Dev Container client, choose
+**Reopen in Container**. The container downloads Go modules and installs the
+repository hooks automatically.
+
+For a host-based setup:
+
+```bash
+brew install just golangci-lint pipx
+pipx install pre-commit
+pre-commit install
+```
+
 ### Local test (without just)
 
 ```bash
@@ -70,12 +85,18 @@ just check
 
 # build and run quick smoke checks
 just smoke
+
+# exercise every commit-time hook
+just pre-commit
 ```
 
 High-frequency recipes:
 
-- `just ci`: same checks as GitHub CI (`verify-tidy + vet + test`)
-- `just check`: stronger local gate (`ci + test-race + fmt-check`)
+- `just ci`: CI policy (`tidy + format + repository policy + vet + tests + 80% coverage + lint`)
+- `just check`: stronger local gate (`ci + race tests + three-pass stability tests`)
+- `just policy`: check source size, issue-linked debt markers, and AGENTS.md freshness
+- `just lint`: enforce cyclomatic-complexity and duplicate-code thresholds
+- `just pre-commit`: run every configured commit hook against all files
 - `just fmt` / `just fmt-check`: format code or enforce formatting
 - `just test-cover`: run coverage and print per-package function coverage
 - `just coverage-html`: write `coverage.html` for detailed coverage browsing
@@ -336,3 +357,24 @@ all-cli kargo use --unset
 
 - `all-cli` does **not** print or read plaintext tokens/secrets.
 - It avoids `--show-token` flags and only uses official CLI outputs to determine “configured” state.
+
+## Feature flags and observability
+
+Risky or operational behavior can be rolled out through the typed feature-flag
+registry documented in [docs/feature-flags.md](docs/feature-flags.md).
+
+CLI observability is disabled by default. Explicitly enabling
+`ALL_CLI_FEATURES=telemetry-v1` activates only the sinks configured by
+environment variables:
+
+- `ALL_CLI_LOG_PATH` for structured JSON `slog` events,
+- `ALL_CLI_METRICS_PATH` for atomic Prometheus textfile metrics,
+- `ALL_CLI_TRACEPARENT` for W3C trace correlation,
+- `SENTRY_DSN` for contextualized failed-command events,
+- `POSTHOG_API_KEY` for privacy-minimized command-use analytics.
+
+Telemetry omits arguments, environment contents, external command output,
+identity, and configuration values. See
+[docs/observability.md](docs/observability.md) for the data contract,
+dashboards, setup, and opt-out, and [docs/runbooks](docs/runbooks/README.md)
+for alert, release, rollback, and privacy procedures.

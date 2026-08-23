@@ -1,0 +1,68 @@
+name: labels
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/labels.json
+      - .github/workflows/labels.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Synchronize versioned labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const desired = JSON.parse(fs.readFileSync(".github/labels.json", "utf8"));
+            const current = await github.paginate(github.rest.issues.listLabelsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            const byName = new Map(current.map((label) => [label.name, label]));
+
+            for (const label of desired) {
+              if (!/^[0-9A-Fa-f]{6}$/.test(label.color)) {
+                core.setFailed(`Invalid color for ${label.name}: ${label.color}`);
+                return;
+              }
+              const existing = byName.get(label.name);
+              if (existing) {
+                if (
+                  existing.color.toLowerCase() !== label.color.toLowerCase() ||
+                  existing.description !== label.description
+                ) {
+                  await github.rest.issues.updateLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: label.name,
+                    new_name: label.name,
+                    color: label.color,
+                    description: label.description,
+                  });
+                }
+              } else {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  color: label.color,
+                  description: label.description,
+                });
+              }
+            }
+            await core.summary.addHeading("Label taxonomy").addRaw(
+              `Synchronized ${desired.length} versioned labels without deleting unrelated labels.`
+            ).write();

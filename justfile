@@ -17,11 +17,11 @@ default: help
 help:
     just --list
 
-## Local CI checks (same as GitHub CI workflow)
-ci: verify-tidy vet test
+## Local CI checks (same policy as GitHub CI workflow)
+ci: verify-tidy fmt-check policy vet test coverage-check lint
 
-## Extended local checks (ci + race + format check)
-check: ci test-race fmt-check
+## Extended local checks (CI + race and repeated stability tests)
+check: ci test-race test-stability
 
 ## Ensure go.mod/go.sum are tidy and unchanged
 verify-tidy:
@@ -45,19 +45,47 @@ fmt-check:
 test:
     {{go_cmd}} test {{packages}}
 
+## Run repository file, debt-marker, and AGENTS.md policy checks
+policy:
+    {{go_cmd}} test ./internal/repopolicy -run TestRepositoryPolicy -count=1
+
 ## Run tests with race detector
 test-race:
     {{go_cmd}} test -race {{packages}}
+
+## Run each test three times to detect unstable tests
+test-stability:
+    {{go_cmd}} test -count=3 {{packages}}
 
 ## Run tests and print coverage summary
 test-cover:
     {{go_cmd}} test -coverprofile=coverage.out {{packages}}
     {{go_cmd}} tool cover -func=coverage.out
 
+## Enforce the minimum total statement coverage
+coverage-check:
+    COVERAGE_MIN=80.0 bash scripts/check-coverage.sh
+
 ## Generate coverage.html from coverage.out
 coverage-html: test-cover
     {{go_cmd}} tool cover -html=coverage.out -o coverage.html
     echo "coverage report written to coverage.html"
+
+## Run complexity, duplication, and standard Go linters
+lint:
+    command -v golangci-lint >/dev/null 2>&1 || { \
+      echo "golangci-lint is required; see https://golangci-lint.run/welcome/install/"; \
+      exit 127; \
+    }
+    golangci-lint run
+
+## Run every configured pre-commit hook against the repository
+pre-commit:
+    command -v pre-commit >/dev/null 2>&1 || { \
+      echo "pre-commit is required; install with pipx install pre-commit"; \
+      exit 127; \
+    }
+    pre-commit run --all-files
 
 ## Run go vet
 vet:
@@ -143,4 +171,5 @@ tag tag_name:
 
 ## Remove local build artifacts
 clean:
-    rm -f {{bin_path}} coverage.out
+    rm -f {{bin_path}} coverage.out coverage.html
+    rm -rf quality-metrics

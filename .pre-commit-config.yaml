@@ -1,0 +1,35 @@
+minimum_pre_commit_version: "3.7.0"
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        entry: gofmt -w
+        language: system
+        types: [go]
+      - id: repository-policy
+        name: repository policy
+        entry: env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy -run TestRepositoryPolicy -count=1
+        language: system
+        pass_filenames: false
+      - id: go-vet
+        name: go vet
+        entry: env -u GOROOT -u GOTOOLDIR go vet ./...
+        language: system
+        pass_filenames: false
+      - id: go-test
+        name: go test
+        entry: env -u GOROOT -u GOTOOLDIR go test ./...
+        language: system
+        pass_filenames: false

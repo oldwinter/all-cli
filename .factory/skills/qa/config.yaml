@@ -47,9 +47,9 @@ apps:
     smoke_command: 'just smoke'
 
 feature_flags:
-  provider: none
-  dashboard_url: null
-  how_to_override: 'No feature flag system detected. Use CLI flags and environment variables for runtime behavior toggles.'
+  provider: internal_typed_registry
+  dashboard_url: docs/feature-flags.md
+  how_to_override: 'Set ALL_CLI_FEATURES to a comma-separated list of registered flags; telemetry-v1 is disabled by default and is the current production flag.'
 
 integrations:
   external_cli_registry:

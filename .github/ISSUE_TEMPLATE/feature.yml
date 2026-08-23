@@ -1,0 +1,63 @@
+name: Feature request
+description: Propose a scoped improvement to all-cli.
+title: "feat: "
+labels:
+  - type:feature
+  - priority:P3
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the workflow limitation or unmet need without prescribing implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Explain the observable behavior that would solve the problem.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - CLI command behavior
+        - Tool detection or context
+        - Installation or doctor fix
+        - JSON schema or output
+        - CI, release, or documentation
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: List current workarounds or simpler alternatives.
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and risk
+      description: Note output/schema compatibility, platform impact, security, privacy, or rollback concerns.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Acceptance checks
+      description: List commands or assertions that would prove the feature works.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: This request describes one independently deliverable outcome.
+          required: true
+        - label: I searched existing issues and documentation for an existing solution.
+          required: true

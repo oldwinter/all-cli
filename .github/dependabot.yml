@@ -1,0 +1,52 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - type:chore
+      - area:dependencies
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:30"
+      timezone: UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - type:chore
+      - area:ci
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: devcontainers
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "10:00"
+      timezone: UTC
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - type:chore
+      - area:dependencies
+    groups:
+      dev-container:
+        patterns:
+          - "*"
