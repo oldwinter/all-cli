@@ -249,6 +249,13 @@ all-cli describe kubectl
 all-cli describe kubectl --json
 ```
 
+If a tool ID is misspelled, `describe` and every `--tools` filter suggest a
+nearby tracked ID when there is a clear match:
+
+```text
+unknown tool ID "kubctl"; did you mean "kubectl"?
+```
+
 ### kubectl
 
 ```bash
