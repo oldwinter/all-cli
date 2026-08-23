@@ -4,8 +4,8 @@
 
 Build a CLI tool `all-cli` that:
 
-1) Inspects whether common CLI tools are installed/configured  
-2) Provides context read/list/switch for `kubectl`, `docker`, `gh`, `glab`  
+1) Inspects whether common CLI tools are installed/configured
+2) Provides context read/list/switch for `kubectl`, `docker`, `gh`, `glab`
 3) Outputs human-friendly tables by default and stable JSON with `--json`, to enable a future SwiftUI macOS app.
 
 ## Scope (v0.1)
