@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"github.com/oldwinter/all-cli/internal/output"
 	"github.com/spf13/cobra"
 )
+
+const maxStdinSnapshotBytes int64 = 1 << 20
 
 func newDiagnoseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
@@ -126,13 +129,21 @@ func newDiffCommand(opts *rootOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:   "diff <snapshot-a> <snapshot-b>",
 		Short: "Diff two status snapshots",
-		Args:  cobra.ExactArgs(2),
+		Long: `Diffs two status snapshots. Use - for either snapshot to read it from
+standard input, which makes it possible to compare a saved snapshot with a live pipeline.
+Standard input snapshots are limited to 1 MiB.`,
+		Example: `  all-cli diff before.json after.json
+  all-cli snapshot --json | all-cli diff before.json - --json`,
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			before, err := readStatusSnapshot(args[0])
+			if args[0] == "-" && args[1] == "-" {
+				return fmt.Errorf(`diff accepts "-" for only one snapshot`)
+			}
+			before, err := readStatusSnapshot(args[0], cmd.InOrStdin())
 			if err != nil {
 				return err
 			}
-			after, err := readStatusSnapshot(args[1])
+			after, err := readStatusSnapshot(args[1], cmd.InOrStdin())
 			if err != nil {
 				return err
 			}
@@ -230,17 +241,28 @@ func printFixPlan(w interface {
 	}
 }
 
-func readStatusSnapshot(path string) (model.StatusReport, error) {
-	data, err := os.ReadFile(path)
+func readStatusSnapshot(path string, stdin io.Reader) (model.StatusReport, error) {
+	source := path
+	var data []byte
+	var err error
+	if path == "-" {
+		source = "stdin"
+		data, err = io.ReadAll(io.LimitReader(stdin, maxStdinSnapshotBytes+1))
+		if int64(len(data)) > maxStdinSnapshotBytes {
+			return model.StatusReport{}, fmt.Errorf("snapshot stdin exceeds 1 MiB limit")
+		}
+	} else {
+		data, err = os.ReadFile(path)
+	}
 	if err != nil {
-		return model.StatusReport{}, fmt.Errorf("read snapshot %s: %w", path, err)
+		return model.StatusReport{}, fmt.Errorf("read snapshot %s: %w", source, err)
 	}
 	var report model.StatusReport
 	if err := json.Unmarshal(data, &report); err != nil {
-		return model.StatusReport{}, fmt.Errorf("parse snapshot %s: %w", path, err)
+		return model.StatusReport{}, fmt.Errorf("parse snapshot %s: %w", source, err)
 	}
 	if strings.TrimSpace(report.SchemaVersion) == "" {
-		return model.StatusReport{}, fmt.Errorf("parse snapshot %s: missing schema_version", path)
+		return model.StatusReport{}, fmt.Errorf("parse snapshot %s: missing schema_version", source)
 	}
 	return report, nil
 }
