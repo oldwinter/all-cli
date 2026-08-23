@@ -40,6 +40,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var sortBy string
 	var quiet bool
 	var installedOnly bool
+	var missingOnly bool
 
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -51,6 +52,7 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 		Example: `  all-cli status
   all-cli status --tools kubectl,docker --group-by none
   all-cli status --categories ai,cloud
+  all-cli status --categories ai --missing-only
   all-cli status --installed-only --quiet`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			groupByValue, err := parseStatusGroupBy(groupBy)
@@ -84,26 +86,7 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 			}
 
 			sortToolSummaries(report.Tools, sortByValue)
-
-			if installedOnly {
-				filtered := report.Tools[:0]
-				for _, t := range report.Tools {
-					if t.Installed {
-						filtered = append(filtered, t)
-					}
-				}
-				report.Tools = filtered
-			}
-			if quiet {
-				filtered := report.Tools[:0]
-				for _, t := range report.Tools {
-					if !t.Installed || t.ConfiguredState == model.ConfiguredNo ||
-						len(t.Warnings) > 0 || len(t.Errors) > 0 {
-						filtered = append(filtered, t)
-					}
-				}
-				report.Tools = filtered
-			}
+			report.Tools = filterStatusTools(report.Tools, installedOnly, missingOnly, quiet)
 
 			if opts.JSON {
 				report.Diagnostics = diag.Generate(report, diag.Options{Profile: diag.ProfileAgent}).Diagnostics
@@ -123,7 +106,27 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 	cmd.Flags().StringVar(&sortBy, "sort", statusSortTool, "Sort order: tool|tool-desc|category|category-desc")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Only show tools with issues (not installed, unconfigured, warnings, or errors)")
 	cmd.Flags().BoolVar(&installedOnly, "installed-only", false, "Only show installed tools")
+	cmd.Flags().BoolVar(&missingOnly, "missing-only", false, "Only show tools that are not installed")
+	cmd.MarkFlagsMutuallyExclusive("installed-only", "missing-only")
 	return cmd
+}
+
+func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly, quiet bool) []model.ToolSummary {
+	filtered := toolsList[:0]
+	for _, tool := range toolsList {
+		if installedOnly && !tool.Installed {
+			continue
+		}
+		if missingOnly && tool.Installed {
+			continue
+		}
+		if quiet && tool.Installed && tool.ConfiguredState != model.ConfiguredNo &&
+			len(tool.Warnings) == 0 && len(tool.Errors) == 0 {
+			continue
+		}
+		filtered = append(filtered, tool)
+	}
+	return filtered
 }
 
 func buildStatusReport(ctx context.Context, runner execx.Runner, defaultTimeout time.Duration, toolsFilter string) (model.StatusReport, error) {
