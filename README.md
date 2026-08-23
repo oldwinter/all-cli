@@ -111,6 +111,8 @@ all-cli status --timeout 10s
 
 Use `--categories` to check one or more registry categories at once. When combined with
 `--tools`, both filters apply, so the result contains only tools matching both selections.
+With shell completion loaded, comma-separated category values complete in place: for
+example, `--categories cloud,k<TAB>` keeps `cloud` and offers `k8s`.
 
 ### Current contexts at a glance
 
@@ -119,8 +121,11 @@ reported by every installed context-aware tool in one compact view.
 
 ```bash
 all-cli current
+all-cli current --tools kubectl,docker
 all-cli current --json
 ```
+
+Use `--tools` to check only the contexts you need and avoid invoking unrelated CLIs.
 
 Example text output:
 

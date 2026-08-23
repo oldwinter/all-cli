@@ -243,12 +243,7 @@ func parsePSJSONLines(stdout string) ([]ContainerImage, []string, []string, erro
 			warnings = append(warnings, fmt.Sprintf("docker container %q has no image reference", strings.TrimSpace(item.Names)))
 			continue
 		}
-		out = append(out, ContainerImage{
-			ID:     item.ID,
-			Names:  item.Names,
-			Image:  item.Image,
-			Status: item.Status,
-		})
+		out = append(out, ContainerImage(item))
 	}
 	if err := scanner.Err(); err != nil {
 		return out, warnings, append(errs, err.Error()), err

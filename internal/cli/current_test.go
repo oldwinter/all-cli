@@ -101,6 +101,54 @@ func TestCurrentCommandJSONPreservesStatusReportShape(t *testing.T) {
 	}
 }
 
+func TestCurrentCommandToolsFilterEvaluatesOnlySelectedContextTools(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "fd", Category: "navigation", Binary: "fd"},
+	})
+	evaluated := make(chan string, 3)
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		evaluated <- def.ID
+		return model.ToolSummary{
+			ID:           def.ID,
+			Installed:    true,
+			Capabilities: def.Capabilities,
+			Current:      map[string]string{"context": "desktop-linux"},
+		}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	stdout, stderr, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+		"--tools", "docker",
+	)
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if got := <-evaluated; got != "docker" {
+		t.Fatalf("evaluated tool = %q, want docker", got)
+	}
+	select {
+	case got := <-evaluated:
+		t.Fatalf("unexpected additional tool evaluation: %q", got)
+	default:
+	}
+	if !strings.Contains(stdout, "docker  context=desktop-linux") || strings.Contains(stdout, "aws") {
+		t.Fatalf("expected only docker current context, got:\n%s", stdout)
+	}
+}
+
 func TestRootRegistersCurrentAsPrimaryCommand(t *testing.T) {
 	// Given
 	root := NewRootCommand()

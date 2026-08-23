@@ -9,16 +9,24 @@ import (
 )
 
 func newCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
+	var toolsFilter string
+
+	cmd := &cobra.Command{
 		Use:   "current",
 		Short: "Show current contexts across installed CLI tools",
 		Long: `Shows one compact view of the active accounts, clusters, projects, and
-environments reported by installed tools that expose context-like state.`,
+environments reported by installed tools that expose context-like state.
+
+Use --tools to evaluate only selected tools and skip unrelated external commands.`,
 		Example: `  all-cli current
+  all-cli current --tools kubectl,docker
   all-cli current --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			registry := defaultRegistry()
+			registry, err := registryForToolsFilter(toolsFilter)
+			if err != nil {
+				return err
+			}
 			contextRegistry := make([]tools.ToolDefinition, 0, len(registry))
 			for _, definition := range registry {
 				if definition.Capabilities.HasContexts {
@@ -54,4 +62,6 @@ environments reported by installed tools that expose context-like state.`,
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to show (e.g. kubectl,docker)")
+	return cmd
 }
