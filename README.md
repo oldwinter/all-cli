@@ -134,6 +134,7 @@ all-cli status
 all-cli status --json
 all-cli status --tools kubectl,docker
 all-cli status --categories ai,cloud
+all-cli status --categories ai --missing-only
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
@@ -144,6 +145,10 @@ Use `--categories` to check one or more registry categories at once. When combin
 `--tools`, both filters apply, so the result contains only tools matching both selections.
 With shell completion loaded, comma-separated category values complete in place: for
 example, `--categories cloud,k<TAB>` keeps `cloud` and offers `k8s`.
+
+Use `--missing-only` to turn the inventory into a focused installation checklist. It can
+be combined with `--categories` or `--tools`, and is mutually exclusive with
+`--installed-only`.
 
 ### Current contexts at a glance
 
