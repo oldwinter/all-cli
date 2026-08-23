@@ -115,6 +115,16 @@ Note about Go toolchain mismatch:
 
 ## Usage
 
+### Version metadata
+
+`all-cli version` keeps its compact human-readable output. Add `--json` when a
+script needs the version and build metadata as separate fields:
+
+```bash
+all-cli version
+all-cli version --json
+```
+
 ### Global overview
 
 `all-cli status` defaults to grouping by `category` and sorting tools by `tool` (A-Z).
@@ -190,6 +200,13 @@ all-cli snapshot --json > after.json
 all-cli diff before.json after.json --json
 ```
 
+Use `-` for either diff input to compare a saved snapshot with a live pipeline
+without creating another file. Standard input snapshots are limited to 1 MiB:
+
+```bash
+all-cli snapshot --json | all-cli diff before.json - --json
+```
+
 ### AI-friendly JSON additions
 
 Machine-readable shape for `status --json` is also summarized as [JSON Schema](schemas/status-report-v0.1.json) (`schema_version` `v0.1`).
@@ -261,6 +278,13 @@ criteria, context capabilities, and agent actions without running the tool:
 ```bash
 all-cli describe kubectl
 all-cli describe kubectl --json
+```
+
+If a tool ID is misspelled, `describe` and every `--tools` filter suggest a
+nearby tracked ID when there is a clear match:
+
+```text
+unknown tool ID "kubctl"; did you mean "kubectl"?
 ```
 
 ### kubectl

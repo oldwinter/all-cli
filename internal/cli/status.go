@@ -201,8 +201,7 @@ func parseToolsFilter(s string) (map[string]bool, error) {
 		}
 	}
 	if len(unknown) > 0 {
-		sort.Strings(unknown)
-		return nil, fmt.Errorf("unknown tool IDs: %s", strings.Join(unknown, ", "))
+		return nil, unknownToolIDError(unknown)
 	}
 
 	return out, nil

@@ -93,7 +93,7 @@ Environment:
 	cmd.AddCommand(newFixCommand(opts, runner))
 	cmd.AddCommand(newSnapshotCommand(opts, runner))
 	cmd.AddCommand(newDiffCommand(opts))
-	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(newVersionCommand(opts))
 	cmd.AddCommand(newOptionsCommand(opts))
 	cmd.AddCommand(newSurpriseCommand())
 	cmd.AddCommand(newCompletionCommand())
