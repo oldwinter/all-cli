@@ -149,6 +149,96 @@ func TestCurrentCommandToolsFilterEvaluatesOnlySelectedContextTools(t *testing.T
 	}
 }
 
+func TestCurrentCommandCategoriesFilterEvaluatesOnlyMatchingContextTools(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "kubectl", Category: "k8s", Binary: "kubectl", Capabilities: model.Capability{HasContexts: true}},
+	})
+	evaluated := make(chan string, 3)
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		evaluated <- def.ID
+		return model.ToolSummary{
+			ID:           def.ID,
+			Installed:    true,
+			Capabilities: def.Capabilities,
+			Current:      map[string]string{"profile": "work"},
+		}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	stdout, stderr, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+		"--tools", "aws,kubectl", "--categories", "cloud",
+	)
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if got := <-evaluated; got != "aws" {
+		t.Fatalf("evaluated tool = %q, want aws", got)
+	}
+	select {
+	case got := <-evaluated:
+		t.Fatalf("unexpected additional tool evaluation: %q", got)
+	default:
+	}
+	if !strings.Contains(stdout, "aws   profile=work") || strings.Contains(stdout, "kubectl") {
+		t.Fatalf("expected only cloud current context, got:\n%s", stdout)
+	}
+}
+
+func TestCurrentCommandRejectsUnknownCategoriesBeforeEvaluation(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, _ tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		t.Fatal("unexpected tool evaluation")
+		return model.ToolSummary{}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	_, _, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+		"--categories", "workflows",
+	)
+
+	// Then
+	if err == nil || !strings.Contains(err.Error(), "unknown categories: workflows") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCurrentCommandCompletesCategoryFilters(t *testing.T) {
+	// Given
+	root := NewRootCommand()
+
+	// When
+	stdout, _, err := executeTestCommand(t, root, "__complete", "current", "--categories", "cl")
+
+	// Then
+	if err != nil {
+		t.Fatalf("complete current --categories: %v", err)
+	}
+	if !strings.Contains(stdout, "cloud") {
+		t.Fatalf("cloud completion missing: %q", stdout)
+	}
+}
+
 func TestRootRegistersCurrentAsPrimaryCommand(t *testing.T) {
 	// Given
 	root := NewRootCommand()

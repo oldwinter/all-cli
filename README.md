@@ -153,10 +153,12 @@ reported by every installed context-aware tool in one compact view.
 ```bash
 all-cli current
 all-cli current --tools kubectl,docker
+all-cli current --categories cloud,k8s
 all-cli current --json
 ```
 
-Use `--tools` to check only the contexts you need and avoid invoking unrelated CLIs.
+Use `--tools` or `--categories` to check only the contexts you need and avoid invoking
+unrelated CLIs. When combined, both filters must match.
 
 Example text output:
 
