@@ -2,7 +2,7 @@
 
 ## Hidden command
 
-`all-cli surprise` is a hidden Cobra command defined in `internal/cli/surprise.go` and registered from `internal/cli/root.go`. It prints a rainbow `★ all-cli ★` banner when ANSI output is available, then ends with `好奇的人运气不会太差`.
+`all-cli surprise` is a hidden Cobra command defined in `internal/cli/surprise.go` and registered from `internal/cli/root.go`. It prints a rainbow `★ all-cli ★` banner when ANSI output is available, recommends one built-in tool per local calendar day with its purpose and `describe` command, then ends with `好奇的人运气不会太差`.
 
 ## TODO count
 
