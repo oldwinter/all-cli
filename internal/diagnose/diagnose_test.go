@@ -114,6 +114,37 @@ func TestGenerateCreatesErrorDiagnosticForCollectionErrors(t *testing.T) {
 	}
 }
 
+func TestGenerateSuggestsUpgradeForOldGHJSONFlag(t *testing.T) {
+	status := model.NewStatusReport(1)
+	status.Tools[0] = model.ToolSummary{
+		ID:              "gh",
+		DisplayName:     "gh",
+		Installed:       true,
+		ConfiguredState: model.ConfiguredUnknown,
+		Errors:          []string{"unknown flag: --json\n\nUsage:  gh auth status [flags]..."},
+	}
+
+	report := Generate(status, Options{})
+	if report.Summary.Error != 1 || len(report.Diagnostics) == 0 {
+		t.Fatalf("expected one collection error, got %#v", report)
+	}
+	item := report.Diagnostics[0]
+	if len(item.SuggestedActions) == 0 {
+		t.Fatalf("expected a suggested action, got %#v", item)
+	}
+	action := item.SuggestedActions[0]
+	if action.ID == "rerun_with_timeout" || strings.Contains(action.Title, "timeout") {
+		t.Fatalf("old gh JSON flag should not be diagnosed as timeout: %#v", action)
+	}
+	if action.ID != "upgrade_or_check_gh_auth" {
+		t.Fatalf("expected upgrade/check-auth action, got %#v", action)
+	}
+	joined := action.Title + " " + action.Description + " " + strings.Join(action.Command, " ")
+	if !strings.Contains(joined, "gh auth status") && !strings.Contains(strings.ToLower(joined), "upgrade") {
+		t.Fatalf("expected upgrade or gh auth status guidance, got %#v", action)
+	}
+}
+
 func TestBuildFixPlanIsDryRunOnlyAndNonMutating(t *testing.T) {
 	status := model.NewStatusReport(1)
 	status.Tools[0] = model.ToolSummary{
