@@ -24,6 +24,32 @@ brew install oldwinter/tap/all-cli
 all-cli version
 ```
 
+### GitHub Releases (Linux)
+
+Prebuilt Linux binaries are published on
+[GitHub Releases](https://github.com/oldwinter/all-cli/releases) as
+`all-cli_<version>_<os>_<arch>.tar.gz` (for example
+`all-cli_0.0.0-33.1.71ef29f_linux_amd64.tar.gz`). A `checksums.txt` file is
+published alongside the archives when present.
+
+```bash
+# linux_amd64 example. Replace VERSION with the release version
+# (the git tag is typically vVERSION; archive names omit the leading v).
+VERSION=0.0.0-33.1.71ef29f
+curl -fsSL -O "https://github.com/oldwinter/all-cli/releases/download/v${VERSION}/all-cli_${VERSION}_linux_amd64.tar.gz"
+curl -fsSL -O "https://github.com/oldwinter/all-cli/releases/download/v${VERSION}/checksums.txt"
+sha256sum --ignore-missing -c checksums.txt
+mkdir -p "$HOME/.local/bin"
+tar -xzf "all-cli_${VERSION}_linux_amd64.tar.gz" all-cli
+install -m 0755 all-cli "$HOME/.local/bin/all-cli"
+export PATH="$HOME/.local/bin:$PATH"
+all-cli version
+```
+
+`gh release download --repo oldwinter/all-cli --pattern '*linux_amd64.tar.gz'`
+also works if GitHub CLI is already installed. Put the extracted `all-cli`
+binary on `PATH` before running `all-cli version`.
+
 ### From source (local)
 
 ```bash
@@ -33,10 +59,25 @@ go build ./cmd/all-cli
 
 ### go install
 
+`go install` writes the binary to `$(go env GOBIN)` when `GOBIN` is set,
+otherwise `$(go env GOPATH)/bin`. On a clean Linux install that directory is
+often not already on `PATH`, so `all-cli version` fails with `command not found`
+even though install succeeded. Add it to `PATH` before running the binary:
+
 ```bash
 go install github.com/oldwinter/all-cli/cmd/all-cli@latest
+
+# Put GOPATH/bin (or GOBIN) on PATH so `all-cli` is found
+bin_dir="$(go env GOBIN)"
+if [ -z "$bin_dir" ]; then
+  bin_dir="$(go env GOPATH)/bin"
+fi
+export PATH="$bin_dir:$PATH"
+
 all-cli version
 ```
+
+To persist this, add the `export PATH=...` line to your shell profile.
 
 ## Local development
 
