@@ -19,7 +19,7 @@ credentials.
 
 1. Preserve the failed workflow link and step logs in a `type:bug`,
    `area:ci` issue.
-2. Determine whether tagging, GitHub release publication, or Homebrew formula
+2. Determine whether tagging, GitHub release publication, or Homebrew cask
    update occurred.
 3. If nothing published, fix forward through a reviewed pull request.
 4. If a partial release published, mark the GitHub release as a prerelease,
@@ -43,3 +43,8 @@ credentials.
 Close the incident only after release assets, Homebrew installation, `all-cli
 version`, and one representative `all-cli status --group-by none` smoke test
 are verified.
+
+When promoting the first release with `homebrew_casks`, migrate the Tap's old
+`Formula/all-cli.rb` entry with `tap_migrations.json` and remove the obsolete
+Formula in the same reviewed Tap change. Do not delete the Formula before the
+new Cask has been published and installation has been verified.
