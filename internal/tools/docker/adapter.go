@@ -57,7 +57,11 @@ func (a Adapter) Configured(ctx context.Context) (bool, []string, []string, erro
 func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []string, error) {
 	res := a.runner.Run(ctx, "docker", "context", "show")
 	if res.Err != nil {
-		return nil, nil, []string{strings.TrimSpace(res.Stderr)}, fmt.Errorf("docker context show failed (exit=%d)", res.ExitCode)
+		cause := execx.ErrMessage(res)
+		if cause == "" {
+			return nil, nil, nil, fmt.Errorf("docker context show failed (exit=%d)", res.ExitCode)
+		}
+		return nil, nil, []string{cause}, fmt.Errorf("docker context show failed (exit=%d): %s", res.ExitCode, cause)
 	}
 	cur := map[string]string{}
 	if v := strings.TrimSpace(res.Stdout); v != "" {
@@ -81,7 +85,11 @@ func (a Adapter) ListContexts(ctx context.Context) ([]Context, []string, []strin
 func (a Adapter) UseContext(ctx context.Context, contextName string) error {
 	res := a.runner.Run(ctx, "docker", "context", "use", contextName)
 	if res.Err != nil {
-		return fmt.Errorf("docker context use %q failed (exit=%d): %s", contextName, res.ExitCode, strings.TrimSpace(res.Stderr))
+		cause := execx.ErrMessage(res)
+		if cause == "" {
+			return fmt.Errorf("docker context use %q failed (exit=%d)", contextName, res.ExitCode)
+		}
+		return fmt.Errorf("docker context use %q failed (exit=%d): %s", contextName, res.ExitCode, cause)
 	}
 	return nil
 }

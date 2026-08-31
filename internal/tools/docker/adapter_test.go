@@ -205,3 +205,90 @@ func (f dockerFakeRunner) Run(_ context.Context, name string, args ...string) ex
 	}
 	return execx.CmdResult{ExitCode: 1, Err: errors.New("unexpected command"), Stderr: "unexpected command"}
 }
+
+func TestCurrentMissingDockerBinaryIncludesCause(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context show": {
+				ExitCode: 1,
+				Stderr:   "",
+				Err:      errors.New(`exec: "docker": executable file not found in $PATH`),
+			},
+		},
+	}
+	cur, warnings, errs, err := New(runner).Current(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if cur != nil {
+		t.Fatalf("expected nil current, got %#v", cur)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %#v", warnings)
+	}
+	cause := `exec: "docker": executable file not found in $PATH`
+	if !strings.Contains(err.Error(), cause) {
+		t.Fatalf("expected error text to contain runner cause, got %q", err.Error())
+	}
+	for i, e := range errs {
+		if e == "" {
+			t.Fatalf("errors[%d] is empty: %#v", i, errs)
+		}
+	}
+	if len(errs) == 0 {
+		t.Fatal("expected at least one error message")
+	}
+	if !strings.Contains(strings.Join(errs, "\n"), "not found") {
+		t.Fatalf("expected errors to mention not found, got %#v", errs)
+	}
+}
+
+func TestCurrentBadContextUsesStderr(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context show": {
+				ExitCode: 1,
+				Stderr:   `current context "broken" does not exist`,
+				Err:      errors.New("exit status 1"),
+			},
+		},
+	}
+	_, _, errs, err := New(runner).Current(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	joined := err.Error() + "\n" + strings.Join(errs, "\n")
+	if !strings.Contains(joined, `current context "broken" does not exist`) {
+		t.Fatalf("expected stderr cause, got err=%q errs=%#v", err.Error(), errs)
+	}
+	if strings.Contains(joined, "executable file not found") {
+		t.Fatalf("installed-but-bad-context should not look like missing binary: %q", joined)
+	}
+	for i, e := range errs {
+		if e == "" {
+			t.Fatalf("errors[%d] is empty: %#v", i, errs)
+		}
+	}
+}
+
+func TestUseContextMissingDockerBinaryIncludesCause(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context use prod": {
+				ExitCode: 1,
+				Stderr:   "",
+				Err:      errors.New(`exec: "docker": executable file not found in $PATH`),
+			},
+		},
+	}
+	err := New(runner).UseContext(context.Background(), "prod")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), `exec: "docker": executable file not found in $PATH`) {
+		t.Fatalf("expected use error to contain runner cause, got %q", err.Error())
+	}
+	if strings.HasSuffix(err.Error(), ": ") {
+		t.Fatalf("use error has empty cause suffix: %q", err.Error())
+	}
+}
