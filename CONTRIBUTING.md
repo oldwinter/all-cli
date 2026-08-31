@@ -4,9 +4,9 @@ Thanks for your interest in contributing! This document covers the development w
 
 ## Prerequisites
 
-- **Go 1.26.1+** (auto-downloads if your Go toolchain supports it; see `go.mod`)
+- **Go 1.27.0+** (auto-downloads if your Go toolchain supports it; see `go.mod`)
 - **just** (optional but recommended — install via `brew install just` or [just.systems](https://just.systems/))
-- **golangci-lint v2.11.3+** for complexity, duplication, and static analysis
+- **golangci-lint v2.13.2+** for complexity, duplication, and static analysis
 - **pre-commit 3.7+** for commit-time validation
 
 ## Quick Start
