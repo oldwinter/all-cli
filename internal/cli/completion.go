@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"unicode"
@@ -120,11 +122,31 @@ func writeZshCompletion(cmd *cobra.Command) error {
 	return writePatchedCompletion(cmd, cmd.Root().GenZshCompletion, splitWords, quotedWords, unquotedRequest, quotedRequest)
 }
 
+func detectCompletionShell(shellPath string) (string, error) {
+	shellPath = strings.TrimSpace(shellPath)
+	if shellPath == "" {
+		return "", fmt.Errorf("cannot detect shell because SHELL is empty; specify one, for example: all-cli completion zsh")
+	}
+
+	shell := strings.TrimSuffix(strings.ToLower(filepath.Base(shellPath)), ".exe")
+	switch shell {
+	case "bash", "zsh", "fish", "powershell":
+		return shell, nil
+	case "pwsh":
+		return "powershell", nil
+	default:
+		return "", fmt.Errorf("cannot detect a supported shell from SHELL=%q; specify one, for example: all-cli completion zsh", shellPath)
+	}
+}
+
 func newCompletionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generate shell completion script",
 		Long: `Generate a shell completion script for the specified shell.
+
+When the shell argument is omitted, all-cli detects bash, zsh, fish, or
+PowerShell from the SHELL environment variable.
 
 To load completions:
 
@@ -140,10 +162,21 @@ To load completions:
   powershell:
     all-cli completion powershell | Out-String | Invoke-Expression`,
 		ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
-		Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+		Args:                  cobra.MatchAll(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			switch args[0] {
+			shell := ""
+			if len(args) == 1 {
+				shell = args[0]
+			} else {
+				var err error
+				shell, err = detectCompletionShell(os.Getenv("SHELL"))
+				if err != nil {
+					return err
+				}
+			}
+
+			switch shell {
 			case "bash":
 				return writeBashCompletion(cmd)
 			case "zsh":
@@ -153,7 +186,7 @@ To load completions:
 			case "powershell":
 				return cmd.Root().GenPowerShellCompletionWithDesc(cmd.OutOrStdout())
 			default:
-				return fmt.Errorf("unsupported shell: %s", args[0])
+				return fmt.Errorf("unsupported shell: %s", shell)
 			}
 		},
 	}
