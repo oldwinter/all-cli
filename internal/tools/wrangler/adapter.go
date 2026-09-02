@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -45,7 +46,7 @@ func (a Adapter) Configured(ctx context.Context) (bool, []string, []string, erro
 func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []string, error) {
 	w, warnings, errs, err := a.Whoami(ctx)
 	if err != nil {
-		return nil, warnings, errs, err
+		return map[string]string{}, warnings, errs, err
 	}
 	out := map[string]string{
 		"logged_in": yesNo(w.LoggedIn),
@@ -65,7 +66,7 @@ func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []st
 func (a Adapter) Whoami(ctx context.Context) (Whoami, []string, []string, error) {
 	res := a.runner.Run(ctx, "wrangler", "whoami", "--json")
 	if res.Err != nil {
-		if errors.Is(res.Err, context.DeadlineExceeded) || errors.Is(res.Err, context.Canceled) {
+		if isFatalWhoamiErr(res.Err) {
 			return Whoami{}, nil, nil, res.Err
 		}
 		return a.whoamiFromText(ctx)
@@ -81,10 +82,10 @@ func (a Adapter) Whoami(ctx context.Context) (Whoami, []string, []string, error)
 func (a Adapter) whoamiFromText(ctx context.Context) (Whoami, []string, []string, error) {
 	res := a.runner.Run(ctx, "wrangler", "whoami")
 	if res.Err != nil {
-		if errors.Is(res.Err, context.DeadlineExceeded) || errors.Is(res.Err, context.Canceled) {
+		if isFatalWhoamiErr(res.Err) {
 			return Whoami{}, nil, nil, res.Err
 		}
-		// treat as not logged in
+		// wrangler ran, but whoami failed: treat as not logged in
 		return Whoami{LoggedIn: false}, nil, nil, nil
 	}
 
@@ -142,4 +143,10 @@ func yesNo(b bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+func isFatalWhoamiErr(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, context.Canceled) ||
+		errors.Is(err, exec.ErrNotFound)
 }

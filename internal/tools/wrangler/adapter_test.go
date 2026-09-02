@@ -3,6 +3,7 @@ package wrangler
 import (
 	"context"
 	"errors"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -143,6 +144,81 @@ func TestWhoamiPropagatesTimeout(t *testing.T) {
 	_, warnings, errs, err := a.Whoami(context.Background())
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expected deadline exceeded, got %v", err)
+	}
+	if len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v %#v", warnings, errs)
+	}
+}
+
+func TestWhoamiMissingBinaryIsError(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				ExitCode: 1,
+				Err:      exec.ErrNotFound,
+			},
+		},
+	})
+
+	got, warnings, errs, err := a.Whoami(context.Background())
+	if !errors.Is(err, exec.ErrNotFound) {
+		t.Fatalf("expected exec.ErrNotFound, got %v", err)
+	}
+	if got.LoggedIn {
+		t.Fatalf("missing binary must not look logged in: %#v", got)
+	}
+	if len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v %#v", warnings, errs)
+	}
+}
+
+func TestCurrentMissingBinaryDoesNotReportLoggedOut(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				ExitCode: 1,
+				Err:      exec.ErrNotFound,
+			},
+		},
+	})
+
+	cur, _, _, err := a.Current(context.Background())
+	if !errors.Is(err, exec.ErrNotFound) {
+		t.Fatalf("expected exec.ErrNotFound, got %v", err)
+	}
+	if _, ok := cur["logged_in"]; ok {
+		t.Fatalf("missing binary must not set logged_in: %#v", cur)
+	}
+}
+
+func TestCurrentNotLoggedInWhenWhoamiFails(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				ExitCode: 1,
+				Err:      errors.New("exit status 1"),
+				Stderr:   "Not logged in",
+			},
+			"wrangler whoami": {
+				ExitCode: 1,
+				Err:      errors.New("exit status 1"),
+				Stderr:   "You are not logged in",
+			},
+		},
+	})
+
+	cur, warnings, errs, err := a.Current(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cur["logged_in"] != "no" {
+		t.Fatalf("expected logged_in=no, got %#v", cur)
 	}
 	if len(warnings) != 0 || len(errs) != 0 {
 		t.Fatalf("unexpected diagnostics: %#v %#v", warnings, errs)
