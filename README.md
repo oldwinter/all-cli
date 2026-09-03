@@ -125,6 +125,14 @@ all-cli version
 all-cli version --json
 ```
 
+Use `all-cli options --json` to inspect the effective global flags in a
+script-friendly shape:
+
+```bash
+all-cli options
+all-cli options --json
+```
+
 ### Global overview
 
 `all-cli status` defaults to grouping by `category` and sorting tools by `tool` (A-Z).
