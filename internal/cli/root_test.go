@@ -97,6 +97,7 @@ func TestRootHelpGroupsCommands(t *testing.T) {
 	for _, needle := range []string{
 		"NO_COLOR",
 		"ALL_CLI_NO_PROGRESS",
+		"--no-progress",
 		"TERM",
 		"CI",
 	} {
