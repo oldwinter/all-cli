@@ -16,8 +16,9 @@ var (
 )
 
 type rootOptions struct {
-	JSON    bool
-	Timeout time.Duration
+	JSON       bool
+	NoProgress bool
+	Timeout    time.Duration
 }
 
 func NewRootCommand() *cobra.Command {
@@ -75,6 +76,7 @@ Environment:
 	)
 
 	cmd.PersistentFlags().BoolVar(&opts.JSON, "json", false, "Output JSON")
+	cmd.PersistentFlags().BoolVar(&opts.NoProgress, "no-progress", false, "Disable progress indicators")
 	cmd.PersistentFlags().DurationVar(&opts.Timeout, "timeout", opts.Timeout, "External command timeout (e.g. 3s)")
 
 	cmd.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {

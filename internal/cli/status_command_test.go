@@ -81,6 +81,49 @@ func TestStatusCommandPlainToolsFilterAndSpinner(t *testing.T) {
 	}
 }
 
+func TestStatusCommandQuietSkipsSpinner(t *testing.T) {
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Binary: "aws"},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{ID: def.ID, Category: def.Category, Installed: false, ConfiguredState: model.ConfiguredUnknown}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, true)
+
+	stdout, stderr, err := executeTestCommand(t, newStatusCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}), "--quiet")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "aws") {
+		t.Fatalf("expected quiet status output, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected quiet status to skip spinner, got %q", stderr)
+	}
+}
+
+func TestStatusCommandNoProgressSkipsSpinner(t *testing.T) {
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Binary: "aws"},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{ID: def.ID, Category: def.Category, Installed: true, ConfiguredState: model.ConfiguredYes, Configured: true}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, true)
+
+	_, stderr, err := executeTestCommand(t, newStatusCommand(&rootOptions{NoProgress: true, Timeout: time.Second}, cliFakeRunner{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected --no-progress to skip spinner, got %q", stderr)
+	}
+}
+
 func TestStatusCommandJSONIncludesAdditiveDiagnostics(t *testing.T) {
 	stubStatusRegistry(t, []tools.ToolDefinition{
 		{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Binary: "aws"},

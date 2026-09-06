@@ -138,7 +138,13 @@ all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
 all-cli status --timeout 10s
+all-cli status --no-progress
+all-cli status --quiet
 ```
+
+Use the global `--no-progress` flag to suppress progress indicators in human-readable
+commands. `status --quiet` also suppresses the status spinner while showing only tools
+with issues; JSON output never emits progress indicators.
 
 Use `--categories` to check one or more registry categories at once. When combined with
 `--tools`, both filters apply, so the result contains only tools matching both selections.

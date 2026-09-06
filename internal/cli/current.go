@@ -35,7 +35,7 @@ Use --tools to evaluate only selected tools and skip unrelated external commands
 			}
 
 			var spinner *progressSpinner
-			if !opts.JSON && showStatusSpinner() {
+			if !opts.JSON && !opts.NoProgress && showStatusSpinner() {
 				spinner = newProgressSpinner(cmd.ErrOrStderr(), len(contextRegistry))
 				spinner.Start()
 			}
