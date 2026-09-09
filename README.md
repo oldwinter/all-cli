@@ -344,6 +344,16 @@ all-cli catalog kubernetes --categories k8s,cloud
 all-cli catalog cloud --json
 ```
 
+Use `--ids` to print one matching tool ID per line for a picker or a shell loop:
+
+```bash
+all-cli catalog kubernetes --ids
+all-cli catalog --ids | fzf
+```
+
+IDs keep the catalog's category-then-ID order. A search with no matches prints
+nothing in this mode. If you also pass `--json`, the full JSON report takes precedence.
+
 Use `all-cli describe <tool>` to inspect the built-in purpose, configuration
 criteria, context capabilities, and agent actions without running the tool:
 
