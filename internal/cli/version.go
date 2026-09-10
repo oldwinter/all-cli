@@ -18,14 +18,11 @@ func newVersionCommand(opts *rootOptions) *cobra.Command {
 		Use:   "version",
 		Short: "Print version information",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			report := resolvedVersionReport()
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), versionReport{
-					Version: version,
-					Commit:  commit,
-					Date:    date,
-				})
+				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), VersionString())
+			fmt.Fprintln(cmd.OutOrStdout(), formatVersionReport(report))
 			return nil
 		},
 	}

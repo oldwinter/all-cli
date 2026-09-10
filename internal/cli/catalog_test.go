@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/oldwinter/all-cli/internal/tools"
 )
 
 func TestCatalogCommandListsTrackedTools(t *testing.T) {
@@ -89,6 +91,84 @@ func TestCatalogCommandExplainsNoMatches(t *testing.T) {
 	}
 	if got, want := stdout, "No tracked tools match \"not-a-real-tool\".\n"; got != want {
 		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+}
+
+func TestCatalogCommandFiltersByCategories(t *testing.T) {
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Binary: "aws"},
+		{ID: "gh", DisplayName: "gh", Category: "code", Binary: "gh"},
+		{ID: "kubectl", DisplayName: "kubectl", Category: "k8s", Binary: "kubectl"},
+	})
+
+	opts := &rootOptions{JSON: true}
+	stdout, stderr, err := executeTestCommand(t, newCatalogCommand(opts), "--categories", "cloud,k8s")
+	if err != nil {
+		t.Fatalf("catalog --categories cloud,k8s --json: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+
+	var got catalogReport
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode catalog json: %v", err)
+	}
+	if got.Count != 2 || len(got.Tools) != 2 || got.Tools[0].ID != "aws" || got.Tools[1].ID != "kubectl" {
+		t.Fatalf("unexpected category-filtered catalog: %#v", got)
+	}
+}
+
+func TestCatalogCommandCombinesSearchAndCategories(t *testing.T) {
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Binary: "aws"},
+		{ID: "kubectl", DisplayName: "kubectl", Category: "k8s", Binary: "kubectl"},
+	})
+
+	opts := &rootOptions{JSON: true}
+	stdout, _, err := executeTestCommand(t, newCatalogCommand(opts), "kubernetes", "--categories", "cloud,k8s")
+	if err != nil {
+		t.Fatalf("catalog kubernetes --categories cloud,k8s --json: %v", err)
+	}
+
+	var got catalogReport
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode catalog json: %v", err)
+	}
+	if got.Count != 1 || len(got.Tools) != 1 || got.Tools[0].ID != "kubectl" {
+		t.Fatalf("unexpected search/category intersection: %#v", got)
+	}
+}
+
+func TestCatalogCommandRejectsInvalidCategories(t *testing.T) {
+	tests := []struct {
+		name       string
+		categories string
+		want       string
+	}{
+		{name: "unknown", categories: "cloud,unknown", want: "unknown categories: unknown"},
+		{name: "empty", categories: ",", want: "invalid --categories value"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := executeTestCommand(t, newCatalogCommand(&rootOptions{}), "--categories", tt.categories)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("catalog --categories %q error = %v, want %q", tt.categories, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestCategoryFilterFlagCompletesCatalog(t *testing.T) {
+	root := NewRootCommand()
+
+	stdout, _, err := executeTestCommand(t, root, "__complete", "catalog", "--categories", "cl")
+	if err != nil {
+		t.Fatalf("complete catalog --categories: %v", err)
+	}
+	if !strings.Contains(stdout, "cloud") {
+		t.Fatalf("cloud completion missing: %q", stdout)
 	}
 }
 
