@@ -24,6 +24,32 @@ brew install oldwinter/tap/all-cli
 all-cli version
 ```
 
+### GitHub Releases (Linux)
+
+Prebuilt Linux binaries are published on
+[GitHub Releases](https://github.com/oldwinter/all-cli/releases) as
+`all-cli_<version>_<os>_<arch>.tar.gz` (for example
+`all-cli_0.0.0-33.1.71ef29f_linux_amd64.tar.gz`). A `checksums.txt` file is
+published alongside the archives when present.
+
+```bash
+# linux_amd64 example. Replace VERSION with the release version
+# (the git tag is typically vVERSION; archive names omit the leading v).
+VERSION=0.0.0-33.1.71ef29f
+curl -fsSL -O "https://github.com/oldwinter/all-cli/releases/download/v${VERSION}/all-cli_${VERSION}_linux_amd64.tar.gz"
+curl -fsSL -O "https://github.com/oldwinter/all-cli/releases/download/v${VERSION}/checksums.txt"
+sha256sum --ignore-missing -c checksums.txt
+mkdir -p "$HOME/.local/bin"
+tar -xzf "all-cli_${VERSION}_linux_amd64.tar.gz" all-cli
+install -m 0755 all-cli "$HOME/.local/bin/all-cli"
+export PATH="$HOME/.local/bin:$PATH"
+all-cli version
+```
+
+`gh release download --repo oldwinter/all-cli --pattern '*linux_amd64.tar.gz'`
+also works if GitHub CLI is already installed. Put the extracted `all-cli`
+binary on `PATH` before running `all-cli version`.
+
 ### From source (local)
 
 ```bash
@@ -33,10 +59,25 @@ go build ./cmd/all-cli
 
 ### go install
 
+`go install` writes the binary to `$(go env GOBIN)` when `GOBIN` is set,
+otherwise `$(go env GOPATH)/bin`. On a clean Linux install that directory is
+often not already on `PATH`, so `all-cli version` fails with `command not found`
+even though install succeeded. Add it to `PATH` before running the binary:
+
 ```bash
 go install github.com/oldwinter/all-cli/cmd/all-cli@latest
+
+# Put GOPATH/bin (or GOBIN) on PATH so `all-cli` is found
+bin_dir="$(go env GOBIN)"
+if [ -z "$bin_dir" ]; then
+  bin_dir="$(go env GOPATH)/bin"
+fi
+export PATH="$bin_dir:$PATH"
+
 all-cli version
 ```
+
+To persist this, add the `export PATH=...` line to your shell profile.
 
 ## Local development
 
@@ -134,6 +175,7 @@ all-cli status
 all-cli status --json
 all-cli status --tools kubectl,docker
 all-cli status --categories ai,cloud
+all-cli status --categories ai --missing-only
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
@@ -145,6 +187,10 @@ Use `--categories` to check one or more registry categories at once. When combin
 With shell completion loaded, comma-separated category values complete in place: for
 example, `--categories cloud,k<TAB>` keeps `cloud` and offers `k8s`.
 
+Use `--missing-only` to turn the inventory into a focused installation checklist. It can
+be combined with `--categories` or `--tools`, and is mutually exclusive with
+`--installed-only`.
+
 ### Current contexts at a glance
 
 `all-cli current` shows the active accounts, clusters, projects, and environments
@@ -153,10 +199,12 @@ reported by every installed context-aware tool in one compact view.
 ```bash
 all-cli current
 all-cli current --tools kubectl,docker
+all-cli current --categories cloud,k8s
 all-cli current --json
 ```
 
-Use `--tools` to check only the contexts you need and avoid invoking unrelated CLIs.
+Use `--tools` or `--categories` to check only the contexts you need and avoid invoking
+unrelated CLIs. When combined, both filters must match.
 
 Example text output:
 
@@ -198,6 +246,13 @@ Snapshots can be saved and compared later:
 all-cli snapshot --json > before.json
 all-cli snapshot --json > after.json
 all-cli diff before.json after.json --json
+```
+
+Add `--exit-code` when a script or CI job should return status 1 if any tool was
+added, removed, or changed. The complete text or JSON report is still printed:
+
+```bash
+all-cli diff before.json after.json --json --exit-code
 ```
 
 Use `-` for either diff input to compare a saved snapshot with a live pipeline
@@ -264,11 +319,14 @@ Example shape:
 
 Use `all-cli catalog` to browse every tracked tool without running any external
 commands. Add an optional search term to match tool IDs, names, categories,
-binary names, and purposes:
+binary names, and purposes. Use `--categories` to browse one or more exact
+registry categories; category filters and search terms can be combined:
 
 ```bash
 all-cli catalog
 all-cli catalog kubernetes
+all-cli catalog --categories ai,cloud
+all-cli catalog kubernetes --categories k8s,cloud
 all-cli catalog cloud --json
 ```
 

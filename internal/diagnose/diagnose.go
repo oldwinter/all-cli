@@ -177,20 +177,13 @@ func diagnosticsForTool(tool model.ToolSummary) []model.DiagnosticItem {
 
 	if len(tool.Errors) > 0 {
 		out = append(out, model.DiagnosticItem{
-			ID:            tool.ID + ".collection_errors",
-			Severity:      model.DiagnosticError,
-			Problem:       fmt.Sprintf("%s status collection reported errors.", displayName(tool)),
-			Evidence:      appendPrefixed("error: ", tool.Errors),
-			RelatedTool:   tool.ID,
-			SafeToAutofix: false,
-			SuggestedActions: []model.SuggestedAction{{
-				ID:          "rerun_with_timeout",
-				Title:       "Rerun with a longer timeout",
-				Description: "Inspect whether the underlying CLI is slow, blocked on login, or returning a non-zero exit.",
-				Kind:        "inspect",
-				Command:     []string{"all-cli", "status", "--tools", tool.ID, "--timeout", "15s"},
-				Mutates:     false,
-			}},
+			ID:               tool.ID + ".collection_errors",
+			Severity:         model.DiagnosticError,
+			Problem:          fmt.Sprintf("%s status collection reported errors.", displayName(tool)),
+			Evidence:         appendPrefixed("error: ", tool.Errors),
+			RelatedTool:      tool.ID,
+			SafeToAutofix:    false,
+			SuggestedActions: collectionErrorActions(tool),
 		})
 	}
 
@@ -272,6 +265,43 @@ func diagnosticsForTool(tool model.ToolSummary) []model.DiagnosticItem {
 	}
 
 	return out
+}
+
+func collectionErrorActions(tool model.ToolSummary) []model.SuggestedAction {
+	if tool.ID == "gh" && errorsLookLikeUnsupportedGHJSON(tool.Errors) {
+		return []model.SuggestedAction{{
+			ID:          "upgrade_or_check_gh_auth",
+			Title:       "Upgrade gh or check auth status",
+			Description: "This GitHub CLI does not support `gh auth status --json` (added in 2.81.0). Upgrade gh, or inspect `gh auth status`.",
+			Kind:        "inspect",
+			Command:     []string{"gh", "auth", "status"},
+			Mutates:     false,
+		}}
+	}
+	return []model.SuggestedAction{{
+		ID:          "rerun_with_timeout",
+		Title:       "Rerun with a longer timeout",
+		Description: "Inspect whether the underlying CLI is slow, blocked on login, or returning a non-zero exit.",
+		Kind:        "inspect",
+		Command:     []string{"all-cli", "status", "--tools", tool.ID, "--timeout", "15s"},
+		Mutates:     false,
+	}}
+}
+
+func errorsLookLikeUnsupportedGHJSON(errs []string) bool {
+	for _, err := range errs {
+		lower := strings.ToLower(err)
+		if strings.Contains(lower, "unknown flag") && strings.Contains(lower, "json") {
+			return true
+		}
+		if strings.Contains(lower, "auth status --json is not supported") {
+			return true
+		}
+		if strings.Contains(lower, "2.81") && strings.Contains(lower, "gh auth status") {
+			return true
+		}
+	}
+	return false
 }
 
 func summarizeDiagnostics(items []model.DiagnosticItem) model.DiagnosticSummary {
