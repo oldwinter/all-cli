@@ -3,10 +3,19 @@ package cli
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
+	"time"
 
+	"github.com/oldwinter/all-cli/internal/tools"
 	"github.com/spf13/cobra"
 )
+
+type surpriseRecommendation struct {
+	ToolID   string
+	Category string
+	Purpose  string
+}
 
 func newSurpriseCommand() *cobra.Command {
 	return &cobra.Command{
@@ -15,6 +24,7 @@ func newSurpriseCommand() *cobra.Command {
 		Short:  "A small thank-you for curious users",
 		Run: func(cmd *cobra.Command, _ []string) {
 			out := cmd.OutOrStdout()
+			recommendation := dailySurpriseRecommendation(time.Now())
 			fmt.Fprintln(out, rainbowLine("    ★ all-cli ★"))
 			fmt.Fprintln(out)
 			fmt.Fprintln(out, strings.TrimSpace(`
@@ -25,8 +35,27 @@ func newSurpriseCommand() *cobra.Command {
   and your next deploy be boring in the best way.
 `))
 			fmt.Fprintln(out)
+			fmt.Fprintf(out, "  Tool of the day: %s (%s)\n", recommendation.ToolID, recommendation.Category)
+			fmt.Fprintf(out, "  %s\n", recommendation.Purpose)
+			fmt.Fprintf(out, "  Explore it: all-cli describe %s\n", recommendation.ToolID)
+			fmt.Fprintln(out)
 			fmt.Fprintln(out, dimIfTTY("  — the maintainers · 好奇的人运气不会太差"))
 		},
+	}
+}
+
+func dailySurpriseRecommendation(day time.Time) surpriseRecommendation {
+	registry := tools.DefaultRegistry()
+	sort.Slice(registry, func(i, j int) bool {
+		return registry[i].ID < registry[j].ID
+	})
+
+	dayNumber := day.Year()*366 + day.YearDay()
+	definition := registry[dayNumber%len(registry)]
+	return surpriseRecommendation{
+		ToolID:   definition.ID,
+		Category: definition.Category,
+		Purpose:  tools.MetadataForTool(definition.ID).Purpose,
 	}
 }
 

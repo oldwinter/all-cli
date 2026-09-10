@@ -26,13 +26,17 @@ type catalogReport struct {
 }
 
 func newCatalogCommand(opts *rootOptions) *cobra.Command {
+	var categoriesFilter string
+
 	cmd := &cobra.Command{
 		Use:   "catalog [search]",
 		Short: "Browse and search tracked CLI tools",
 		Long: `Lists the built-in tool catalog without running external commands. An optional
-search term matches tool IDs, names, categories, binary names, and purposes.`,
+search term matches tool IDs, names, categories, binary names, and purposes.
+Use --categories to limit results to one or more exact registry categories.`,
 		Example: `  all-cli catalog
   all-cli catalog kubernetes
+  all-cli catalog --categories ai,cloud
   all-cli catalog cloud --json`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -40,7 +44,11 @@ search term matches tool IDs, names, categories, binary names, and purposes.`,
 			if len(args) == 1 {
 				query = args[0]
 			}
-			report := buildCatalogReport(query)
+			registry, err := registryForCategoriesFilter(defaultRegistry(), categoriesFilter)
+			if err != nil {
+				return err
+			}
+			report := buildCatalogReport(query, registry)
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
@@ -60,12 +68,12 @@ search term matches tool IDs, names, categories, binary names, and purposes.`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 	}
+	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to browse (e.g. ai,cloud)")
 	return cmd
 }
 
-func buildCatalogReport(query string) catalogReport {
+func buildCatalogReport(query string, registry []tools.ToolDefinition) catalogReport {
 	normalizedQuery := strings.ToLower(strings.TrimSpace(query))
-	registry := tools.DefaultRegistry()
 	entries := make([]catalogTool, 0, len(registry))
 	for _, def := range registry {
 		metadata := tools.MetadataForTool(def.ID)

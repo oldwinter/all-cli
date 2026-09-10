@@ -60,3 +60,72 @@ func TestAdapterListContexts(t *testing.T) {
 		t.Fatalf("unexpected contexts: %#v", contexts)
 	}
 }
+
+func TestAdapterErrorsIncludeRunnerCause(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		invoke  func(Adapter) error
+		want    string
+	}{
+		{
+			name:    "use context",
+			command: "kubectl config use-context prod",
+			invoke: func(a Adapter) error {
+				return a.UseContext(context.Background(), "prod")
+			},
+			want: "kubectl config use-context",
+		},
+		{
+			name:    "set namespace for context",
+			command: "kubectl config set-context prod --namespace payments",
+			invoke: func(a Adapter) error {
+				return a.SetNamespaceForContext(context.Background(), "prod", "payments")
+			},
+			want: "kubectl config set-context",
+		},
+		{
+			name:    "set namespace for current context",
+			command: "kubectl config set-context --current --namespace payments",
+			invoke: func(a Adapter) error {
+				return a.SetNamespaceForCurrentContext(context.Background(), "payments")
+			},
+			want: "kubectl config set-context --current",
+		},
+		{
+			name:    "get current context",
+			command: "kubectl config current-context",
+			invoke: func(a Adapter) error {
+				_, err := a.currentContext(context.Background())
+				return err
+			},
+			want: "kubectl config current-context",
+		},
+		{
+			name:    "get current namespace",
+			command: "kubectl config view --minify --output jsonpath={..namespace}{\"\\n\"}",
+			invoke: func(a Adapter) error {
+				_, err := a.currentNamespace(context.Background())
+				return err
+			},
+			want: "kubectl config view (namespace)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cause := errors.New(`exec: "kubectl": executable file not found in $PATH`)
+			a := New(fakeRunner{results: map[string]execx.CmdResult{
+				tt.command: {ExitCode: 1, Err: cause},
+			}})
+
+			err := tt.invoke(a)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tt.want) || !strings.Contains(err.Error(), cause.Error()) {
+				t.Fatalf("error = %q, want command and runner cause", err)
+			}
+		})
+	}
+}
