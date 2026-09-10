@@ -175,6 +175,7 @@ all-cli status
 all-cli status --json
 all-cli status --tools kubectl,docker
 all-cli status --categories ai,cloud
+all-cli status --categories ai --missing-only
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
@@ -186,6 +187,10 @@ Use `--categories` to check one or more registry categories at once. When combin
 With shell completion loaded, comma-separated category values complete in place: for
 example, `--categories cloud,k<TAB>` keeps `cloud` and offers `k8s`.
 
+Use `--missing-only` to turn the inventory into a focused installation checklist. It can
+be combined with `--categories` or `--tools`, and is mutually exclusive with
+`--installed-only`.
+
 ### Current contexts at a glance
 
 `all-cli current` shows the active accounts, clusters, projects, and environments
@@ -194,10 +199,12 @@ reported by every installed context-aware tool in one compact view.
 ```bash
 all-cli current
 all-cli current --tools kubectl,docker
+all-cli current --categories cloud,k8s
 all-cli current --json
 ```
 
-Use `--tools` to check only the contexts you need and avoid invoking unrelated CLIs.
+Use `--tools` or `--categories` to check only the contexts you need and avoid invoking
+unrelated CLIs. When combined, both filters must match.
 
 Example text output:
 
@@ -239,6 +246,13 @@ Snapshots can be saved and compared later:
 all-cli snapshot --json > before.json
 all-cli snapshot --json > after.json
 all-cli diff before.json after.json --json
+```
+
+Add `--exit-code` when a script or CI job should return status 1 if any tool was
+added, removed, or changed. The complete text or JSON report is still printed:
+
+```bash
+all-cli diff before.json after.json --json --exit-code
 ```
 
 Use `-` for either diff input to compare a saved snapshot with a live pipeline
@@ -305,11 +319,14 @@ Example shape:
 
 Use `all-cli catalog` to browse every tracked tool without running any external
 commands. Add an optional search term to match tool IDs, names, categories,
-binary names, and purposes:
+binary names, and purposes. Use `--categories` to browse one or more exact
+registry categories; category filters and search terms can be combined:
 
 ```bash
 all-cli catalog
 all-cli catalog kubernetes
+all-cli catalog --categories ai,cloud
+all-cli catalog kubernetes --categories k8s,cloud
 all-cli catalog cloud --json
 ```
 
