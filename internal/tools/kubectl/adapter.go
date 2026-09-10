@@ -74,7 +74,7 @@ func (a Adapter) ListContexts(ctx context.Context) ([]string, []string, []string
 func (a Adapter) UseContext(ctx context.Context, contextName string) error {
 	res := a.runner.Run(ctx, "kubectl", "config", "use-context", contextName)
 	if res.Err != nil {
-		return fmt.Errorf("kubectl config use-context %q failed (exit=%d): %s", contextName, res.ExitCode, strings.TrimSpace(res.Stderr))
+		return fmt.Errorf("kubectl config use-context %q failed (exit=%d): %s", contextName, res.ExitCode, execx.ErrMessage(res))
 	}
 	return nil
 }
@@ -82,7 +82,7 @@ func (a Adapter) UseContext(ctx context.Context, contextName string) error {
 func (a Adapter) SetNamespaceForContext(ctx context.Context, contextName, namespace string) error {
 	res := a.runner.Run(ctx, "kubectl", "config", "set-context", contextName, "--namespace", namespace)
 	if res.Err != nil {
-		return fmt.Errorf("kubectl config set-context %q --namespace %q failed (exit=%d): %s", contextName, namespace, res.ExitCode, strings.TrimSpace(res.Stderr))
+		return fmt.Errorf("kubectl config set-context %q --namespace %q failed (exit=%d): %s", contextName, namespace, res.ExitCode, execx.ErrMessage(res))
 	}
 	return nil
 }
@@ -90,7 +90,7 @@ func (a Adapter) SetNamespaceForContext(ctx context.Context, contextName, namesp
 func (a Adapter) SetNamespaceForCurrentContext(ctx context.Context, namespace string) error {
 	res := a.runner.Run(ctx, "kubectl", "config", "set-context", "--current", "--namespace", namespace)
 	if res.Err != nil {
-		return fmt.Errorf("kubectl config set-context --current --namespace %q failed (exit=%d): %s", namespace, res.ExitCode, strings.TrimSpace(res.Stderr))
+		return fmt.Errorf("kubectl config set-context --current --namespace %q failed (exit=%d): %s", namespace, res.ExitCode, execx.ErrMessage(res))
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ func (a Adapter) SetNamespaceForCurrentContext(ctx context.Context, namespace st
 func (a Adapter) currentContext(ctx context.Context) (string, error) {
 	res := a.runner.Run(ctx, "kubectl", "config", "current-context")
 	if res.Err != nil {
-		return "", fmt.Errorf("kubectl config current-context failed (exit=%d): %s", res.ExitCode, strings.TrimSpace(res.Stderr))
+		return "", fmt.Errorf("kubectl config current-context failed (exit=%d): %s", res.ExitCode, execx.ErrMessage(res))
 	}
 	return strings.TrimSpace(res.Stdout), nil
 }
@@ -106,7 +106,7 @@ func (a Adapter) currentContext(ctx context.Context) (string, error) {
 func (a Adapter) currentNamespace(ctx context.Context) (string, error) {
 	res := a.runner.Run(ctx, "kubectl", "config", "view", "--minify", "--output", "jsonpath={..namespace}{\"\\n\"}")
 	if res.Err != nil {
-		return "", fmt.Errorf("kubectl config view (namespace) failed (exit=%d): %s", res.ExitCode, strings.TrimSpace(res.Stderr))
+		return "", fmt.Errorf("kubectl config view (namespace) failed (exit=%d): %s", res.ExitCode, execx.ErrMessage(res))
 	}
 	return strings.TrimSpace(res.Stdout), nil
 }

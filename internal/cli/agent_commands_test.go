@@ -189,6 +189,59 @@ func TestDiffCommandJSONReportsChangedTools(t *testing.T) {
 	}
 }
 
+func TestDiffCommandExitCodeFailsSilentlyWhenSnapshotsDiffer(t *testing.T) {
+	dir := t.TempDir()
+	before := model.NewStatusReport(0)
+	after := model.NewStatusReport(1)
+	after.Tools[0] = model.ToolSummary{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Installed: true}
+
+	beforePath := writeStatusReportFixture(t, dir, "before.json", before)
+	afterPath := writeStatusReportFixture(t, dir, "after.json", after)
+
+	var stdout strings.Builder
+	var stderr strings.Builder
+	err := Execute(
+		context.Background(),
+		[]string{"diff", beforePath, afterPath, "--json", "--exit-code"},
+		&stdout,
+		&stderr,
+		func(string) string { return "" },
+	)
+	if err != errSnapshotDifferences {
+		t.Fatalf("diff --exit-code error = %v, want snapshot differences found", err)
+	}
+	if stderr.String() != "" {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+
+	var got model.SnapshotDiffReport
+	if err := json.Unmarshal([]byte(stdout.String()), &got); err != nil {
+		t.Fatalf("decode diff: %v", err)
+	}
+	if got.Summary.Added != 1 || len(got.Changes) != 1 {
+		t.Fatalf("unexpected diff report: %#v", got)
+	}
+}
+
+func TestDiffCommandExitCodeSucceedsWhenSnapshotsMatch(t *testing.T) {
+	report := model.NewStatusReport(0)
+	path := writeStatusReportFixture(t, t.TempDir(), "snapshot.json", report)
+
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newDiffCommand(opts), path, path, "--exit-code")
+	if err != nil {
+		t.Fatalf("diff --exit-code: %v", err)
+	}
+
+	var got model.SnapshotDiffReport
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode diff: %v", err)
+	}
+	if len(got.Changes) != 0 {
+		t.Fatalf("unexpected diff report: %#v", got)
+	}
+}
+
 func TestDiffCommandReadsSnapshotFromStdin(t *testing.T) {
 	before := model.NewStatusReport(1)
 	before.Tools[0] = model.ToolSummary{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Installed: false, ConfiguredState: model.ConfiguredUnknown}

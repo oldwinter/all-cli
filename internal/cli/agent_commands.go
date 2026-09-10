@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +17,8 @@ import (
 )
 
 const maxStdinSnapshotBytes int64 = 1 << 20
+
+var errSnapshotDifferences = errors.New("snapshot differences found")
 
 func newDiagnoseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
@@ -126,13 +129,17 @@ func newSnapshotCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newDiffCommand(opts *rootOptions) *cobra.Command {
-	return &cobra.Command{
+	var exitCode bool
+
+	cmd := &cobra.Command{
 		Use:   "diff <snapshot-a> <snapshot-b>",
 		Short: "Diff two status snapshots",
 		Long: `Diffs two status snapshots. Use - for either snapshot to read it from
 standard input, which makes it possible to compare a saved snapshot with a live pipeline.
-Standard input snapshots are limited to 1 MiB.`,
+Standard input snapshots are limited to 1 MiB. Add --exit-code to return status 1 when
+the snapshots differ while still printing the complete report.`,
 		Example: `  all-cli diff before.json after.json
+  all-cli diff before.json after.json --exit-code
   all-cli snapshot --json | all-cli diff before.json - --json`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -149,12 +156,22 @@ Standard input snapshots are limited to 1 MiB.`,
 			}
 			report := diag.DiffSnapshots(before, after)
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), report)
+				if err := output.PrintJSON(cmd.OutOrStdout(), report); err != nil {
+					return err
+				}
+			} else {
+				printSnapshotDiff(cmd.OutOrStdout(), report)
 			}
-			printSnapshotDiff(cmd.OutOrStdout(), report)
+			if exitCode && len(report.Changes) > 0 {
+				cmd.Root().SilenceErrors = true
+				return errSnapshotDifferences
+			}
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&exitCode, "exit-code", false, "Return status 1 when snapshots differ")
+	return cmd
 }
 
 func buildDiagnosticReport(cmd *cobra.Command, opts *rootOptions, runner execx.Runner, toolsFilter, profile string) (model.DiagnosticReport, error) {
