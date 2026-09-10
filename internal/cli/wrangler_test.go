@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -185,4 +186,58 @@ func TestRootCommandIncludesWrangler(t *testing.T) {
 		}
 	}
 	t.Fatal("expected root command to register wrangler")
+}
+
+func TestWranglerCurrentJSONMissingBinaryReportsError(t *testing.T) {
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				ExitCode: 1,
+				Err:      exec.ErrNotFound,
+			},
+		},
+	}
+
+	stdout, _, err := executeTestCommand(t, newWranglerCommand(opts, runner), "current")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var got struct {
+		Current map[string]string `json:"current"`
+		Errors  []string          `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+	if len(got.Errors) == 0 {
+		t.Fatalf("expected missing-binary error, got %#v", got)
+	}
+	if got.Current["logged_in"] == "no" {
+		t.Fatalf("missing binary must not report logged_in=no: %#v", got)
+	}
+}
+
+func TestWranglerCurrentPlainMissingBinaryDoesNotPrintLoggedOut(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				ExitCode: 1,
+				Err:      exec.ErrNotFound,
+			},
+		},
+	}
+
+	stdout, stderr, err := executeTestCommand(t, newWranglerCommand(opts, runner), "current")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(stdout, "logged_in: no") {
+		t.Fatalf("missing binary must not print logged_in: no, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "error:") {
+		t.Fatalf("expected error on stderr, got %q", stderr)
+	}
 }
