@@ -370,6 +370,18 @@ all-cli describe kubectl
 all-cli describe kubectl --json
 ```
 
+The text output ends with read-only commands you can copy to inspect that tool:
+
+```text
+Examples:
+  all-cli status --tools kubectl
+  all-cli doctor --tools kubectl
+  all-cli current --tools kubectl
+```
+
+The `current` example appears only for tools that expose context state. Printing
+these examples does not run them. JSON output keeps the metadata-only format.
+
 If a tool ID is misspelled, `describe` and every `--tools` filter suggest a
 nearby tracked ID when there is a clear match:
 
