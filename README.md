@@ -269,6 +269,14 @@ added, removed, or changed. The complete text or JSON report is still printed:
 all-cli diff before.json after.json --json --exit-code
 ```
 
+Print the matching JSON Schema directly from the installed binary when another
+tool needs to validate these reports offline:
+
+```bash
+all-cli schema status > status.schema.json
+all-cli schema diagnostic > diagnostic.schema.json
+```
+
 Use `-` for either diff input to compare a saved snapshot with a live pipeline
 without creating another file. Standard input snapshots are limited to 1 MiB:
 
