@@ -29,6 +29,59 @@ func TestCompletionCommandGeneratesScripts(t *testing.T) {
 	}
 }
 
+func TestCompletionCommandDetectsCurrentShell(t *testing.T) {
+	t.Setenv("SHELL", "/bin/zsh")
+
+	stdout, stderr, err := executeTestCommand(t, NewRootCommand(), "completion")
+	if err != nil {
+		t.Fatalf("generate detected zsh completion: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "#compdef all-cli") {
+		t.Fatalf("expected zsh completion output, got:\n%s", stdout)
+	}
+}
+
+func TestDetectCompletionShell(t *testing.T) {
+	tests := []struct {
+		name      string
+		shellPath string
+		want      string
+		wantErr   string
+	}{
+		{name: "bash", shellPath: "/bin/bash", want: "bash"},
+		{name: "zsh", shellPath: "/opt/homebrew/bin/zsh", want: "zsh"},
+		{name: "fish", shellPath: "/usr/local/bin/fish", want: "fish"},
+		{name: "powershell", shellPath: "/usr/local/bin/powershell", want: "powershell"},
+		{name: "pwsh alias", shellPath: "/opt/microsoft/powershell/7/pwsh", want: "powershell"},
+		{name: "empty", wantErr: "SHELL is empty"},
+		{name: "unsupported", shellPath: "/bin/nu", wantErr: `SHELL="/bin/nu"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := detectCompletionShell(tt.shellPath)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("detectCompletionShell(%q) error = %v, want %q", tt.shellPath, err, tt.wantErr)
+				}
+				if !strings.Contains(err.Error(), "completion zsh") {
+					t.Fatalf("error should suggest an explicit shell: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("detectCompletionShell(%q): %v", tt.shellPath, err)
+			}
+			if got != tt.want {
+				t.Fatalf("detectCompletionShell(%q) = %q, want %q", tt.shellPath, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCompletionCommandRejectsUnsupportedShell(t *testing.T) {
 	cmd := newCompletionCommand()
 	err := cmd.RunE(cmd, []string{"unknown"})

@@ -263,3 +263,50 @@ func TestGHUsePlainSuccess(t *testing.T) {
 		t.Fatalf("unexpected stdout:\n%s", stdout)
 	}
 }
+
+func TestGHStatusFallsBackToTextOnOldCLI(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"gh auth status --json hosts": {
+				ExitCode: 1,
+				Err:      assertError("exit status 1"),
+				Stderr:   "unknown flag: --json\n\nUsage:  gh auth status [flags]\n",
+			},
+			"gh auth status": {
+				Stderr: `github.com
+  ✓ Logged in to github.com account oldwinter (keyring)
+  - Active account: true
+  - Git operations protocol: ssh
+`,
+			},
+		},
+	}
+
+	stdout, stderr, err := executeTestCommand(t, newGHCommand(opts, runner), "status")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(stdout, "unknown flag") || strings.Contains(stderr, "unknown flag") || strings.Contains(stderr, "Usage:") {
+		t.Fatalf("usage leaked:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "github.com") || !strings.Contains(stdout, "oldwinter") {
+		t.Fatalf("expected host/account in stdout, got:\n%s", stdout)
+	}
+
+	stdout, stderr, err = executeTestCommand(t, newGHCommand(opts, runner), "current")
+	if err != nil {
+		t.Fatalf("current: %v", err)
+	}
+	if !strings.Contains(stdout, "github.com/oldwinter") {
+		t.Fatalf("unexpected current stdout:\n%s\nstderr=%q", stdout, stderr)
+	}
+
+	stdout, stderr, err = executeTestCommand(t, newGHCommand(opts, runner), "list")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if !strings.Contains(stdout, "github.com") || !strings.Contains(stdout, "oldwinter") {
+		t.Fatalf("unexpected list stdout:\n%s\nstderr=%q", stdout, stderr)
+	}
+}

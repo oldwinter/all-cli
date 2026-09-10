@@ -87,6 +87,7 @@ Environment:
 	}
 
 	cmd.AddCommand(newStatusCommand(opts, runner))
+	cmd.AddCommand(newReportCommand(opts, runner))
 	cmd.AddCommand(newCurrentCommand(opts, runner))
 	cmd.AddCommand(newCatalogCommand(opts))
 	cmd.AddCommand(newDescribeCommand(opts))
@@ -122,7 +123,7 @@ Environment:
 func setSubcommandGroups(root *cobra.Command) {
 	for _, c := range root.Commands() {
 		switch c.Name() {
-		case "status", "current", "catalog", "describe", "diagnose", "doctor", "fix", "snapshot", "diff":
+		case "status", "report", "current", "catalog", "describe", "diagnose", "doctor", "fix", "snapshot", "diff":
 			c.GroupID = "primary"
 		case "aws", "aliyun", "wrangler":
 			c.GroupID = "cloud"

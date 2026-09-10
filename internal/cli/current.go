@@ -10,6 +10,7 @@ import (
 
 func newCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
+	var categoriesFilter string
 
 	cmd := &cobra.Command{
 		Use:   "current",
@@ -17,13 +18,19 @@ func newCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Long: `Shows one compact view of the active accounts, clusters, projects, and
 environments reported by installed tools that expose context-like state.
 
-Use --tools to evaluate only selected tools and skip unrelated external commands.`,
+Use --tools or --categories to evaluate only selected tools and skip unrelated
+	external commands. When combined, both filters must match.`,
 		Example: `  all-cli current
   all-cli current --tools kubectl,docker
+  all-cli current --categories cloud,k8s
   all-cli current --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			registry, err := registryForToolsFilter(toolsFilter)
+			if err != nil {
+				return err
+			}
+			registry, err = registryForCategoriesFilter(registry, categoriesFilter)
 			if err != nil {
 				return err
 			}
@@ -63,5 +70,6 @@ Use --tools to evaluate only selected tools and skip unrelated external commands
 		},
 	}
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to show (e.g. kubectl,docker)")
+	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to show (e.g. cloud,k8s)")
 	return cmd
 }
