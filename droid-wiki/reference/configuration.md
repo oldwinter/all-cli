@@ -35,3 +35,6 @@ Configured in `internal/cli/status.go`:
 ## Developer automation
 
 `justfile` defines `just ci`, `just check`, `just build`, `just run`, `just smoke`, `just release-check`, and release helper recipes. For details, see [tooling](../how-to-contribute/tooling.md).
+
+The `options` command reports the effective root flags as `json=true|false` and
+`timeout=<duration>` by default, or as a JSON object when invoked with `--json`.
