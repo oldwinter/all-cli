@@ -74,7 +74,7 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 			}
 
 			var spinner *progressSpinner
-			if !opts.JSON && showStatusSpinner() {
+			if !opts.JSON && !opts.NoProgress && !quiet && showStatusSpinner() {
 				spinner = newProgressSpinner(cmd.ErrOrStderr(), len(reg))
 				spinner.Start()
 			}

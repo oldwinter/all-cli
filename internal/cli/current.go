@@ -42,7 +42,7 @@ Use --tools or --categories to evaluate only selected tools and skip unrelated
 			}
 
 			var spinner *progressSpinner
-			if !opts.JSON && showStatusSpinner() {
+			if !opts.JSON && !opts.NoProgress && showStatusSpinner() {
 				spinner = newProgressSpinner(cmd.ErrOrStderr(), len(contextRegistry))
 				spinner.Start()
 			}
