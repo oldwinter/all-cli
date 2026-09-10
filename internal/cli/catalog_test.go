@@ -2,11 +2,100 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/oldwinter/all-cli/internal/tools"
 )
+
+func TestCatalogCommandIDs(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	for _, tc := range []struct {
+		name  string
+		query string
+		want  string
+	}{
+		{name: "metadata search", query: "GITLAB", want: "glab\n"},
+		{name: "trimmed search", query: "  GitLab  ", want: "glab\n"},
+		{name: "no matches", query: "not-a-real-tool", want: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stdout, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", tc.query, "--ids")
+			if err != nil || stderr != "" || stdout != tc.want {
+				t.Fatalf("catalog --ids: stdout=%q stderr=%q err=%v, want stdout=%q", stdout, stderr, err, tc.want)
+			}
+		})
+	}
+}
+
+func TestCatalogCommandIDsPreserveReportOrder(t *testing.T) {
+	stdout, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", "--json")
+	if err != nil || stderr != "" {
+		t.Fatalf("catalog --json: stderr=%q err=%v", stderr, err)
+	}
+	var report catalogReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("decode catalog: %v", err)
+	}
+	if len(report.Tools) == 0 {
+		t.Fatal("catalog must contain tools")
+	}
+	var want strings.Builder
+	for _, tool := range report.Tools {
+		want.WriteString(tool.ID + "\n")
+	}
+	stdout, stderr, err = executeTestCommand(t, NewRootCommand(), "catalog", "--ids")
+	if err != nil || stderr != "" || stdout != want.String() {
+		t.Fatalf("catalog --ids: stdout=%q stderr=%q err=%v, want stdout=%q", stdout, stderr, err, want.String())
+	}
+}
+
+func TestCatalogCommandIDsJSONPrecedence(t *testing.T) {
+	want, _, err := executeTestCommand(t, NewRootCommand(), "catalog", "GITLAB", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"catalog", "GITLAB", "--ids", "--json"},
+		{"catalog", "GITLAB", "--json", "--ids"},
+		{"--json", "catalog", "GITLAB", "--ids"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			stdout, stderr, err := executeTestCommand(t, NewRootCommand(), args...)
+			if err != nil || stderr != "" || stdout != want {
+				t.Fatalf("JSON precedence: stdout=%q stderr=%q err=%v, want stdout=%q", stdout, stderr, err, want)
+			}
+		})
+	}
+}
+
+func TestCatalogCommandIDsFalsePreservesTable(t *testing.T) {
+	want, _, err := executeTestCommand(t, NewRootCommand(), "catalog", "GITLAB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", "GITLAB", "--ids=false")
+	if err != nil || stderr != "" || stdout != want {
+		t.Fatalf("catalog --ids=false: stdout=%q stderr=%q err=%v, want stdout=%q", stdout, stderr, err, want)
+	}
+}
+
+func TestCatalogCommandIDsReturnsWriteError(t *testing.T) {
+	reader, writer := io.Pipe()
+	if err := reader.Close(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = writer.Close() })
+	cmd := newCatalogCommand(&rootOptions{})
+	cmd.SetOut(writer)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"GITLAB", "--ids"})
+	if err := cmd.Execute(); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("catalog --ids error = %v, want %v", err, io.ErrClosedPipe)
+	}
+}
 
 func TestCatalogCommandListsTrackedTools(t *testing.T) {
 	// Given

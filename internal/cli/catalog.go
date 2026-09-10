@@ -27,16 +27,19 @@ type catalogReport struct {
 
 func newCatalogCommand(opts *rootOptions) *cobra.Command {
 	var categoriesFilter string
+	var ids bool
 
 	cmd := &cobra.Command{
 		Use:   "catalog [search]",
 		Short: "Browse and search tracked CLI tools",
 		Long: `Lists the built-in tool catalog without running external commands. An optional
 search term matches tool IDs, names, categories, binary names, and purposes.
-Use --categories to limit results to one or more exact registry categories.`,
+Use --categories to limit results to one or more exact registry categories.
+Use --ids to print one matching tool ID per line. --json takes precedence over --ids.`,
 		Example: `  all-cli catalog
   all-cli catalog kubernetes
   all-cli catalog --categories ai,cloud
+  all-cli catalog kubernetes --ids
   all-cli catalog cloud --json`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -51,6 +54,14 @@ Use --categories to limit results to one or more exact registry categories.`,
 			report := buildCatalogReport(query, registry)
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), report)
+			}
+			if ids {
+				for _, tool := range report.Tools {
+					if _, err := fmt.Fprintln(cmd.OutOrStdout(), tool.ID); err != nil {
+						return err
+					}
+				}
+				return nil
 			}
 			if report.Count == 0 {
 				fmt.Fprintf(cmd.OutOrStdout(), "No tracked tools match %q.\n", query)
@@ -69,6 +80,7 @@ Use --categories to limit results to one or more exact registry categories.`,
 		},
 	}
 	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to browse (e.g. ai,cloud)")
+	cmd.Flags().BoolVar(&ids, "ids", false, "Print only tool IDs, one per line (ignored with --json)")
 	return cmd
 }
 
