@@ -1,5 +1,5 @@
 {
-  "name": "all-cli Go 1.26",
+  "name": "all-cli Go 1.27",
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
