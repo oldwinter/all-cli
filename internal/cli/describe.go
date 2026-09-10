@@ -85,7 +85,15 @@ local configuration.`,
 					fmt.Fprintf(w, "  - %s\n", note)
 				}
 			}
-			return nil
+			examples := []string{
+				"all-cli status --tools " + def.ID,
+				"all-cli doctor --tools " + def.ID,
+			}
+			if def.Capabilities.HasContexts {
+				examples = append(examples, "all-cli current --tools "+def.ID)
+			}
+			_, err := fmt.Fprintf(w, "Examples:\n  %s\n", strings.Join(examples, "\n  "))
+			return err
 		},
 	}
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
