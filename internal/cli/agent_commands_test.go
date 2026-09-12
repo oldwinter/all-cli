@@ -55,6 +55,20 @@ func stubAgentStatusEvaluation(t *testing.T) {
 	stubShowStatusSpinner(t, false)
 }
 
+func TestDiagnosticCommandHelpExplainsAudience(t *testing.T) {
+	t.Parallel()
+
+	diagnose := newDiagnoseCommand(&rootOptions{}, cliFakeRunner{})
+	if !strings.Contains(diagnose.Long, "agent or script") || !strings.Contains(diagnose.Example, "--json") {
+		t.Fatalf("diagnose help should explain machine-readable usage, got long=%q example=%q", diagnose.Long, diagnose.Example)
+	}
+
+	doctor := newDoctorCommand(&rootOptions{}, cliFakeRunner{})
+	if !strings.Contains(doctor.Long, "human-friendly") || !strings.Contains(doctor.Example, "all-cli doctor") {
+		t.Fatalf("doctor help should explain human usage, got long=%q example=%q", doctor.Long, doctor.Example)
+	}
+}
+
 func TestDiagnoseCommandJSONUsesToolsFilter(t *testing.T) {
 	stubAgentStatusEvaluation(t)
 
