@@ -28,7 +28,10 @@ func newDiagnoseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Use:   "diagnose",
 		Short: "Generate agent-readable diagnostics from CLI status",
 		Long: `Generates structured diagnostics from the same tool evaluation used by status.
-Diagnostics include severity, evidence, suggested actions, autofix safety, and related tool IDs.`,
+Diagnostics include severity, evidence, suggested actions, autofix safety, and related tool IDs.
+Use this command when an agent or script needs a machine-readable report.`,
+		Example: `  all-cli diagnose --json
+  all-cli diagnose --tools kubectl,docker --profile ci --json`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
@@ -54,6 +57,10 @@ func newDoctorCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Run read-only health checks for local CLI tools",
+		Long: `Runs the same diagnostic checks as diagnose with human-friendly output by default.
+Use this command when a person wants a quick local health check; add --json for automation.`,
+		Example: `  all-cli doctor
+  all-cli doctor --tools kubectl,docker --json`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
