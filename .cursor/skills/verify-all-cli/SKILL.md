@@ -25,7 +25,7 @@ this run, then start each drive in its own process (plain capture) or PTY.
 From the repository root:
 
 ```bash
-eval "$(.cursor/skills/verify-all-cli/bin/control-all-cli launch)"
+eval "$(.cursor/skills/verify-all-cli/helpers/control-all-cli launch)"
 ```
 
 Ready when `control-all-cli doctor` prints `doctor: ok` and
@@ -157,12 +157,12 @@ Broken attempts must not leave scratch binaries or PTY sessions behind.
 Both helpers are executable. Invocations:
 
 ```bash
-.cursor/skills/verify-all-cli/bin/control-all-cli launch
-.cursor/skills/verify-all-cli/bin/control-all-cli doctor
-.cursor/skills/verify-all-cli/bin/control-all-cli cli --name LABEL [--stdin FILE] -- --help
-.cursor/skills/verify-all-cli/bin/control-all-cli pty --name LABEL -- surprise
-.cursor/skills/verify-all-cli/bin/control-all-cli cleanup
-.cursor/skills/verify-all-cli/bin/record-pty --output /tmp/pane.txt -- "$ALL_CLI_VERIFY_BIN" surprise
+.cursor/skills/verify-all-cli/helpers/control-all-cli launch
+.cursor/skills/verify-all-cli/helpers/control-all-cli doctor
+.cursor/skills/verify-all-cli/helpers/control-all-cli cli --name LABEL [--stdin FILE] -- --help
+.cursor/skills/verify-all-cli/helpers/control-all-cli pty --name LABEL -- surprise
+.cursor/skills/verify-all-cli/helpers/control-all-cli cleanup
+.cursor/skills/verify-all-cli/helpers/record-pty --output /tmp/pane.txt -- "$ALL_CLI_VERIFY_BIN" surprise
 ```
 
 `control-all-cli pty` calls `record-pty` for you. You should not need to invoke
