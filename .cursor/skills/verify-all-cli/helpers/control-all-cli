@@ -1,0 +1,381 @@
+#!/usr/bin/env bash
+# Isolated driver for all-cli verification. Invoke from the repository root
+# or any subdirectory. Stdout of `launch` is eval-safe export lines.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF' >&2
+Usage:
+  control-all-cli launch [--run-id ID]
+  control-all-cli doctor
+  control-all-cli cli [--name LABEL] [--expect-exit N] [--stdin FILE] [--env KEY=VAL]... -- <all-cli-args>
+  control-all-cli pty [--name LABEL] [--expect-exit N] [--env KEY=VAL]... -- <all-cli-args>
+  control-all-cli cleanup
+
+Examples:
+  eval "$(control-all-cli launch)"
+  control-all-cli doctor
+  control-all-cli cli --name help -- --help
+  control-all-cli cli --name bad-timeout --expect-exit 1 -- --timeout 0s status
+  control-all-cli cleanup
+EOF
+}
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+skill_dir="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$skill_dir/../../.." && pwd)"
+run_dir="$skill_dir/.run"
+current_file="$run_dir/current"
+
+resolve_run_id() {
+  if [[ -n "${ALL_CLI_VERIFY_RUN:-}" ]]; then
+    printf '%s\n' "$ALL_CLI_VERIFY_RUN"
+    return
+  fi
+  if [[ -f "$current_file" ]]; then
+    tr -d '[:space:]' <"$current_file"
+    return
+  fi
+  echo "control-all-cli: no active run; run: eval \"\$(control-all-cli launch)\"" >&2
+  exit 2
+}
+
+scratch_dir_for() {
+  printf '/tmp/all-cli-verify-%s\n' "$1"
+}
+
+evidence_dir_for() {
+  printf '%s/artifacts/%s\n' "$skill_dir" "$1"
+}
+
+load_run() {
+  local run_id scratch env_file
+  run_id="$(resolve_run_id)"
+  scratch="$(scratch_dir_for "$run_id")"
+  env_file="$scratch/run.env"
+  if [[ ! -f "$env_file" ]]; then
+    echo "control-all-cli: missing $env_file; relaunch this run" >&2
+    exit 2
+  fi
+  # shellcheck disable=SC1090
+  source "$env_file"
+  ALL_CLI_VERIFY_RUN="$run_id"
+  ALL_CLI_VERIFY_SCRATCH="$scratch"
+  ALL_CLI_VERIFY_EVIDENCE="$(evidence_dir_for "$run_id")"
+  ALL_CLI_VERIFY_BIN="${ALL_CLI_VERIFY_BIN:-$scratch/all-cli}"
+  mkdir -p "$ALL_CLI_VERIFY_EVIDENCE"
+}
+
+sanitize_label() {
+  local raw="${1:-cmd}"
+  raw="${raw//[^A-Za-z0-9._-]/_}"
+  if [[ -z "$raw" ]]; then
+    raw="cmd"
+  fi
+  printf '%s\n' "$raw"
+}
+
+write_meta() {
+  local label="$1" exit_code="$2" mode="$3"
+  shift 3
+  python3 - "$ALL_CLI_VERIFY_EVIDENCE/$label.meta.json" "$label" "$exit_code" "$mode" "$ALL_CLI_VERIFY_BIN" "$ALL_CLI_VERIFY_RUN" "$@" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+path, label, exit_code, mode, binary, run_id, *argv = sys.argv[1:]
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump({
+        "label": label,
+        "run_id": run_id,
+        "mode": mode,
+        "binary": binary,
+        "argv": argv,
+        "exit_code": int(exit_code),
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+    }, fh, indent=2)
+    fh.write("\n")
+PY
+}
+
+append_transcript() {
+  local label="$1" exit_code="$2"
+  {
+    printf '## %s (exit %s)\n\n' "$label" "$exit_code"
+    printf 'command:\n'
+    sed 's/^/  /' "$ALL_CLI_VERIFY_EVIDENCE/$label.cmd.txt"
+    printf '\n'
+  } >>"$ALL_CLI_VERIFY_EVIDENCE/transcript.md"
+}
+
+parse_drive_flags() {
+  name="cmd"
+  expect_exit=""
+  stdin_file=""
+  extra_envs=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name)
+        name="$(sanitize_label "${2:-}")"
+        shift 2
+        ;;
+      --expect-exit)
+        expect_exit="${2:-}"
+        shift 2
+        ;;
+      --stdin)
+        stdin_file="${2:-}"
+        shift 2
+        ;;
+      --env)
+        extra_envs+=("${2:-}")
+        shift 2
+        ;;
+      --)
+        shift
+        drive_args=("$@")
+        return 0
+        ;;
+      *)
+        echo "control-all-cli: unknown drive flag $1 (expected -- before all-cli args)" >&2
+        exit 2
+        ;;
+    esac
+  done
+  echo "control-all-cli: missing -- before all-cli arguments" >&2
+  exit 2
+}
+
+run_with_env() {
+  local env_prefix=()
+  local item
+  for item in "${extra_envs[@]+"${extra_envs[@]}"}"; do
+    env_prefix+=("$item")
+  done
+  if [[ ${#env_prefix[@]} -gt 0 ]]; then
+    env "${env_prefix[@]}" "$@"
+  else
+    "$@"
+  fi
+}
+
+finish_drive() {
+  local label="$1" exit_code="$2" mode="$3"
+  shift 3
+  printf '%s\n' "$exit_code" >"$ALL_CLI_VERIFY_EVIDENCE/$label.exit"
+  printf '%s\n' "$ALL_CLI_VERIFY_BIN $*" >"$ALL_CLI_VERIFY_EVIDENCE/$label.cmd.txt"
+  write_meta "$label" "$exit_code" "$mode" "$@"
+  append_transcript "$label" "$exit_code"
+  echo "control-all-cli: captured $label mode=$mode exit=$exit_code evidence=$ALL_CLI_VERIFY_EVIDENCE/$label.*" >&2
+  if [[ -n "$expect_exit" ]]; then
+    if [[ "$exit_code" != "$expect_exit" ]]; then
+      echo "control-all-cli: $label expected exit $expect_exit, got $exit_code" >&2
+      exit 1
+    fi
+    return 0
+  fi
+  return "$exit_code"
+}
+
+cmd_launch() {
+  local run_id=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --run-id)
+        run_id="${2:-}"
+        shift 2
+        ;;
+      *)
+        echo "control-all-cli launch: unknown argument $1" >&2
+        exit 2
+        ;;
+    esac
+  done
+  if [[ -z "$run_id" ]]; then
+    run_id="${ALL_CLI_VERIFY_RUN:-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
+  fi
+  local scratch evidence bin_path env_file
+  scratch="$(scratch_dir_for "$run_id")"
+  evidence="$(evidence_dir_for "$run_id")"
+  bin_path="$scratch/all-cli"
+  env_file="$scratch/run.env"
+  mkdir -p "$scratch" "$evidence" "$run_dir"
+
+  echo "control-all-cli: building isolated binary at $bin_path" >&2
+  (
+    cd "$repo_root"
+    env -u GOROOT -u GOTOOLDIR go build -o "$bin_path" ./cmd/all-cli
+  )
+
+  cat >"$env_file" <<EOF
+ALL_CLI_VERIFY_RUN=$run_id
+ALL_CLI_VERIFY_ROOT=$repo_root
+ALL_CLI_VERIFY_BIN=$bin_path
+ALL_CLI_VERIFY_SCRATCH=$scratch
+ALL_CLI_VERIFY_EVIDENCE=$evidence
+EOF
+  printf '%s\n' "$run_id" >"$current_file"
+  chmod +x "$bin_path"
+
+  cat <<EOF
+export ALL_CLI_VERIFY_RUN=$(printf '%q' "$run_id")
+export ALL_CLI_VERIFY_ROOT=$(printf '%q' "$repo_root")
+export ALL_CLI_VERIFY_BIN=$(printf '%q' "$bin_path")
+export ALL_CLI_VERIFY_SCRATCH=$(printf '%q' "$scratch")
+export ALL_CLI_VERIFY_EVIDENCE=$(printf '%q' "$evidence")
+EOF
+}
+
+cmd_doctor() {
+  load_run
+  if [[ ! -x "$ALL_CLI_VERIFY_BIN" ]]; then
+    echo "control-all-cli doctor: binary missing or not executable: $ALL_CLI_VERIFY_BIN" >&2
+    exit 1
+  fi
+  local help_file version_file options_file
+  help_file="$ALL_CLI_VERIFY_EVIDENCE/doctor.help.txt"
+  version_file="$ALL_CLI_VERIFY_EVIDENCE/doctor.version.txt"
+  options_file="$ALL_CLI_VERIFY_EVIDENCE/doctor.options.txt"
+
+  "$ALL_CLI_VERIFY_BIN" --help >"$help_file"
+  "$ALL_CLI_VERIFY_BIN" version >"$version_file"
+  "$ALL_CLI_VERIFY_BIN" options >"$options_file"
+
+  local failed=0
+  if ! grep -q 'Primary commands:' "$help_file"; then
+    echo "control-all-cli doctor: --help missing Primary commands:" >&2
+    failed=1
+  fi
+  if ! grep -q 'Cloud platforms:' "$help_file"; then
+    echo "control-all-cli doctor: --help missing Cloud platforms:" >&2
+    failed=1
+  fi
+  if ! grep -q 'Tool integrations:' "$help_file"; then
+    echo "control-all-cli doctor: --help missing Tool integrations:" >&2
+    failed=1
+  fi
+  if ! grep -q 'Other commands:' "$help_file"; then
+    echo "control-all-cli doctor: --help missing Other commands:" >&2
+    failed=1
+  fi
+  if [[ ! -s "$version_file" ]]; then
+    echo "control-all-cli doctor: version produced no output" >&2
+    failed=1
+  fi
+  if ! grep -q '^json=false$' "$options_file"; then
+    echo "control-all-cli doctor: options did not report json=false" >&2
+    failed=1
+  fi
+  if ! grep -Eq '^timeout=[1-9]' "$options_file"; then
+    echo "control-all-cli doctor: options did not report a positive timeout" >&2
+    failed=1
+  fi
+  if [[ "$ALL_CLI_VERIFY_BIN" != "$(scratch_dir_for "$ALL_CLI_VERIFY_RUN")/all-cli" ]]; then
+    echo "control-all-cli doctor: refusing to drive a binary outside this run scratch dir" >&2
+    failed=1
+  fi
+  if [[ "$failed" -ne 0 ]]; then
+    echo "control-all-cli doctor: instance is not worth driving" >&2
+    exit 1
+  fi
+  echo "control-all-cli doctor: ok run=$ALL_CLI_VERIFY_RUN bin=$ALL_CLI_VERIFY_BIN" >&2
+  echo "control-all-cli doctor: version=$(tr -d '\n' <"$version_file")" >&2
+}
+
+cmd_cli() {
+  load_run
+  local name expect_exit stdin_file extra_envs drive_args
+  extra_envs=()
+  drive_args=()
+  parse_drive_flags "$@"
+  if [[ ${#drive_args[@]} -eq 0 ]]; then
+    echo "control-all-cli cli: missing all-cli arguments after --" >&2
+    exit 2
+  fi
+  if [[ -n "$stdin_file" && ! -f "$stdin_file" ]]; then
+    echo "control-all-cli cli: --stdin file not found: $stdin_file" >&2
+    exit 2
+  fi
+  local stdout_file stderr_file
+  stdout_file="$ALL_CLI_VERIFY_EVIDENCE/$name.stdout.txt"
+  stderr_file="$ALL_CLI_VERIFY_EVIDENCE/$name.stderr.txt"
+  set +e
+  if [[ -n "$stdin_file" ]]; then
+    run_with_env "$ALL_CLI_VERIFY_BIN" "${drive_args[@]}" <"$stdin_file" >"$stdout_file" 2>"$stderr_file"
+  else
+    run_with_env "$ALL_CLI_VERIFY_BIN" "${drive_args[@]}" >"$stdout_file" 2>"$stderr_file"
+  fi
+  local exit_code=$?
+  set -e
+  finish_drive "$name" "$exit_code" "cli" "${drive_args[@]}"
+}
+
+cmd_pty() {
+  load_run
+  local name expect_exit stdin_file extra_envs drive_args
+  extra_envs=()
+  drive_args=()
+  parse_drive_flags "$@"
+  if [[ ${#drive_args[@]} -eq 0 ]]; then
+    echo "control-all-cli pty: missing all-cli arguments after --" >&2
+    exit 2
+  fi
+  local recorder="$script_dir/record-pty"
+  if [[ ! -x "$recorder" ]]; then
+    echo "control-all-cli pty: missing executable helper $recorder" >&2
+    exit 2
+  fi
+  local pane_file stdout_file stderr_file
+  pane_file="$ALL_CLI_VERIFY_EVIDENCE/$name.pty.txt"
+  stdout_file="$ALL_CLI_VERIFY_EVIDENCE/$name.stdout.txt"
+  stderr_file="$ALL_CLI_VERIFY_EVIDENCE/$name.stderr.txt"
+  : >"$stderr_file"
+  set +e
+  run_with_env "$recorder" --output "$pane_file" -- "$ALL_CLI_VERIFY_BIN" "${drive_args[@]}"
+  local exit_code=$?
+  set -e
+  cp "$pane_file" "$stdout_file"
+  finish_drive "$name" "$exit_code" "pty" "${drive_args[@]}"
+}
+
+cmd_cleanup() {
+  local run_id
+  run_id="$(resolve_run_id)"
+  local scratch session_prefix
+  scratch="$(scratch_dir_for "$run_id")"
+  session_prefix="all-cli-vfy-${run_id}"
+  if command -v tmux >/dev/null 2>&1; then
+    local session
+    while IFS= read -r session; do
+      [[ -z "$session" ]] && continue
+      tmux kill-session -t "$session" >/dev/null 2>&1 || true
+    done < <(tmux ls -F '#{session_name}' 2>/dev/null | grep -F "$session_prefix" || true)
+  fi
+  if [[ -d "$scratch" ]]; then
+    rm -rf "$scratch"
+  fi
+  if [[ -f "$current_file" ]] && [[ "$(tr -d '[:space:]' <"$current_file")" == "$run_id" ]]; then
+    rm -f "$current_file"
+  fi
+  echo "control-all-cli: cleaned scratch and sessions for $run_id; evidence kept at $(evidence_dir_for "$run_id")" >&2
+}
+
+main() {
+  local cmd="${1:-}"
+  if [[ $# -gt 0 ]]; then
+    shift
+  fi
+  case "$cmd" in
+    launch) cmd_launch "$@" ;;
+    doctor) cmd_doctor "$@" ;;
+    cli) cmd_cli "$@" ;;
+    pty) cmd_pty "$@" ;;
+    cleanup) cmd_cleanup "$@" ;;
+    -h|--help|help|"") usage; [[ -n "$cmd" ]] || exit 2 ;;
+    *)
+      echo "control-all-cli: unknown command $cmd" >&2
+      usage
+      exit 2
+      ;;
+  esac
+}
+
+main "$@"
