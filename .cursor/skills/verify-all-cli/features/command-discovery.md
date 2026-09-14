@@ -21,7 +21,7 @@ running it, emit bundled JSON Schema, and generate shell completion.
 - Run `all-cli --help` or `all-cli help`.
 - Run `all-cli --version` or `all-cli version` (add `--json` for fields).
 - Run `all-cli options` (add `--json` for a script-friendly object).
-- Run `all-cli catalog` or `all-cli catalog <search>`.
+- Run `all-cli catalog`, `all-cli catalog list`, or `all-cli catalog <search>`.
 - Run `all-cli describe <tool>`.
 - Run `all-cli schema status` or `all-cli schema diagnostic`.
 - Run `all-cli completion bash` (or `zsh`, `fish`, `powershell`).
@@ -38,7 +38,8 @@ Preconditions:
 - **Version command.** Ask the version subcommand. Run `control-all-cli cli --name version-cmd -- version`. Exit code `0`. Stdout matches the `--version` line.
 - **Version JSON.** Ask for machine-readable version. Run `control-all-cli cli --name version-json -- version --json`. Exit code `0`. Stdout JSON includes `version`, `commit`, and `date`.
 - **Options.** Inspect inherited flags. Run `control-all-cli cli --name options -- options`. Exit code `0`. Stdout contains `json=false` and `timeout=5s`.
-- **Catalog search.** Browse Kubernetes-related tools. Run `control-all-cli cli --name catalog-kubectl -- catalog kubectl`. Exit code `0`. Stdout starts with `CATEGORY` `TOOL` `BINARY` `PURPOSE` and includes a `kubectl` row.
+- **Catalog search.** Browse Kubernetes-related tools. Run `control-all-cli cli --name catalog-kubectl -- catalog kubectl`. Exit code `0`. Stdout contains `Matching "kubectl":`, the headers `CATEGORY` `TOOL` `BINARY` `PURPOSE`, and a `kubectl` row.
+- **Catalog list alias.** List the full catalog with a verb-like token. Run `control-all-cli cli --name catalog-list -- catalog list`. Exit code `0`. Stdout matches `catalog` (no `Matching` line) and includes more than one tool row.
 - **Describe tool.** Explain kubectl without running it. Run `control-all-cli cli --name describe-kubectl -- describe kubectl`. Exit code `0`. Stdout contains `Tool:`, `ID: kubectl`, `Purpose:`, and `Agent actions:`.
 - **Status schema.** Print the bundled status schema. Run `control-all-cli cli --name schema-status -- schema status`. Exit code `0`. Stdout is JSON that includes `"$schema"` or `"title"` and mentions status report fields.
 - **Bash completion.** Generate completion. Run `control-all-cli cli --name completion-bash -- completion bash`. Exit code `0`. Stdout is non-empty and mentions `all-cli`.

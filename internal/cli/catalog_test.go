@@ -261,6 +261,65 @@ func TestCategoryFilterFlagCompletesCatalog(t *testing.T) {
 	}
 }
 
+func TestCatalogListAliasesMatchFullCatalog(t *testing.T) {
+	wantJSON, _, err := executeTestCommand(t, NewRootCommand(), "catalog", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantTable, _, err := executeTestCommand(t, NewRootCommand(), "catalog")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, alias := range []string{"list", "ls", "listing", "LIST", "  ls  "} {
+		t.Run(alias, func(t *testing.T) {
+			gotJSON, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", alias, "--json")
+			if err != nil || stderr != "" || gotJSON != wantJSON {
+				t.Fatalf("catalog %q --json: stdout=%q stderr=%q err=%v, want full catalog JSON", alias, gotJSON, stderr, err)
+			}
+			gotTable, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", alias)
+			if err != nil || stderr != "" || gotTable != wantTable {
+				t.Fatalf("catalog %q: stdout=%q stderr=%q err=%v, want full catalog table", alias, gotTable, stderr, err)
+			}
+			if strings.Contains(gotTable, "Matching ") {
+				t.Fatalf("catalog %q should not show a search query:\n%s", alias, gotTable)
+			}
+		})
+	}
+}
+
+func TestCatalogHumanOutputShowsQuery(t *testing.T) {
+	stdout, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", "GITLAB")
+	if err != nil {
+		t.Fatalf("catalog GITLAB: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+	if !strings.Contains(stdout, `Matching "GITLAB":`) {
+		t.Fatalf("human catalog output missing active query:\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "glab") {
+		t.Fatalf("human catalog output missing matching tool:\n%s", stdout)
+	}
+
+	ids, _, err := executeTestCommand(t, NewRootCommand(), "catalog", "GITLAB", "--ids")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(ids, "Matching ") {
+		t.Fatalf("--ids output must stay pipe-ready, got %q", ids)
+	}
+
+	unfiltered, _, err := executeTestCommand(t, NewRootCommand(), "catalog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(unfiltered, "Matching ") {
+		t.Fatalf("unfiltered catalog should not show a query:\n%s", unfiltered)
+	}
+}
+
 func TestRootCommandIncludesCatalog(t *testing.T) {
 	// Given
 	root := NewRootCommand()
