@@ -340,12 +340,15 @@ Example shape:
 ### Tool descriptions
 
 Use `all-cli catalog` to browse every tracked tool without running any external
-commands. Add an optional search term to match tool IDs, names, categories,
-binary names, and purposes. Use `--categories` to browse one or more exact
-registry categories; category filters and search terms can be combined:
+commands. `catalog list`, `catalog ls`, and `catalog listing` are aliases for
+the full catalog. Add an optional search term to match tool IDs, names,
+categories, binary names, and purposes; human table output shows the active
+query. Use `--categories` to browse one or more exact registry categories;
+category filters and search terms can be combined:
 
 ```bash
 all-cli catalog
+all-cli catalog list
 all-cli catalog kubernetes
 all-cli catalog --categories ai,cloud
 all-cli catalog kubernetes --categories k8s,cloud
