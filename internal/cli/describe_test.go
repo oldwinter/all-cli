@@ -2,12 +2,79 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/oldwinter/all-cli/internal/model"
 )
+
+func TestDescribeCommandPrintsReadOnlyExamples(t *testing.T) {
+	for _, tc := range []struct {
+		tool        string
+		wantCurrent bool
+	}{
+		{tool: "kubectl", wantCurrent: true},
+		{tool: "aws", wantCurrent: true},
+		{tool: "fd", wantCurrent: false},
+	} {
+		t.Run(tc.tool, func(t *testing.T) {
+			stdout, stderr, err := executeTestCommand(t, newDescribeCommand(&rootOptions{}), tc.tool)
+			if err != nil || stderr != "" {
+				t.Fatalf("describe: err=%v stderr=%q", err, stderr)
+			}
+			_, examples, found := strings.Cut(stdout, "Examples:\n")
+			want := "  all-cli status --tools " + tc.tool + "\n  all-cli doctor --tools " + tc.tool + "\n"
+			if tc.wantCurrent {
+				want += "  all-cli current --tools " + tc.tool + "\n"
+			}
+			if !found || examples != want {
+				t.Fatalf("examples = %q, want %q", examples, want)
+			}
+		})
+	}
+}
+
+func TestDescribeJSONKeepsMetadataOnly(t *testing.T) {
+	stdout, _, err := executeTestCommand(t, newDescribeCommand(&rootOptions{JSON: true}), "kubectl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(stdout), &fields); err != nil {
+		t.Fatal(err)
+	}
+	wantKeys := []string{"id", "display_name", "category", "binary", "capabilities", "metadata"}
+	if len(fields) != len(wantKeys) {
+		t.Fatalf("unexpected JSON fields: %v", fields)
+	}
+	for _, key := range wantKeys {
+		if _, ok := fields[key]; !ok {
+			t.Errorf("missing JSON field %q", key)
+		}
+	}
+}
+
+type exampleErrorWriter struct {
+	err error
+}
+
+func (w exampleErrorWriter) Write(p []byte) (int, error) {
+	if strings.Contains(string(p), "Examples:") {
+		return 0, w.err
+	}
+	return len(p), nil
+}
+
+func TestDescribeCommandReturnsExampleWriteError(t *testing.T) {
+	want := errors.New("output closed")
+	cmd := newDescribeCommand(&rootOptions{})
+	cmd.SetOut(exampleErrorWriter{err: want})
+	if err := cmd.RunE(cmd, []string{"fd"}); !errors.Is(err, want) {
+		t.Fatalf("error = %v, want %v", err, want)
+	}
+}
 
 func TestDescribeCommandPrintsHumanReadableMetadata(t *testing.T) {
 	// Given
