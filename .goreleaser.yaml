@@ -34,11 +34,19 @@ checksum:
 release:
   prerelease: auto
 
-brews:
+homebrew_casks:
   - name: all-cli
+    binaries:
+      - all-cli
     description: "Inspect and manage common CLI tool contexts"
     homepage: "https://github.com/oldwinter/all-cli"
-    directory: Formula
+    directory: Casks
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/all-cli"]
+          end
     repository:
       owner: oldwinter
       name: homebrew-tap
@@ -47,7 +55,3 @@ brews:
     commit_author:
       name: github-actions[bot]
       email: 41898282+github-actions[bot]@users.noreply.github.com
-    install: |
-      bin.install "all-cli"
-    test: |
-      system "#{bin}/all-cli", "version"

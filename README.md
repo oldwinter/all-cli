@@ -20,7 +20,7 @@ It defaults to human-friendly output and supports `--json` for stable machine-re
 ### Homebrew
 
 ```bash
-brew install oldwinter/tap/all-cli
+brew install --cask oldwinter/tap/all-cli
 all-cli version
 ```
 
