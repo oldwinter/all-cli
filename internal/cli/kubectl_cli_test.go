@@ -147,6 +147,38 @@ func TestKubectlCurrentPlainError(t *testing.T) {
 	}
 }
 
+func TestKubectlCurrentPlainEmptyPointsAtStatus(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"kubectl config current-context": {
+				ExitCode: 1,
+				Err:      assertError("exit status 1"),
+				Stderr:   "error: current-context is not set",
+			},
+			"kubectl config view --minify --output jsonpath={..namespace}{\"\\n\"}": {
+				ExitCode: 1,
+				Err:      assertError("exit status 1"),
+				Stderr:   "error: current-context is not set",
+			},
+		},
+	}
+
+	stdout, stderr, err := executeTestCommand(t, newKubectlCommand(opts, runner), "current")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "no kubectl context. Check: all-cli kubectl status") {
+		t.Fatalf("expected status next step in stdout, got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "context:") || strings.Contains(stdout, "namespace:") {
+		t.Fatalf("did not expect context/namespace lines, got:\n%s", stdout)
+	}
+	if !strings.Contains(stderr, "error: kubectl config current-context failed") {
+		t.Fatalf("expected current-context error on stderr, got %q", stderr)
+	}
+}
+
 func TestKubectlCurrentPlainWithoutNamespace(t *testing.T) {
 	opts := &rootOptions{Timeout: time.Second}
 	runner := cliFakeRunner{
