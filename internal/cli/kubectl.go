@@ -54,11 +54,17 @@ func newKubectlCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Com
 			for _, e := range errs {
 				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
 			}
+			printed := false
 			if v := strings.TrimSpace(cur["context"]); v != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "context: %s\n", v)
+				printed = true
 			}
 			if v := strings.TrimSpace(cur["namespace"]); v != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "namespace: %s\n", v)
+				printed = true
+			}
+			if !printed {
+				fmt.Fprintln(cmd.OutOrStdout(), "no kubectl context. Check: all-cli kubectl status")
 			}
 			return nil
 		},
