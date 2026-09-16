@@ -129,6 +129,9 @@ default * | AK:***6ps          | Valid   | cn-hangzhou | zh
 			t.Fatalf("expected %q in stdout, got:\n%s", needle, stdout)
 		}
 	}
+	if strings.Contains(stdout, "See profiles and install status: all-cli aliyun list / all-cli aliyun status") {
+		t.Fatalf("did not expect next step when fields are present, got:\n%s", stdout)
+	}
 }
 
 func TestAliyunCurrentPlainReportsErrors(t *testing.T) {
@@ -147,8 +150,11 @@ func TestAliyunCurrentPlainReportsErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+	if !strings.Contains(stdout, "See profiles and install status: all-cli aliyun list / all-cli aliyun status") {
+		t.Fatalf("expected list/status next step in stdout, got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "profile:") || strings.Contains(stdout, "region:") {
+		t.Fatalf("did not expect profile/region lines, got:\n%s", stdout)
 	}
 	for _, needle := range []string{
 		"error: config unreadable",
@@ -157,6 +163,33 @@ func TestAliyunCurrentPlainReportsErrors(t *testing.T) {
 		if !strings.Contains(stderr, needle) {
 			t.Fatalf("expected %q in stderr, got %q", needle, stderr)
 		}
+	}
+}
+
+func TestAliyunCurrentPlainEmptyPointsAtStatus(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"aliyun configure list": {
+				Stdout: `Profile   | Credential         | Valid   | Region      | Language
+--------- | ------------------ | ------- | ----------- | --------
+`,
+			},
+		},
+	}
+
+	stdout, stderr, err := executeTestCommand(t, newAliyunCommand(opts, runner), "current")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "See profiles and install status: all-cli aliyun list / all-cli aliyun status") {
+		t.Fatalf("expected list/status next step in stdout, got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "profile:") || strings.Contains(stdout, "region:") || strings.Contains(stdout, "language:") || strings.Contains(stdout, "valid:") {
+		t.Fatalf("did not expect field lines, got:\n%s", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
 

@@ -54,10 +54,15 @@ func newAliyunCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			printed := false
 			for _, key := range []string{"profile", "region", "language", "valid"} {
 				if value := strings.TrimSpace(cur[key]); value != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
+					printed = true
 				}
+			}
+			if !printed {
+				fmt.Fprintln(cmd.OutOrStdout(), "See profiles and install status: all-cli aliyun list / all-cli aliyun status")
 			}
 			return nil
 		},
