@@ -136,6 +136,46 @@ func TestK9sCurrentPlainPrintsDiagnostics(t *testing.T) {
 	if !strings.Contains(stderr, "warning: k9s context detected via kubeconfig; namespace not set in kubeconfig") {
 		t.Fatalf("expected warning in stderr, got %q", stderr)
 	}
+	if strings.Contains(stdout, "no k9s context. Check: all-cli k9s status") {
+		t.Fatalf("did not expect status next step when fields are present, got:\n%s", stdout)
+	}
+}
+
+func TestK9sCurrentPlainEmptyPointsAtStatus(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"kubectl config current-context": {
+				ExitCode: 1,
+				Err:      assertError("exit status 1"),
+				Stderr:   "error: current-context is not set",
+			},
+			"kubectl config view --minify --output jsonpath={..namespace}{\"\\n\"}": {
+				ExitCode: 1,
+				Err:      assertError("exit status 1"),
+				Stderr:   "error: current-context is not set",
+			},
+			"k9s info": {
+				ExitCode: 1,
+				Err:      assertError("exit status 1"),
+				Stderr:   "k9s: command not found",
+			},
+		},
+	}
+
+	stdout, stderr, err := executeTestCommand(t, newK9sCommand(opts, runner), "current")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "no k9s context. Check: all-cli k9s status") {
+		t.Fatalf("expected status next step in stdout, got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "context:") || strings.Contains(stdout, "namespace:") || strings.Contains(stdout, "config:") {
+		t.Fatalf("did not expect context/namespace/config lines, got:\n%s", stdout)
+	}
+	if !strings.Contains(stderr, "error: kubectl config current-context failed") {
+		t.Fatalf("expected current-context error on stderr, got %q", stderr)
+	}
 }
 
 func TestRootCommandIncludesK9s(t *testing.T) {
