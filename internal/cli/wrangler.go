@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -40,6 +42,7 @@ func newWranglerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Co
 			ctx := cmd.Context()
 			a := toolwrangler.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
 			cur, warnings, errs, err := a.Current(ctx)
+			deadline := err != nil && errors.Is(err, context.DeadlineExceeded)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
@@ -53,10 +56,18 @@ func newWranglerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Co
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			if deadline {
+				return nil
+			}
+			printed := false
 			for _, key := range []string{"logged_in", "accounts_count", "account_id"} {
 				if value := strings.TrimSpace(cur[key]); value != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
+					printed = true
 				}
+			}
+			if !printed || strings.TrimSpace(cur["logged_in"]) == "no" {
+				fmt.Fprintln(cmd.OutOrStdout(), "See install and login status: all-cli wrangler status")
 			}
 			return nil
 		},

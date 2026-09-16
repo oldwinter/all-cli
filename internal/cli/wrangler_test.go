@@ -125,6 +125,37 @@ func TestWranglerCurrentPlainPrintsDiagnostics(t *testing.T) {
 	if !strings.Contains(stderr, "warning: multiple wrangler accounts detected; no single global default") {
 		t.Fatalf("expected warning on stderr, got %q", stderr)
 	}
+	if strings.Contains(stdout, "See install and login status: all-cli wrangler status") {
+		t.Fatalf("did not expect status next step when logged in, got:\n%s", stdout)
+	}
+}
+
+func TestWranglerCurrentPlainLoggedOutPointsAtStatus(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				Stdout: `{"loggedIn":false,"accounts":[]}`,
+			},
+		},
+	}
+
+	stdout, stderr, err := executeTestCommand(t, newWranglerCommand(opts, runner), "current")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "logged_in: no") {
+		t.Fatalf("expected logged_in: no, got:\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "See install and login status: all-cli wrangler status") {
+		t.Fatalf("expected status next step in stdout, got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "accounts_count:") || strings.Contains(stdout, "account_id:") {
+		t.Fatalf("did not expect account fields, got:\n%s", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
 }
 
 func TestWranglerCurrentPlainReportsDeadlineErrors(t *testing.T) {
@@ -236,6 +267,9 @@ func TestWranglerCurrentPlainMissingBinaryDoesNotPrintLoggedOut(t *testing.T) {
 	}
 	if strings.Contains(stdout, "logged_in: no") {
 		t.Fatalf("missing binary must not print logged_in: no, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "See install and login status: all-cli wrangler status") {
+		t.Fatalf("expected status next step in stdout, got:\n%s", stdout)
 	}
 	if !strings.Contains(stderr, "error:") {
 		t.Fatalf("expected error on stderr, got %q", stderr)
