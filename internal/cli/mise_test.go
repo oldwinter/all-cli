@@ -148,6 +148,9 @@ func TestMiseCurrentPlainWithWarning(t *testing.T) {
 	if !strings.Contains(stderr, "warning: unexpected mise current output line: broken-line") {
 		t.Fatalf("expected warning in stderr, got %q", stderr)
 	}
+	if strings.Contains(stdout, "See install status: all-cli mise status") {
+		t.Fatalf("did not expect status next step when runtimes are present, got:\n%s", stdout)
+	}
 }
 
 func TestMiseCurrentPlainError(t *testing.T) {
@@ -166,11 +169,39 @@ func TestMiseCurrentPlainError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+	if !strings.Contains(stdout, "See install status: all-cli mise status") {
+		t.Fatalf("expected status next step in stdout, got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "go:") || strings.Contains(stdout, "node:") {
+		t.Fatalf("did not expect runtime lines, got:\n%s", stdout)
 	}
 	if !strings.Contains(stderr, "error: mise unavailable") {
 		t.Fatalf("expected stderr error, got %q", stderr)
+	}
+}
+
+func TestMiseCurrentPlainEmptyPointsAtStatus(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"mise current": {
+				Stdout: "\n",
+			},
+		},
+	}
+
+	stdout, stderr, err := executeTestCommand(t, newMiseCommand(opts, runner), "current")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "See install status: all-cli mise status") {
+		t.Fatalf("expected status next step in stdout, got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "go:") || strings.Contains(stdout, "node:") {
+		t.Fatalf("did not expect runtime lines, got:\n%s", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
 
