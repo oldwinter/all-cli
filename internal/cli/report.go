@@ -3,25 +3,39 @@ package cli
 import (
 	diag "github.com/oldwinter/all-cli/internal/diagnose"
 	"github.com/oldwinter/all-cli/internal/execx"
+	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
 func newReportCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
+	var snapshotPath string
 
 	cmd := &cobra.Command{
 		Use:   "report",
 		Short: "Create a shareable Markdown status report",
 		Long: `Evaluates tracked tools and prints a Markdown report ready to paste into an
 issue or pull request. Use --tools to limit external checks or --json to emit the
-existing machine-readable status report instead.`,
+existing machine-readable status report instead.
+
+Use --from to render a saved JSON snapshot without probing local tools. The report
+keeps the snapshot's timestamp and tool facts. Use --from - to read standard input
+(limited to 1 MiB). --from and --tools cannot be combined.`,
 		Example: `  all-cli report
   all-cli report --tools kubectl,docker
-  all-cli report --tools gh --json`,
+  all-cli report --tools gh --json
+  all-cli report --from before.json
+  all-cli snapshot --tools kubectl,docker --json | all-cli report --from -`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			report, err := buildStatusReport(cmd.Context(), runner, opts.Timeout, toolsFilter)
+			var report model.StatusReport
+			var err error
+			if cmd.Flags().Changed("from") {
+				report, err = readStatusSnapshot(snapshotPath, cmd.InOrStdin())
+			} else {
+				report, err = buildStatusReport(cmd.Context(), runner, opts.Timeout, toolsFilter)
+			}
 			if err != nil {
 				return err
 			}
@@ -35,5 +49,7 @@ existing machine-readable status report instead.`,
 	}
 
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to include")
+	cmd.Flags().StringVar(&snapshotPath, "from", "", "Read a JSON snapshot file instead of probing tools (- for stdin)")
+	cmd.MarkFlagsMutuallyExclusive("from", "tools")
 	return cmd
 }
