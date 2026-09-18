@@ -28,19 +28,23 @@ type catalogReport struct {
 func newCatalogCommand(opts *rootOptions) *cobra.Command {
 	var categoriesFilter string
 	var ids bool
+	var contextsOnly bool
 
 	cmd := &cobra.Command{
 		Use:   "catalog [search]",
 		Short: "Browse and search tracked CLI tools",
 		Long: `Lists the built-in tool catalog without running external commands. An optional
 search term matches tool IDs, names, categories, binary names, and purposes.
-The tokens list, ls, and listing are aliases for the full catalog.
+The tokens list, ls, and listing list the catalog with any supplied filters.
 Use --categories to limit results to one or more exact registry categories.
+Use --contexts-only to list tools that can report accounts, clusters, or other
+context-like state, regardless of whether they are installed.
 Use --ids to print one matching tool ID per line. --json takes precedence over --ids.`,
 		Example: `  all-cli catalog
   all-cli catalog list
   all-cli catalog kubernetes
   all-cli catalog --categories ai,cloud
+  all-cli catalog --contexts-only --categories cloud --ids
   all-cli catalog kubernetes --ids
   all-cli catalog cloud --json`,
 		Args: cobra.MaximumNArgs(1),
@@ -50,7 +54,7 @@ Use --ids to print one matching tool ID per line. --json takes precedence over -
 			if err != nil {
 				return err
 			}
-			report := buildCatalogReport(query, registry)
+			report := buildCatalogReport(query, registry, contextsOnly)
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
@@ -65,13 +69,17 @@ Use --ids to print one matching tool ID per line. --json takes precedence over -
 	}
 	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to browse (e.g. ai,cloud)")
 	cmd.Flags().BoolVar(&ids, "ids", false, "Print only tool IDs, one per line (ignored with --json)")
+	cmd.Flags().BoolVar(&contextsOnly, "contexts-only", false, "List only tools with context detection support (including uninstalled tools)")
 	return cmd
 }
 
-func buildCatalogReport(query string, registry []tools.ToolDefinition) catalogReport {
+func buildCatalogReport(query string, registry []tools.ToolDefinition, contextsOnly bool) catalogReport {
 	normalizedQuery := strings.ToLower(strings.TrimSpace(query))
 	entries := make([]catalogTool, 0, len(registry))
 	for _, def := range registry {
+		if contextsOnly && !def.Capabilities.HasContexts {
+			continue
+		}
 		metadata := tools.MetadataForTool(def.ID)
 		entry := catalogTool{
 			ID:          def.ID,

@@ -365,6 +365,17 @@ all-cli catalog --ids | fzf
 IDs keep the catalog's category-then-ID order. A search with no matches prints
 nothing in this mode. If you also pass `--json`, the full JSON report takes precedence.
 
+Use `--contexts-only` to discover tools that can report active accounts, clusters,
+projects, or other context-like state. This lists built-in support, including
+uninstalled tools; use `all-cli current` to inspect installed tools. It does not
+imply that all-cli can switch the tool's context. Combine it with search,
+`--categories`, `--ids`, or `--json`:
+
+```bash
+all-cli catalog --contexts-only
+all-cli catalog --contexts-only --categories cloud --ids
+```
+
 Use `all-cli describe <tool>` to inspect the built-in purpose, configuration
 criteria, context capabilities, and agent actions without running the tool:
 
