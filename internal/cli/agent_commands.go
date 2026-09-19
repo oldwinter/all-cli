@@ -130,6 +130,7 @@ func newSnapshotCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 
 func newDiffCommand(opts *rootOptions) *cobra.Command {
 	var exitCode bool
+	var toolsFilter string
 
 	cmd := &cobra.Command{
 		Use:   "diff <snapshot-a> <snapshot-b>",
@@ -137,12 +138,22 @@ func newDiffCommand(opts *rootOptions) *cobra.Command {
 		Long: `Diffs two status snapshots. Use - for either snapshot to read it from
 standard input, which makes it possible to compare a saved snapshot with a live pipeline.
 Standard input snapshots are limited to 1 MiB. Add --exit-code to return status 1 when
-the snapshots differ while still printing the complete report.`,
+the snapshots differ while still printing the complete report. Use --tools to compare
+only selected tracked tools; the summary and exit code then reflect only those tools.`,
 		Example: `  all-cli diff before.json after.json
   all-cli diff before.json after.json --exit-code
+  all-cli diff before.json after.json --tools kubectl,docker --exit-code
   all-cli snapshot --json | all-cli diff before.json - --json`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var selected map[string]bool
+			if strings.TrimSpace(toolsFilter) != "" {
+				var err error
+				selected, err = parseToolsFilter(toolsFilter)
+				if err != nil {
+					return err
+				}
+			}
 			if args[0] == "-" && args[1] == "-" {
 				return fmt.Errorf(`diff accepts "-" for only one snapshot`)
 			}
@@ -154,6 +165,8 @@ the snapshots differ while still printing the complete report.`,
 			if err != nil {
 				return err
 			}
+			before.Tools = filterSnapshotTools(before.Tools, selected)
+			after.Tools = filterSnapshotTools(after.Tools, selected)
 			report := diag.DiffSnapshots(before, after)
 			if opts.JSON {
 				if err := output.PrintJSON(cmd.OutOrStdout(), report); err != nil {
@@ -171,7 +184,21 @@ the snapshots differ while still printing the complete report.`,
 	}
 
 	cmd.Flags().BoolVar(&exitCode, "exit-code", false, "Return status 1 when snapshots differ")
+	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tracked tool IDs to compare (e.g. kubectl,docker)")
 	return cmd
+}
+
+func filterSnapshotTools(summaries []model.ToolSummary, selected map[string]bool) []model.ToolSummary {
+	if selected == nil {
+		return summaries
+	}
+	filtered := make([]model.ToolSummary, 0, len(summaries))
+	for _, tool := range summaries {
+		if selected[tool.ID] {
+			filtered = append(filtered, tool)
+		}
+	}
+	return filtered
 }
 
 func buildDiagnosticReport(cmd *cobra.Command, opts *rootOptions, runner execx.Runner, toolsFilter, profile string) (model.DiagnosticReport, error) {

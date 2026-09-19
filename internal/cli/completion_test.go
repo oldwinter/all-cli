@@ -188,7 +188,7 @@ _all-cli
 }
 
 func TestToolFilterFlagsCompleteToolIDs(t *testing.T) {
-	commands := []string{"status", "diagnose", "doctor", "fix", "snapshot"}
+	commands := []string{"status", "diagnose", "doctor", "fix", "snapshot", "diff"}
 	for _, name := range commands {
 		t.Run(name, func(t *testing.T) {
 			// Given
