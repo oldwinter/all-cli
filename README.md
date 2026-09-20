@@ -269,6 +269,16 @@ added, removed, or changed. The complete text or JSON report is still printed:
 all-cli diff before.json after.json --json --exit-code
 ```
 
+Use `--tools` to focus a comparison on selected tracked tool IDs without
+recapturing or editing full snapshots. The summary and `--exit-code` reflect
+only those tools. A selected tool absent from both snapshots has no changes.
+The filter works with text, JSON, and standard input:
+
+```bash
+all-cli diff before.json after.json --tools kubectl,docker --exit-code
+all-cli snapshot --json | all-cli diff before.json - --tools kubectl --json
+```
+
 Print the matching JSON Schema directly from the installed binary when another
 tool needs to validate these reports offline:
 
