@@ -162,7 +162,7 @@ it does not run Docker commands or mutate Docker configuration.`,
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), plan)
 			}
-			printFixPlan(cmd.OutOrStdout(), plan)
+			output.PrintFixPlan(cmd.OutOrStdout(), plan)
 			return nil
 		},
 	}
