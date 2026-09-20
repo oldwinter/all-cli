@@ -129,3 +129,25 @@ func TestSinkFailureDoesNotBlockOtherSinks(t *testing.T) {
 		t.Fatalf("metrics were blocked by Sentry failure: %v", err)
 	}
 }
+
+func TestNewRejectsInvalidPostHogHostURL(t *testing.T) {
+	t.Parallel()
+
+	for _, host := range []string{
+		"file://telemetry.example",
+		"ftp://telemetry.example",
+		"https://user:password@telemetry.example",
+		"https://telemetry.example/?token=secret",
+	} {
+		t.Run(host, func(t *testing.T) {
+			_, err := New(Config{
+				PostHogKey:         "phc_test",
+				PostHogHost:        host,
+				InstallationIDPath: filepath.Join(t.TempDir(), "installation-id"),
+			})
+			if err == nil || !strings.Contains(err.Error(), "POSTHOG_HOST") {
+				t.Fatalf("New(PostHogHost=%q) error = %v, want POSTHOG_HOST validation error", host, err)
+			}
+		})
+	}
+}

@@ -30,6 +30,12 @@ func newPosthogSink(config Config, client *http.Client) (*posthogSink, error) {
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return nil, fmt.Errorf("parse POSTHOG_HOST %q", host)
 	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil, fmt.Errorf("parse POSTHOG_HOST %q: scheme must be http or https", host)
+	}
+	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return nil, fmt.Errorf("parse POSTHOG_HOST %q: credentials, query, and fragment are not allowed", host)
+	}
 	installationIDPath := config.InstallationIDPath
 	if installationIDPath == "" {
 		configDir, err := os.UserConfigDir()
