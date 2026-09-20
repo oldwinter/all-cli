@@ -423,7 +423,12 @@ all-cli docker status
 all-cli docker current
 all-cli docker list
 all-cli docker use <context>
+all-cli docker fix --dry-run
+all-cli docker update --dry-run
 ```
+
+Without `--dry-run`, `docker update` runs only the planned `docker pull`
+commands; it does not stop, recreate, prune, or remove containers.
 
 ### gh
 
