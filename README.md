@@ -294,6 +294,22 @@ without creating another file. Standard input snapshots are limited to 1 MiB:
 all-cli snapshot --json | all-cli diff before.json - --json
 ```
 
+### Share a saved status report
+
+Turn a captured JSON snapshot into Markdown for an issue or pull request without
+probing local tools again. The report keeps the original timestamp, tool facts,
+warnings, and errors:
+
+```bash
+all-cli report --from before.json > report.md
+all-cli snapshot --tools kubectl,docker --json | all-cli report --from -
+```
+
+`--from -` reads standard input, limited to 1 MiB. `--from` and `--tools` are
+mutually exclusive; select tools when capturing the snapshot. Add `--json` to
+emit the captured status with diagnostics derived from those facts instead of
+Markdown. Without `--from`, `report` checks local tools as usual.
+
 ### AI-friendly JSON additions
 
 Machine-readable shape for `status --json` is also summarized as [JSON Schema](schemas/status-report-v0.1.json) (`schema_version` `v0.1`).
