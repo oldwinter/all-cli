@@ -49,7 +49,8 @@ Environment:
   SENTRY_DSN          Optional Sentry error-tracking DSN.
   SENTRY_ENVIRONMENT  Optional Sentry environment name.
   POSTHOG_API_KEY     Optional PostHog project key for minimized command-use analytics.
-  POSTHOG_HOST        Optional PostHog ingestion host.`,
+  POSTHOG_HOST        Optional PostHog ingestion host.
+  ALL_CLI_INSTALLATION_ID_PATH Optional path for the anonymous PostHog installation ID file.`,
 		Example: `  # Full overview as JSON (stable schema)
   all-cli status --json
 

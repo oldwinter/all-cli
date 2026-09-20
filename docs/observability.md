@@ -74,7 +74,8 @@ ID, command, result, release, and library name. Set repository variable
 `POSTHOG_DASHBOARD_URL` to the maintained usage dashboard.
 
 The anonymous ID is generated only when PostHog is configured and is stored in
-the user config directory with mode `0600`. Removing that file resets it.
+the user config directory with mode `0600`. Removing that file resets it. Set
+`ALL_CLI_INSTALLATION_ID_PATH` to store the ID at a different path.
 
 ## Dashboards and ownership
 
