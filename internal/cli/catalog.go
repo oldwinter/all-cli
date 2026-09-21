@@ -30,11 +30,12 @@ func newCatalogCommand(opts *rootOptions) *cobra.Command {
 	var ids bool
 
 	cmd := &cobra.Command{
-		Use:   "catalog [search]",
+		Use:   "catalog [list|ls|listing] [search]",
 		Short: "Browse and search tracked CLI tools",
 		Long: `Lists the built-in tool catalog without running external commands. An optional
 search term matches tool IDs, names, categories, binary names, and purposes.
-The tokens list, ls, and listing are aliases for the full catalog.
+The tokens list, ls, and listing are aliases for the full catalog and can be
+followed by an optional search term.
 Use --categories to limit results to one or more exact registry categories.
 Use --ids to print one matching tool ID per line. --json takes precedence over --ids.`,
 		Example: `  all-cli catalog
@@ -43,7 +44,7 @@ Use --ids to print one matching tool ID per line. --json takes precedence over -
   all-cli catalog --categories ai,cloud
   all-cli catalog kubernetes --ids
   all-cli catalog cloud --json`,
-		Args: cobra.MaximumNArgs(1),
+		Args: validateCatalogArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			query := catalogQueryFromArgs(args)
 			registry, err := registryForCategoriesFilter(defaultRegistry(), categoriesFilter)
@@ -99,9 +100,22 @@ func catalogQueryFromArgs(args []string) string {
 		return ""
 	}
 	if isCatalogListAlias(args[0]) {
-		return ""
+		if len(args) == 1 {
+			return ""
+		}
+		return args[1]
 	}
 	return args[0]
+}
+
+func validateCatalogArgs(_ *cobra.Command, args []string) error {
+	if len(args) <= 1 {
+		return nil
+	}
+	if len(args) == 2 && isCatalogListAlias(args[0]) {
+		return nil
+	}
+	return fmt.Errorf("catalog accepts one search term, or a list alias followed by one search term")
 }
 
 func isCatalogListAlias(arg string) bool {

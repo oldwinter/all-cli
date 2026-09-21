@@ -288,6 +288,22 @@ func TestCatalogListAliasesMatchFullCatalog(t *testing.T) {
 	}
 }
 
+func TestCatalogListAliasesAcceptSearchTerm(t *testing.T) {
+	want, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", "k8s", "--json")
+	if err != nil || stderr != "" {
+		t.Fatalf("catalog k8s --json: stdout=%q stderr=%q err=%v", want, stderr, err)
+	}
+
+	for _, alias := range []string{"list", "ls", "listing"} {
+		t.Run(alias, func(t *testing.T) {
+			got, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", alias, "k8s", "--json")
+			if err != nil || stderr != "" || got != want {
+				t.Fatalf("catalog %s k8s --json: stdout=%q stderr=%q err=%v, want catalog k8s output", alias, got, stderr, err)
+			}
+		})
+	}
+}
+
 func TestCatalogHumanOutputShowsQuery(t *testing.T) {
 	stdout, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", "GITLAB")
 	if err != nil {
