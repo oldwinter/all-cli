@@ -156,6 +156,39 @@ func TestAWSCurrentPlainPrintsDiagnostics(t *testing.T) {
 	if !strings.Contains(stderr, "error: missing region") {
 		t.Fatalf("expected stderr diagnostics, got %q", stderr)
 	}
+	if strings.Contains(stdout, "See profiles and install status: all-cli aws list / all-cli aws status") {
+		t.Fatalf("did not expect next step when current fields are present, got:\n%s", stdout)
+	}
+}
+
+func TestAWSCurrentPlainEmptyPointsAtListAndStatus(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"aws configure get region --profile default": {},
+			"aws configure get output --profile default": {
+				ExitCode: 1,
+				Err:      errors.New("exit status 1"),
+			},
+		},
+	}
+
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_DEFAULT_PROFILE", "")
+	t.Setenv("AWS_REGION", "")
+	t.Setenv("AWS_DEFAULT_REGION", "")
+	t.Setenv("AWS_DEFAULT_OUTPUT", "")
+
+	stdout, stderr, err := executeTestCommand(t, newAWSCommand(opts, runner), "current")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stdout != "See profiles and install status: all-cli aws list / all-cli aws status\n" {
+		t.Fatalf("unexpected empty-current guidance: %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
 }
 
 func TestAWSListJSON(t *testing.T) {

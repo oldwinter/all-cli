@@ -51,10 +51,24 @@ func newAWSCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
-			for _, key := range []string{"profile", "region", "output"} {
-				if value := strings.TrimSpace(cur[key]); value != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
-				}
+			profile := strings.TrimSpace(cur["profile"])
+			region := strings.TrimSpace(cur["region"])
+			format := strings.TrimSpace(cur["output"])
+			printed := false
+			if profile != "" && (profile != "default" || region != "" || format != "") {
+				fmt.Fprintf(cmd.OutOrStdout(), "profile: %s\n", profile)
+				printed = true
+			}
+			if region != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "region: %s\n", region)
+				printed = true
+			}
+			if format != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "output: %s\n", format)
+				printed = true
+			}
+			if !printed {
+				fmt.Fprintln(cmd.OutOrStdout(), "See profiles and install status: all-cli aws list / all-cli aws status")
 			}
 			return nil
 		},
