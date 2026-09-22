@@ -279,6 +279,20 @@ all-cli diff before.json after.json --tools kubectl,docker --exit-code
 all-cli snapshot --json | all-cli diff before.json - --tools kubectl --json
 ```
 
+Use `--ids` to print only the IDs of added, removed, or changed tools, one per
+line in alphabetical order. Each tool appears once, even if several fields
+changed. This makes the result easy to pipe into a picker or save as a checklist:
+
+```bash
+all-cli diff before.json after.json --ids
+all-cli diff before.json after.json --ids | fzf
+all-cli diff before.json after.json --tools kubectl,docker --ids --exit-code
+```
+
+No differences produce no output. `--exit-code` still returns status 1 when
+the selected tools differ. If you also pass `--json`, the full JSON report
+takes precedence over `--ids`.
+
 Print the matching JSON Schema directly from the installed binary when another
 tool needs to validate these reports offline:
 

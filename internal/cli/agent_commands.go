@@ -131,6 +131,7 @@ func newSnapshotCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 func newDiffCommand(opts *rootOptions) *cobra.Command {
 	var exitCode bool
 	var toolsFilter string
+	var ids bool
 
 	cmd := &cobra.Command{
 		Use:   "diff <snapshot-a> <snapshot-b>",
@@ -139,10 +140,13 @@ func newDiffCommand(opts *rootOptions) *cobra.Command {
 standard input, which makes it possible to compare a saved snapshot with a live pipeline.
 Standard input snapshots are limited to 1 MiB. Add --exit-code to return status 1 when
 the snapshots differ while still printing the complete report. Use --tools to compare
-only selected tracked tools; the summary and exit code then reflect only those tools.`,
+only selected tracked tools; the summary and exit code then reflect only those tools.
+Use --ids to print only added, removed, or changed tool IDs, one per line in alphabetical
+order. No differences produce no output. --json takes precedence over --ids.`,
 		Example: `  all-cli diff before.json after.json
   all-cli diff before.json after.json --exit-code
   all-cli diff before.json after.json --tools kubectl,docker --exit-code
+  all-cli diff before.json after.json --ids
   all-cli snapshot --json | all-cli diff before.json - --json`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -172,6 +176,10 @@ only selected tracked tools; the summary and exit code then reflect only those t
 				if err := output.PrintJSON(cmd.OutOrStdout(), report); err != nil {
 					return err
 				}
+			} else if ids {
+				if err := printSnapshotDiffIDs(cmd.OutOrStdout(), report); err != nil {
+					return err
+				}
 			} else {
 				printSnapshotDiff(cmd.OutOrStdout(), report)
 			}
@@ -184,8 +192,18 @@ only selected tracked tools; the summary and exit code then reflect only those t
 	}
 
 	cmd.Flags().BoolVar(&exitCode, "exit-code", false, "Return status 1 when snapshots differ")
+	cmd.Flags().BoolVar(&ids, "ids", false, "Print only added, removed, or changed tool IDs (ignored with --json)")
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tracked tool IDs to compare (e.g. kubectl,docker)")
 	return cmd
+}
+
+func printSnapshotDiffIDs(w io.Writer, report model.SnapshotDiffReport) error {
+	for _, change := range report.Changes {
+		if _, err := fmt.Fprintln(w, change.ToolID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func filterSnapshotTools(summaries []model.ToolSummary, selected map[string]bool) []model.ToolSummary {
