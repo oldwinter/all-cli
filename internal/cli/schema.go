@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/oldwinter/all-cli/schemas"
 	"github.com/spf13/cobra"
 )
@@ -13,7 +15,12 @@ func newSchemaCommand() *cobra.Command {
 The schema is bundled with the binary, so callers can validate output offline.`,
 		Example: `  all-cli schema status > status.schema.json
   all-cli schema diagnostic > diagnostic.schema.json`,
-		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+		Args: cobra.MatchAll(func(_ *cobra.Command, args []string) error {
+			if len(args) == 1 {
+				return nil
+			}
+			return fmt.Errorf("want schema status|diagnostic (example: all-cli schema status)")
+		}, cobra.OnlyValidArgs),
 		ValidArgs: schemas.Names(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			content, err := schemas.Read(args[0])

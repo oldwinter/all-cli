@@ -11,6 +11,8 @@ import (
 func PrintCurrentTable(w io.Writer, report model.StatusReport) {
 	if len(report.Tools) == 0 {
 		fmt.Fprintln(w, "No installed context-aware tools found.")
+		fmt.Fprintln(w, "List tracked tools: all-cli catalog")
+		fmt.Fprintln(w, "See install status: all-cli status")
 		return
 	}
 

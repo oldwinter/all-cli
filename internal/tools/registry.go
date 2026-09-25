@@ -172,6 +172,7 @@ func buildDefaultRegistrySlice() []ToolDefinition {
 		toolNA("openclaw", "openclaw", "ai", "openclaw"),
 		toolNA("opencode", "opencode", "ai", "opencode"),
 		toolNA("gemini", "Gemini CLI", "ai", "gemini"),
+		toolNA("grok", "Grok CLI", "ai", "grok"),
 		toolNA("ccusage", "ccusage", "ai", "ccusage"),
 		toolNA("litellm-proxy", "LiteLLM Proxy", "ai", "litellm-proxy"),
 		opencliTool(),

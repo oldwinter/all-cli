@@ -19,7 +19,7 @@ func newCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 environments reported by installed tools that expose context-like state.
 
 Use --tools or --categories to evaluate only selected tools and skip unrelated
-	external commands. When combined, both filters must match.`,
+external commands. When combined, both filters must match.`,
 		Example: `  all-cli current
   all-cli current --tools kubectl,docker
   all-cli current --categories cloud,k8s
