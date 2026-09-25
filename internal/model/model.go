@@ -12,6 +12,9 @@ const DiagnosticSchemaVersionV01 = "diagnostic-v0.1"
 // FixPlanSchemaVersionV01 is the current JSON schema version for fix dry-run output.
 const FixPlanSchemaVersionV01 = "fix-plan-v0.1"
 
+// DoctorFixSchemaVersionV01 is the current JSON schema version for doctor --fix output.
+const DoctorFixSchemaVersionV01 = "doctor-fix-v0.1"
+
 // SnapshotDiffSchemaVersionV01 is the current JSON schema version for snapshot diff output.
 const SnapshotDiffSchemaVersionV01 = "snapshot-diff-v0.1"
 
@@ -114,6 +117,52 @@ type FixPlan struct {
 	DryRun        bool           `json:"dry_run"`
 	Summary       FixPlanSummary `json:"summary"`
 	Items         []FixPlanItem  `json:"items"`
+}
+
+// DoctorFixStatus is the outcome of one doctor --fix install item.
+type DoctorFixStatus string
+
+const (
+	DoctorFixDryRun    DoctorFixStatus = "dry_run"
+	DoctorFixInstalled DoctorFixStatus = "installed"
+	DoctorFixSkipped   DoctorFixStatus = "skipped"
+	DoctorFixFailed    DoctorFixStatus = "failed"
+)
+
+// DoctorFixItem describes the install attempt for one missing tool.
+type DoctorFixItem struct {
+	ToolID    string          `json:"tool_id"`
+	Installer string          `json:"installer,omitempty"`
+	Command   []string        `json:"command,omitempty"`
+	Supported bool            `json:"supported"`
+	Status    DoctorFixStatus `json:"status"`
+	Reason    string          `json:"reason,omitempty"`
+	ExitCode  int             `json:"exit_code,omitempty"`
+}
+
+// DoctorFixSummary stores aggregate doctor --fix counts.
+type DoctorFixSummary struct {
+	Total     int `json:"total"`
+	Supported int `json:"supported"`
+	Installed int `json:"installed"`
+	DryRun    int `json:"dry_run"`
+	Skipped   int `json:"skipped"`
+	Failed    int `json:"failed"`
+}
+
+// DoctorFixRun lists the install commands doctor --fix previewed or ran.
+type DoctorFixRun struct {
+	DryRun    bool             `json:"dry_run"`
+	Installer string           `json:"installer"`
+	Summary   DoctorFixSummary `json:"summary"`
+	Items     []DoctorFixItem  `json:"items"`
+}
+
+// DoctorFixReport is the top-level structure for doctor --fix --json output.
+type DoctorFixReport struct {
+	SchemaVersion string           `json:"schema_version"`
+	Report        DiagnosticReport `json:"report"`
+	Fixes         DoctorFixRun     `json:"fixes"`
 }
 
 // SnapshotChangeType describes how a tool differs between two snapshots.

@@ -7,12 +7,14 @@ import (
 
 func newSchemaCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "schema <status|diagnostic>",
+		Use:   "schema <status|diagnostic|doctor-fix>",
 		Short: "Print a bundled JSON Schema",
-		Long: `Prints the official JSON Schema for status snapshots or diagnostic reports.
+		Long: `Prints the official JSON Schema for status snapshots, diagnostic reports,
+or doctor --fix reports.
 The schema is bundled with the binary, so callers can validate output offline.`,
 		Example: `  all-cli schema status > status.schema.json
-  all-cli schema diagnostic > diagnostic.schema.json`,
+  all-cli schema diagnostic > diagnostic.schema.json
+  all-cli schema doctor-fix > doctor-fix.schema.json`,
 		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 		ValidArgs: schemas.Names(),
 		RunE: func(cmd *cobra.Command, args []string) error {

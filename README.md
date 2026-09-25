@@ -240,11 +240,25 @@ all-cli diagnose --tools kubectl,docker,gh --json
 all-cli diagnose --profile ci --json
 ```
 
-`all-cli doctor` is the read-only health-check entrypoint for humans or automation. It returns the same diagnostic report shape as `diagnose`.
+`all-cli doctor` is the health-check entrypoint for humans or automation. Without `--fix` it is read-only and returns the same diagnostic report shape as `diagnose`.
 
 ```bash
 all-cli doctor
 all-cli doctor --tools kubectl,docker,gh --json
+```
+
+Add `--fix` to install missing tools that have a known brew, npm, pipx, or go
+recipe. Preview the commands with `--dry-run` first, and use `--tools` to limit
+which tools are installed. `--installer auto` (the default) picks the first
+supported installer found in PATH; pass `--installer brew|npm|pipx|go` to force
+one. Each install command runs with a 10-minute timeout, and any failed install
+makes `doctor` exit non-zero. With `--json`, the output follows
+[doctor-fix-report-v0.1](schemas/doctor-fix-report-v0.1.json).
+
+```bash
+all-cli doctor --fix --dry-run
+all-cli doctor --fix --tools gh,kubectl
+all-cli doctor --fix --dry-run --installer npm --json
 ```
 
 `all-cli fix` is dry-run only in this release. It builds a fix plan from diagnostics and explicitly reports which items are blocked because automatic mutation is not allowlisted.
@@ -285,6 +299,7 @@ tool needs to validate these reports offline:
 ```bash
 all-cli schema status > status.schema.json
 all-cli schema diagnostic > diagnostic.schema.json
+all-cli schema doctor-fix > doctor-fix.schema.json
 ```
 
 Use `-` for either diff input to compare a saved snapshot with a live pipeline
