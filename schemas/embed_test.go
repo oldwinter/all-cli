@@ -15,6 +15,7 @@ func TestReadReturnsBundledSchemas(t *testing.T) {
 	}{
 		{name: Status, wantID: "status-report-v0.1.json"},
 		{name: Diagnostic, wantID: "diagnostic-report-v0.1.json"},
+		{name: DoctorFix, wantID: "doctor-fix-report-v0.1.json"},
 	}
 
 	for _, tt := range tests {
@@ -42,7 +43,7 @@ func TestReadRejectsUnknownSchema(t *testing.T) {
 	t.Parallel()
 
 	_, err := Read("other")
-	if err == nil || !strings.Contains(err.Error(), "expected one of: status, diagnostic") {
+	if err == nil || !strings.Contains(err.Error(), "expected one of: status, diagnostic, doctor-fix") {
 		t.Fatalf("Read(other) error = %v, want supported names", err)
 	}
 }
