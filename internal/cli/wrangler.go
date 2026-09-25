@@ -53,10 +53,15 @@ func newWranglerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Co
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			printed := false
 			for _, key := range []string{"logged_in", "accounts_count", "account_id"} {
 				if value := strings.TrimSpace(cur[key]); value != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
+					printed = true
 				}
+			}
+			if len(errs) == 0 && (!printed || cur["logged_in"] == "no") {
+				fmt.Fprintln(cmd.OutOrStdout(), "See install and login status: all-cli wrangler status")
 			}
 			return nil
 		},

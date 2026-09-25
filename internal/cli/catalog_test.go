@@ -178,7 +178,7 @@ func TestCatalogCommandExplainsNoMatches(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
-	if got, want := stdout, "No tracked tools match \"not-a-real-tool\".\n"; got != want {
+	if got, want := stdout, "No tracked tools match \"not-a-real-tool\".\nList the full catalog: all-cli catalog\n"; got != want {
 		t.Fatalf("stdout = %q, want %q", got, want)
 	}
 }

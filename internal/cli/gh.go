@@ -129,9 +129,14 @@ func newGHUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "use",
 		Short: "Switch the active gh account for a host",
+		Example: `  all-cli gh list
+  all-cli gh use --hostname github.com --user <login>`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := gh.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
+			if strings.TrimSpace(hostname) == "" || strings.TrimSpace(user) == "" {
+				return fmt.Errorf("want gh use --hostname <host> --user <login> (example: all-cli gh list)")
+			}
 			if err := a.UseAccount(ctx, hostname, user); err != nil {
 				if opts.JSON {
 					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "gh", Error: err.Error()})
@@ -149,8 +154,6 @@ func newGHUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 
 	cmd.Flags().StringVar(&hostname, "hostname", "", "GitHub host (e.g. github.com)")
 	cmd.Flags().StringVar(&user, "user", "", "User/login to switch to")
-	_ = cmd.MarkFlagRequired("hostname")
-	_ = cmd.MarkFlagRequired("user")
 
 	return cmd
 }

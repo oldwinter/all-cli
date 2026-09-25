@@ -50,7 +50,10 @@ Environment:
   SENTRY_ENVIRONMENT  Optional Sentry environment name.
   POSTHOG_API_KEY     Optional PostHog project key for minimized command-use analytics.
   POSTHOG_HOST        Optional PostHog ingestion host.`,
-		Example: `  # Full overview as JSON (stable schema)
+		Example: `  # Browse the tracked tool catalog (no external commands run)
+  all-cli catalog
+
+  # Full overview as JSON (stable schema)
   all-cli status --json
 
   # Limit to specific tools

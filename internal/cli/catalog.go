@@ -138,7 +138,12 @@ func printCatalogIDs(cmd *cobra.Command, report catalogReport) error {
 
 func printCatalogTable(cmd *cobra.Command, report catalogReport) error {
 	if report.Count == 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "No tracked tools match %q.\n", report.Query)
+		out := cmd.OutOrStdout()
+		fmt.Fprintf(out, "No tracked tools match %q.\n", report.Query)
+		if suggestion := toolIDSuggestion(report.Query); suggestion != "" {
+			fmt.Fprintf(out, "Did you mean %q? Inspect it: all-cli describe %s\n", suggestion, suggestion)
+		}
+		fmt.Fprintln(out, "List the full catalog: all-cli catalog")
 		return nil
 	}
 	if report.Query != "" {

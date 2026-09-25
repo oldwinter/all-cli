@@ -28,7 +28,8 @@ func newDiagnoseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Use:   "diagnose",
 		Short: "Generate agent-readable diagnostics from CLI status",
 		Long: `Generates structured diagnostics from the same tool evaluation used by status.
-Diagnostics include severity, evidence, suggested actions, autofix safety, and related tool IDs.`,
+Diagnostics include severity, evidence, suggested actions, autofix safety, and related tool IDs.
+Defaults to the agent profile. For a human-readable health-check table, see 'all-cli doctor'.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
@@ -54,6 +55,8 @@ func newDoctorCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Run read-only health checks for local CLI tools",
+		Long: `Prints a human-readable health-check table for local CLI tools
+(default --profile human). For agent-readable diagnostics, see 'all-cli diagnose'.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
@@ -84,7 +87,7 @@ func newFixCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 it does not run commands or mutate global CLI configuration.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if !dryRun {
-				return fmt.Errorf("fix currently requires --dry-run")
+				return fmt.Errorf("fix currently requires --dry-run (example: all-cli fix --dry-run)")
 			}
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
@@ -111,6 +114,13 @@ func newSnapshotCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "snapshot",
 		Short: "Capture a status snapshot for later diffing",
+		Long: `Captures the current status report for later diffing. Pass --json to emit the
+machine-readable snapshot format that 'all-cli diff' consumes; the default output is a
+human-readable table that diff cannot parse.`,
+		Example: `  all-cli snapshot --json > before.json
+  all-cli snapshot --json > after.json
+  all-cli diff before.json after.json
+  all-cli snapshot --json | all-cli diff before.json -`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildStatusReport(cmd.Context(), runner, opts.Timeout, toolsFilter)
 			if err != nil {
@@ -144,7 +154,12 @@ only selected tracked tools; the summary and exit code then reflect only those t
   all-cli diff before.json after.json --exit-code
   all-cli diff before.json after.json --tools kubectl,docker --exit-code
   all-cli snapshot --json | all-cli diff before.json - --json`,
-		Args: cobra.ExactArgs(2),
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("want diff <snapshot-a> <snapshot-b> (example: all-cli snapshot --json > before.json)")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var selected map[string]bool
 			if strings.TrimSpace(toolsFilter) != "" {
@@ -233,6 +248,10 @@ func printDiagnosticReport(w interface {
 	)
 	if len(report.Diagnostics) == 0 {
 		fmt.Fprintln(w, "No diagnostics found.")
+		fmt.Fprintln(w, "Next steps:")
+		fmt.Fprintln(w, "  - Browse tracked tools: all-cli catalog")
+		fmt.Fprintln(w, "  - Check install status: all-cli status")
+		fmt.Fprintln(w, "  - Preview safe fixes: all-cli fix --dry-run")
 		return
 	}
 	for _, item := range report.Diagnostics {
