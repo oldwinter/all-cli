@@ -1,12 +1,123 @@
 package diagnose
 
 import (
+	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/oldwinter/all-cli/internal/model"
 )
+
+func TestDiffSnapshotsCollectionFields(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		before string
+		after  string
+		fields []string
+	}{
+		{"both absent", ``, ``, nil},
+		{"empty current", ``, `,"current":{}`, nil},
+		{"empty warnings", ``, `,"warnings":[]`, nil},
+		{"empty errors", ``, `,"errors":[]`, nil},
+		{"all empty", ``, `,"current":{},"warnings":[],"errors":[]`, nil},
+		{"both empty", `,"current":{},"warnings":[],"errors":[]`, `,"current":{},"warnings":[],"errors":[]`, nil},
+		{"current from absent", ``, `,"current":{"context":"dev"}`, []string{"current"}},
+		{"current from empty", `,"current":{}`, `,"current":{"context":"dev"}`, []string{"current"}},
+		{"warnings from absent", ``, `,"warnings":["warning"]`, []string{"warnings"}},
+		{"warnings from empty", `,"warnings":[]`, `,"warnings":["warning"]`, []string{"warnings"}},
+		{"errors from absent", ``, `,"errors":["error"]`, []string{"errors"}},
+		{"errors from empty", `,"errors":[]`, `,"errors":["error"]`, []string{"errors"}},
+		{"current value changed", `,"current":{"context":"dev"}`, `,"current":{"context":"prod"}`, []string{"current"}},
+		{"current key changed", `,"current":{"context":""}`, `,"current":{"namespace":""}`, []string{"current"}},
+		{"warning changed", `,"warnings":["first"]`, `,"warnings":["second"]`, []string{"warnings"}},
+		{"error changed", `,"errors":["first"]`, `,"errors":["second"]`, []string{"errors"}},
+		{"warning order changed", `,"warnings":["first","second"]`, `,"warnings":["second","first"]`, []string{"warnings"}},
+		{"error order changed", `,"errors":["first","second"]`, `,"errors":["second","first"]`, []string{"errors"}},
+		{"populated unchanged", `,"current":{"context":"dev"},"warnings":["warning"],"errors":["error"]`, `,"current":{"context":"dev"},"warnings":["warning"],"errors":["error"]`, nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var before, after model.StatusReport
+			if err := json.Unmarshal([]byte(`{"tools":[{"id":"kubectl"`+tt.before+`}]}`), &before); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(`{"tools":[{"id":"kubectl"`+tt.after+`}]}`), &after); err != nil {
+				t.Fatal(err)
+			}
+			for _, direction := range []struct {
+				name          string
+				before, after model.StatusReport
+			}{
+				{"forward", before, after},
+				{"reverse", after, before},
+			} {
+				t.Run(direction.name, func(t *testing.T) {
+					report := DiffSnapshots(direction.before, direction.after)
+					wantChanges := []model.SnapshotToolChange{}
+					if len(tt.fields) > 0 {
+						wantChanges = append(wantChanges, model.SnapshotToolChange{
+							ToolID: "kubectl", ChangeType: model.SnapshotChangeChanged, Fields: tt.fields,
+							Before: &direction.before.Tools[0], After: &direction.after.Tools[0],
+						})
+					}
+					if !reflect.DeepEqual(report.Changes, wantChanges) {
+						t.Errorf("changes = %#v, want %#v", report.Changes, wantChanges)
+					}
+					if want := (model.SnapshotDiffSummary{Changed: len(wantChanges)}); report.Summary != want {
+						t.Errorf("summary = %#v, want %#v", report.Summary, want)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestDiffSnapshotsChangesSortedByToolID(t *testing.T) {
+	added := model.ToolSummary{ID: "aws"}
+	removed := model.ToolSummary{ID: "rg"}
+	unchanged := model.ToolSummary{ID: "docker"}
+	oldTool := model.ToolSummary{ID: "kubectl"}
+	newTool := model.ToolSummary{
+		ID: "kubectl", DisplayName: "Kubernetes", Category: "containers",
+		Installed: true, InstallPath: "/usr/local/bin/kubectl",
+		ConfiguredState: model.ConfiguredYes, Configured: true,
+		Capabilities: model.Capability{HasContexts: true, CanSwitch: true},
+		Current:      map[string]string{"context": "dev"},
+		Warnings:     []string{"warning"}, Errors: []string{"error"},
+	}
+	before := model.StatusReport{Tools: []model.ToolSummary{removed, unchanged, oldTool}}
+	after := model.StatusReport{Tools: []model.ToolSummary{newTool, added, unchanged}}
+
+	report := DiffSnapshots(before, after)
+
+	if report.SchemaVersion != model.SnapshotDiffSchemaVersionV01 || report.GeneratedAt.IsZero() {
+		t.Errorf("unexpected report metadata: %#v", report)
+	}
+	if want := (model.SnapshotDiffSummary{Added: 1, Removed: 1, Changed: 1}); report.Summary != want {
+		t.Errorf("summary = %#v, want %#v", report.Summary, want)
+	}
+	wantChanges := []model.SnapshotToolChange{
+		{ToolID: "aws", ChangeType: model.SnapshotChangeAdded, After: &added},
+		{
+			ToolID: "kubectl", ChangeType: model.SnapshotChangeChanged, Before: &oldTool, After: &newTool,
+			Fields: []string{"display_name", "category", "installed", "install_path", "configured_state", "configured", "capabilities", "current", "warnings", "errors"},
+		},
+		{ToolID: "rg", ChangeType: model.SnapshotChangeRemoved, Before: &removed},
+	}
+	if !reflect.DeepEqual(report.Changes, wantChanges) {
+		t.Fatalf("changes = %#v, want %#v", report.Changes, wantChanges)
+	}
+}
+
+func TestIndexToolsSkipsBlankIDs(t *testing.T) {
+	tool := model.ToolSummary{ID: " kubectl ", Installed: true}
+	got := indexTools([]model.ToolSummary{{ID: ""}, {ID: " \t\n"}, tool})
+	want := map[string]model.ToolSummary{"kubectl": tool}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("indexTools = %#v, want %#v", got, want)
+	}
+}
 
 func TestGenerateCreatesInfoDiagnosticForMissingTool(t *testing.T) {
 	status := model.NewStatusReport(1)
