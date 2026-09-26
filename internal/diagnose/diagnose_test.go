@@ -1,6 +1,7 @@
 package diagnose
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -172,5 +173,233 @@ func TestBuildFixPlanIsDryRunOnlyAndNonMutating(t *testing.T) {
 	}
 	if !strings.Contains(item.Reason, "not allowlisted") {
 		t.Fatalf("expected allowlist reason, got %q", item.Reason)
+	}
+}
+
+func TestDiffSnapshotsReportsAddedRemovedAndChangedToolsSortedByID(t *testing.T) {
+	before := model.NewStatusReport(0)
+	before.Tools = []model.ToolSummary{
+		{ID: "gh", Installed: true},
+		{ID: "docker", Installed: true, InstallPath: "/usr/local/bin/docker"},
+		{ID: "aws", Installed: true, Current: map[string]string{"profile": "before"}},
+	}
+	after := model.NewStatusReport(0)
+	after.Tools = []model.ToolSummary{
+		{ID: "kubectl", Installed: true},
+		{ID: "aws", Installed: true, Current: map[string]string{"profile": "after"}},
+		{ID: "gh", Installed: true},
+	}
+
+	report := DiffSnapshots(before, after)
+
+	if report.SchemaVersion != model.SnapshotDiffSchemaVersionV01 {
+		t.Fatalf("schema version = %q, want %q", report.SchemaVersion, model.SnapshotDiffSchemaVersionV01)
+	}
+	if report.GeneratedAt.IsZero() {
+		t.Fatalf("generated_at should be set")
+	}
+	wantSummary := model.SnapshotDiffSummary{Added: 1, Removed: 1, Changed: 1}
+	if report.Summary != wantSummary {
+		t.Fatalf("summary = %#v, want %#v", report.Summary, wantSummary)
+	}
+	if len(report.Changes) != 3 {
+		t.Fatalf("changes len = %d, want 3: %#v", len(report.Changes), report.Changes)
+	}
+
+	tests := []struct {
+		name      string
+		toolID    string
+		change    model.SnapshotChangeType
+		fields    []string
+		hasBefore bool
+		hasAfter  bool
+	}{
+		{name: "aws changed", toolID: "aws", change: model.SnapshotChangeChanged, fields: []string{"current"}, hasBefore: true, hasAfter: true},
+		{name: "docker removed", toolID: "docker", change: model.SnapshotChangeRemoved, hasBefore: true},
+		{name: "kubectl added", toolID: "kubectl", change: model.SnapshotChangeAdded, hasAfter: true},
+	}
+	for i, tt := range tests {
+		change := report.Changes[i]
+		if change.ToolID != tt.toolID || change.ChangeType != tt.change {
+			t.Fatalf("%s: changes[%d] = %#v", tt.name, i, change)
+		}
+		if !reflect.DeepEqual(change.Fields, tt.fields) {
+			t.Fatalf("%s: changes[%d].Fields = %v, want %v", tt.name, i, change.Fields, tt.fields)
+		}
+		if (change.Before != nil) != tt.hasBefore || (change.After != nil) != tt.hasAfter {
+			t.Fatalf("%s: changes[%d] before/after presence wrong: %#v", tt.name, i, change)
+		}
+	}
+
+	aws := report.Changes[0]
+	if aws.Before.Current["profile"] != "before" || aws.After.Current["profile"] != "after" {
+		t.Fatalf("changed entry should carry each snapshot's payload, got %#v", aws)
+	}
+	if report.Changes[1].Before.InstallPath != "/usr/local/bin/docker" {
+		t.Fatalf("removed entry should keep the previous snapshot, got %#v", report.Changes[1].Before)
+	}
+}
+
+func TestDiffSnapshotsSkipsBlankToolIDs(t *testing.T) {
+	before := model.NewStatusReport(0)
+	before.Tools = []model.ToolSummary{
+		{ID: "", Installed: true},
+		{ID: "   ", Installed: false, ConfiguredState: model.ConfiguredNo},
+		{ID: "gh", Installed: true},
+	}
+	after := model.NewStatusReport(0)
+	after.Tools = []model.ToolSummary{
+		{ID: "gh", Installed: true},
+		{ID: " \t\n ", Installed: true},
+	}
+
+	report := DiffSnapshots(before, after)
+
+	if report.Changes == nil {
+		t.Fatalf("changes should be a non-nil empty slice, got nil")
+	}
+	if len(report.Changes) != 0 || report.Summary != (model.SnapshotDiffSummary{}) {
+		t.Fatalf("blank tool IDs must not produce changes, got %#v", report)
+	}
+}
+
+func TestDiffSnapshotsMatchesToolsByTrimmedID(t *testing.T) {
+	before := model.NewStatusReport(0)
+	before.Tools = []model.ToolSummary{{ID: "  gh  ", Installed: true}}
+	after := model.NewStatusReport(0)
+	after.Tools = []model.ToolSummary{{ID: "gh", Installed: true}}
+
+	report := DiffSnapshots(before, after)
+	if len(report.Changes) != 0 {
+		t.Fatalf("trimmed IDs should match, got %#v", report.Changes)
+	}
+}
+
+func TestDiffSnapshotsIndexesDuplicateIDsLastWins(t *testing.T) {
+	tests := []struct {
+		name       string
+		before     []model.ToolSummary
+		after      []model.ToolSummary
+		wantFields []string
+	}{
+		{
+			name: "last before duplicate wins over earlier entry",
+			before: []model.ToolSummary{
+				{ID: "gh", Installed: false},
+				{ID: "gh", Installed: true, InstallPath: "/bin/gh"},
+			},
+			after: []model.ToolSummary{
+				{ID: "gh", Installed: true, InstallPath: "/bin/gh"},
+			},
+		},
+		{
+			name: "last before duplicate decides the diff",
+			before: []model.ToolSummary{
+				{ID: "aws", ConfiguredState: model.ConfiguredNo},
+				{ID: "aws", ConfiguredState: model.ConfiguredYes, Configured: true},
+			},
+			after: []model.ToolSummary{
+				{ID: "aws", ConfiguredState: model.ConfiguredNo},
+			},
+			wantFields: []string{"configured_state", "configured"},
+		},
+		{
+			name:   "last after duplicate wins over earlier entry",
+			before: []model.ToolSummary{{ID: "gh", Installed: true}},
+			after: []model.ToolSummary{
+				{ID: "gh", Installed: true},
+				{ID: "gh", Installed: false},
+			},
+			wantFields: []string{"installed"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			before := model.NewStatusReport(0)
+			before.Tools = tt.before
+			after := model.NewStatusReport(0)
+			after.Tools = tt.after
+
+			report := DiffSnapshots(before, after)
+
+			if len(tt.wantFields) == 0 {
+				if len(report.Changes) != 0 {
+					t.Fatalf("expected no changes, got %#v", report.Changes)
+				}
+				return
+			}
+			if len(report.Changes) != 1 || !reflect.DeepEqual(report.Changes[0].Fields, tt.wantFields) {
+				t.Fatalf("expected one change with fields %v, got %#v", tt.wantFields, report.Changes)
+			}
+		})
+	}
+}
+
+func TestDiffSnapshotsReportsPerFieldChanges(t *testing.T) {
+	base := func() model.ToolSummary {
+		return model.ToolSummary{
+			ID:              "gh",
+			DisplayName:     "GitHub CLI",
+			Category:        "vcs",
+			Installed:       true,
+			InstallPath:     "/usr/local/bin/gh",
+			ConfiguredState: model.ConfiguredYes,
+			Configured:      true,
+			Capabilities:    model.Capability{HasContexts: true, CanSwitch: true},
+			Current:         map[string]string{"account": "oldwinter"},
+			Warnings:        []string{"token expires soon"},
+			Errors:          []string{"rate limit seen earlier"},
+		}
+	}
+	tests := []struct {
+		name   string
+		mutate func(*model.ToolSummary)
+		fields []string
+	}{
+		{name: "display_name", mutate: func(s *model.ToolSummary) { s.DisplayName = "gh" }, fields: []string{"display_name"}},
+		{name: "category", mutate: func(s *model.ToolSummary) { s.Category = "code-host" }, fields: []string{"category"}},
+		{name: "installed", mutate: func(s *model.ToolSummary) { s.Installed = false }, fields: []string{"installed"}},
+		{name: "install_path", mutate: func(s *model.ToolSummary) { s.InstallPath = "/opt/homebrew/bin/gh" }, fields: []string{"install_path"}},
+		{name: "configured_state", mutate: func(s *model.ToolSummary) { s.ConfiguredState = model.ConfiguredNo }, fields: []string{"configured_state"}},
+		{name: "configured", mutate: func(s *model.ToolSummary) { s.Configured = false }, fields: []string{"configured"}},
+		{name: "capabilities", mutate: func(s *model.ToolSummary) { s.Capabilities.CanSwitch = false }, fields: []string{"capabilities"}},
+		{name: "current", mutate: func(s *model.ToolSummary) { s.Current["account"] = "someone-else" }, fields: []string{"current"}},
+		{name: "warnings", mutate: func(s *model.ToolSummary) { s.Warnings = []string{"different warning"} }, fields: []string{"warnings"}},
+		{name: "errors", mutate: func(s *model.ToolSummary) { s.Errors = []string{"different error"} }, fields: []string{"errors"}},
+		{
+			name: "multiple fields keep comparison order",
+			mutate: func(s *model.ToolSummary) {
+				s.Installed = false
+				s.InstallPath = ""
+				s.ConfiguredState = model.ConfiguredNo
+			},
+			fields: []string{"installed", "install_path", "configured_state"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			before := model.NewStatusReport(0)
+			before.Tools = []model.ToolSummary{base()}
+			afterTool := base()
+			tt.mutate(&afterTool)
+			after := model.NewStatusReport(0)
+			after.Tools = []model.ToolSummary{afterTool}
+
+			report := DiffSnapshots(before, after)
+
+			if report.Summary != (model.SnapshotDiffSummary{Changed: 1}) || len(report.Changes) != 1 {
+				t.Fatalf("report = %#v, want exactly one changed tool", report)
+			}
+			change := report.Changes[0]
+			if change.ToolID != "gh" || change.ChangeType != model.SnapshotChangeChanged {
+				t.Fatalf("unexpected change record: %#v", change)
+			}
+			if !reflect.DeepEqual(change.Fields, tt.fields) {
+				t.Fatalf("fields = %v, want %v", change.Fields, tt.fields)
+			}
+			if change.Before == nil || change.After == nil {
+				t.Fatalf("changed entries should carry before and after snapshots, got %#v", change)
+			}
+		})
 	}
 }
