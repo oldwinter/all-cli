@@ -327,6 +327,9 @@ func readStatusSnapshot(path string, stdin io.Reader) (model.StatusReport, error
 	if strings.TrimSpace(report.SchemaVersion) == "" {
 		return model.StatusReport{}, fmt.Errorf("parse snapshot %s: missing schema_version", source)
 	}
+	if report.SchemaVersion != model.SchemaVersionV01 {
+		return model.StatusReport{}, fmt.Errorf("parse snapshot %s: unsupported schema_version %q (expected %q)", source, report.SchemaVersion, model.SchemaVersionV01)
+	}
 	return report, nil
 }
 

@@ -84,6 +84,8 @@ func TestReportFromSnapshotErrors(t *testing.T) {
 		{"empty path", []string{"--from="}, "", "read snapshot"},
 		{"invalid JSON", []string{"--from", "-"}, "not json", "parse snapshot stdin"},
 		{"missing version", []string{"--from", "-"}, "{}", "missing schema_version"},
+		{"unsupported version", []string{"--from", "-"}, `{"schema_version":"totally-made-up"}`, "unsupported schema_version"},
+		{"diagnostic report", []string{"--from", "-"}, `{"schema_version":"diagnostic-v0.1","diagnostics":[]}`, "unsupported schema_version"},
 		{"oversized stdin", []string{"--from", "-"}, strings.Repeat(" ", int(maxStdinSnapshotBytes)+1), "exceeds 1 MiB"},
 		{"tools conflict", []string{"--from", "-", "--tools", "gh"}, "", "from tools"},
 		{"empty tools conflict", []string{"--from", "-", "--tools="}, "", "from tools"},
