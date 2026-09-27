@@ -33,6 +33,11 @@ func TestScrubErrorRedactsCredentials(t *testing.T) {
 			"Basic <redacted> rejected",
 		},
 		{
+			"scheme credential with base64 padding",
+			errors.New("Basic dXNlcg== rejected"),
+			"Basic <redacted> rejected",
+		},
+		{
 			"token scheme credential",
 			errors.New("Token ghp_example123 expired"),
 			"Token <redacted> expired",
@@ -56,6 +61,16 @@ func TestScrubErrorRedactsCredentials(t *testing.T) {
 			"bearer token and key-value secret together",
 			errors.New("Bearer abc123 and token=zzz"),
 			"Bearer <redacted> and token=<redacted>",
+		},
+		{
+			"scheme word before colon-labeled secret",
+			errors.New("OAuth token: REVIEW_CANARY_123"),
+			"OAuth token=<redacted>",
+		},
+		{
+			"scheme word before equals-labeled secret with suffix",
+			errors.New("OAuth token=REVIEW_CANARY_123!PRIVATE_SUFFIX"),
+			"OAuth token=<redacted>",
 		},
 		{
 			"private path still scrubbed",

@@ -24,9 +24,8 @@ type sentrySink struct {
 }
 
 var (
-	bearerPattern = regexp.MustCompile(`(?i)\b(Bearer|Basic|Token|Digest|Negotiate|OAuth)\s+[A-Za-z0-9._~+/=-]+`)
-	secretPattern = regexp.MustCompile(`(?i)\b(token|password|secret|api[_-]?key|authorization)\s*[:=]\s*[^,\s;]+`)
-	pathPattern   = regexp.MustCompile(`(?:[A-Za-z]:\\|/)(?:[^/\s:\\]+[/\\]){1,}[^,\s:]*`)
+	credentialPattern = regexp.MustCompile(`(?i)\b(?:(Bearer|Basic|Token|Digest|Negotiate|OAuth)\s+)?(token|password|secret|api[_-]?key|authorization)\s*[:=]\s*(?:(Bearer|Basic|Token|Digest|Negotiate|OAuth)\s+)?[^,\s;]+|\b(Bearer|Basic|Token|Digest|Negotiate|OAuth)\s+[A-Za-z0-9._~+/=-]+`)
+	pathPattern       = regexp.MustCompile(`(?:[A-Za-z]:\\|/)(?:[^/\s:\\]+[/\\]){1,}[^,\s:]*`)
 )
 
 func newSentrySink(config Config, client *http.Client) (*sentrySink, error) {
@@ -128,14 +127,28 @@ func scrubError(err error) string {
 	if err == nil {
 		return ""
 	}
-	message := bearerPattern.ReplaceAllString(err.Error(), "$1 <redacted>")
-	message = secretPattern.ReplaceAllString(message, "$1=<redacted>")
+	message := credentialPattern.ReplaceAllStringFunc(err.Error(), redactCredential)
 	message = pathPattern.ReplaceAllString(message, "<path>")
 	const maxLength = 8 * 1024
 	if len(message) > maxLength {
 		message = message[:maxLength]
 	}
 	return message
+}
+
+func redactCredential(match string) string {
+	parts := credentialPattern.FindStringSubmatch(match)
+	if parts[4] != "" {
+		return parts[4] + " <redacted>"
+	}
+	redacted := parts[2] + "=<redacted>"
+	if parts[3] != "" {
+		redacted += " <redacted>"
+	}
+	if parts[1] != "" {
+		return parts[1] + " " + redacted
+	}
+	return redacted
 }
 
 func captureStackFrames() []map[string]any {
