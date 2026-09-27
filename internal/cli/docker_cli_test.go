@@ -558,6 +558,48 @@ func TestDockerUpdateExplicitImagesPullsWhenNotDryRun(t *testing.T) {
 	}
 }
 
+func TestDockerUpdatePullFailure(t *testing.T) {
+	for _, mode := range []string{"plain", "json"} {
+		t.Run(mode, func(t *testing.T) {
+			opts := &rootOptions{JSON: mode == "json", Timeout: time.Second}
+			runner := cliFakeRunner{
+				results: map[string]execx.CmdResult{
+					"docker pull nginx:latest": {
+						ExitCode: 1,
+						Err:      assertError("exit status 1"),
+						Stderr:   "pull access denied",
+					},
+				},
+			}
+
+			stdout, stderr, err := executeTestCommand(t, newDockerCommand(opts, runner), "update", "--image", "nginx:latest")
+			if err == nil || err.Error() != "docker update completed with errors" {
+				t.Errorf("expected docker update failure, got %v", err)
+			}
+			if !opts.JSON {
+				if !strings.Contains(stdout, "- error: docker pull nginx:latest") || !strings.Contains(stderr, "pull access denied") {
+					t.Fatalf("missing pull failure: stdout=%q stderr=%q", stdout, stderr)
+				}
+				return
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			var got dockerUpdateResult
+			if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+				t.Fatalf("decode update result: %v", err)
+			}
+			wantError := `docker pull "nginx:latest" failed (exit=1): pull access denied`
+			if got.DryRun || len(got.Errors) != 1 || got.Errors[0] != wantError {
+				t.Fatalf("unexpected result: %#v", got)
+			}
+			if len(got.Updates) != 1 || got.Updates[0].Image != "nginx:latest" || got.Updates[0].Applied || got.Updates[0].Error != wantError {
+				t.Fatalf("unexpected updates: %#v", got.Updates)
+			}
+		})
+	}
+}
+
 func TestDockerUpdateSkipsUnsafeImageRefs(t *testing.T) {
 	opts := &rootOptions{JSON: true, Timeout: time.Second}
 	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, cliFakeRunner{}), "update", "--dry-run", "--image", "sha256:abcdef", "--image", "nginx:latest")
@@ -586,8 +628,8 @@ func TestDockerUpdateReportsDockerErrors(t *testing.T) {
 	}
 
 	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, runner), "update", "--dry-run")
-	if err != nil {
-		t.Fatalf("json mode should report errors in payload, got %v", err)
+	if err == nil || err.Error() != "docker update completed with errors" {
+		t.Fatalf("expected docker update failure, got %v", err)
 	}
 	var got dockerUpdateResult
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
