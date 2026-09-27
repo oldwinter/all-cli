@@ -87,7 +87,7 @@ func newKargoUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			} else if len(args) == 1 {
 				project = args[0]
 			} else {
-				return fmt.Errorf("project name is required (or use --unset)")
+				return fmt.Errorf("project name is required (or use --unset; see current project: all-cli kargo current)")
 			}
 
 			if err := a.SetDefaultProject(ctx, project); err != nil {

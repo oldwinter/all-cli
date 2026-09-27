@@ -56,12 +56,16 @@ func newMiseCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
 			keys := make([]string, 0, len(cur))
 			for key := range cur {
-				keys = append(keys, key)
+				if strings.TrimSpace(cur[key]) != "" {
+					keys = append(keys, key)
+				}
 			}
 			sort.Strings(keys)
 			for _, key := range keys {
-				value := strings.TrimSpace(cur[key])
-				fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
+				fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, cur[key])
+			}
+			if len(keys) == 0 && len(errs) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "See install status: all-cli mise status")
 			}
 			return nil
 		},

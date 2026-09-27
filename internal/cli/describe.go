@@ -20,7 +20,12 @@ and agent actions for one tracked tool. This command does not run the tool or in
 local configuration.`,
 		Example: `  all-cli describe kubectl
   all-cli describe aws --json`,
-		Args: cobra.ExactArgs(1),
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) == 1 {
+				return nil
+			}
+			return fmt.Errorf("describe needs a tool ID (list tools: all-cli catalog)")
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			def, ok := tools.FindByID(args[0])
 			if !ok {

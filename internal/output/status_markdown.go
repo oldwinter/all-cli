@@ -16,6 +16,12 @@ func PrintStatusMarkdown(w io.Writer, report model.StatusReport) {
 		fmt.Fprintf(w, "\nGenerated: `%s`\n", report.GeneratedAt.UTC().Format(time.RFC3339))
 	}
 
+	if len(report.Tools) == 0 {
+		fmt.Fprintln(w, "\nNo tools in this report.")
+		fmt.Fprintln(w, "\n- List tracked tools: `all-cli catalog`\n- See install status: `all-cli status`")
+		return
+	}
+
 	fmt.Fprintln(w, "\n| Tool | Category | Installed | Configured | Current |")
 	fmt.Fprintln(w, "| --- | --- | --- | --- | --- |")
 	for _, tool := range report.Tools {

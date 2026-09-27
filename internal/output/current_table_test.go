@@ -33,7 +33,8 @@ func TestPrintCurrentTableExplainsWhenNoContextToolsAreInstalled(t *testing.T) {
 	PrintCurrentTable(&out, report)
 
 	// Then
-	if got := out.String(); got != "No installed context-aware tools found.\n" {
+	want := "No installed context-aware tools found.\nList tracked tools: all-cli catalog\nSee install status: all-cli status\n"
+	if got := out.String(); got != want {
 		t.Fatalf("unexpected empty overview: %q", got)
 	}
 }

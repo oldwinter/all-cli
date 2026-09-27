@@ -117,7 +117,7 @@ func newGLabUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "use <host>",
 		Short: "Set glab global default host",
-		Args:  cobra.ExactArgs(1),
+		Args:  requireContextArg("glab use <host>", "list hosts: all-cli glab list"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

@@ -28,6 +28,7 @@ var naToolPurposes = map[string]string{
 	"openclaw":      "AI coding CLI for terminal-based development workflows.",
 	"opencode":      "AI coding CLI for interactive code and terminal workflows.",
 	"gemini":        "Gemini CLI for AI-assisted terminal and content workflows.",
+	"grok":          "Grok CLI for AI-assisted coding and terminal workflows.",
 	"ccusage":       "CLI for inspecting Claude Code usage and related local usage data.",
 	"litellm-proxy": "LiteLLM proxy CLI for local or staging model routing and smoke tests.",
 	"simplex-cli":   "Internal operations CLI for Simplex product and account workflows.",

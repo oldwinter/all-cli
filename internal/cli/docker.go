@@ -119,25 +119,10 @@ func newDockerUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 	return &cobra.Command{
 		Use:   "use <context>",
 		Short: "Switch current docker context",
-		Args:  cobra.ExactArgs(1),
+		Args:  requireContextArg("docker use <context>", "list contexts: all-cli docker list"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-
-			contextName := args[0]
-			if err := a.UseContext(ctx, contextName); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "docker", Error: err.Error()})
-				}
-				return err
-			}
-
-			cur, _, _, _ := a.Current(ctx)
-			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: true, ToolID: "docker", Current: cur})
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "switched docker context to %s\n", contextName)
-			return nil
+			return switchContext(cmd, opts, "docker", args[0], a)
 		},
 	}
 }

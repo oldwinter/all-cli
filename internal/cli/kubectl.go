@@ -54,11 +54,17 @@ func newKubectlCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Com
 			for _, e := range errs {
 				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
 			}
+			printed := false
 			if v := strings.TrimSpace(cur["context"]); v != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "context: %s\n", v)
+				printed = true
 			}
 			if v := strings.TrimSpace(cur["namespace"]); v != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "namespace: %s\n", v)
+				printed = true
+			}
+			if !printed {
+				fmt.Fprintln(cmd.OutOrStdout(), "See install status: all-cli kubectl status")
 			}
 			return nil
 		},
@@ -126,7 +132,7 @@ func newKubectlUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	cmd := &cobra.Command{
 		Use:   "use <context>",
 		Short: "Switch current kubectl context (and optionally set namespace for it)",
-		Args:  cobra.ExactArgs(1),
+		Args:  requireContextArg("kubectl use <context>", "list contexts: all-cli kubectl list"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

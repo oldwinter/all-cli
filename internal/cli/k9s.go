@@ -50,10 +50,15 @@ func newK9sCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			printed := false
 			for _, key := range []string{"context", "namespace", "config"} {
 				if value := strings.TrimSpace(cur[key]); value != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
+					printed = true
 				}
+			}
+			if !printed {
+				fmt.Fprintln(cmd.ErrOrStderr(), "no k9s context. Check: all-cli k9s status")
 			}
 			return nil
 		},

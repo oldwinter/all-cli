@@ -39,7 +39,7 @@ func newSurpriseCommand() *cobra.Command {
 			fmt.Fprintf(out, "  %s\n", recommendation.Purpose)
 			fmt.Fprintf(out, "  Explore it: all-cli describe %s\n", recommendation.ToolID)
 			fmt.Fprintln(out)
-			fmt.Fprintln(out, dimIfTTY("  — the maintainers · 好奇的人运气不会太差"))
+			fmt.Fprintln(out, dimIfTTY("  — the maintainers · fortune favors the curious"))
 		},
 	}
 }

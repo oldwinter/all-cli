@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/oldwinter/all-cli/internal/execx"
-	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/output"
 	"github.com/oldwinter/all-cli/internal/tools/argocd"
 	"github.com/spf13/cobra"
@@ -126,25 +125,10 @@ func newArgoCDUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 	return &cobra.Command{
 		Use:   "use <context>",
 		Short: "Switch current argocd context",
-		Args:  cobra.ExactArgs(1),
+		Args:  requireContextArg("argocd use <context>", "list contexts: all-cli argocd list"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
 			a := argocd.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-
-			contextName := args[0]
-			if err := a.UseContext(ctx, contextName); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "argocd", Error: err.Error()})
-				}
-				return err
-			}
-
-			cur, _, _, _ := a.Current(ctx)
-			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: true, ToolID: "argocd", Current: cur})
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "switched argocd context to %s\n", contextName)
-			return nil
+			return switchContext(cmd, opts, "argocd", args[0], a)
 		},
 	}
 }

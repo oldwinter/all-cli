@@ -11,7 +11,7 @@
 
 It also detects “current context” for other common tools in `all-cli status` (read-only), including `aws`, `aliyun`, `wrangler`, `vercel`, `railway`, `netlify`, `argocd`, `kargo`, `mise`, and `k9s`.
 
-The inventory is intentionally broader than the context-switching set. It now also tracks common local CLIs grouped by category, including navigation (`fd`, `rg`, `fzf`, `zoxide`), shell/data helpers (`eza`, `bat`, `yq`), task/runtime tools (`uv`, `just`, `mise`), cloud/deployment CLIs (`aws`, `aliyun`, `wrangler`, `vercel`, `railway`, `netlify`), web automation (`opencli`), Kubernetes helpers (`kubectx`, `kubens`, `kubecolor`, `krew`), AI terminals (`claude`, `codex`, `openclaw`, `opencode`, `gemini`, `ccusage`, `litellm-proxy`), and a few workflow tools such as `linear` and `simplex-cli`.
+The inventory is intentionally broader than the context-switching set. It now also tracks common local CLIs grouped by category, including navigation (`fd`, `rg`, `fzf`, `zoxide`), shell/data helpers (`eza`, `bat`, `yq`), task/runtime tools (`uv`, `just`, `mise`), cloud/deployment CLIs (`aws`, `aliyun`, `wrangler`, `vercel`, `railway`, `netlify`), web automation (`opencli`), Kubernetes helpers (`kubectx`, `kubens`, `kubecolor`, `krew`), AI terminals (`claude`, `codex`, `openclaw`, `opencode`, `gemini`, `grok`, `ccusage`, `litellm-proxy`), and a few workflow tools such as `linear` and `simplex-cli`.
 
 It defaults to human-friendly output and supports `--json` for stable machine-readable output (e.g. a future SwiftUI macOS app).
 
@@ -155,6 +155,19 @@ Note about Go toolchain mismatch:
 - If you still need to debug your shell environment, run `just go-env`.
 
 ## Usage
+
+Command map (same grouping as `all-cli --help`):
+
+| Group | Commands |
+| --- | --- |
+| Primary | `status`, `report`, `current`, `catalog`, `describe`, `diagnose`, `doctor`, `fix`, `snapshot`, `diff`, `schema` |
+| Cloud platforms | `aws`, `aliyun`, `wrangler` |
+| Tool integrations | `mise`, `k9s`, `kubectl`, `docker`, `gh`, `glab`, `argocd`, `kargo` |
+| Other | `version`, `options`, `completion` |
+
+Start with `all-cli catalog` to browse every tracked tool without running
+external commands, then `all-cli describe <tool>` for one tool or
+`all-cli status` for live checks.
 
 ### Version metadata
 
