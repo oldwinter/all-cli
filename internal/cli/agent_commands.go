@@ -52,28 +52,63 @@ Defaults to the agent profile. For a human-readable health-check table, see 'all
 func newDoctorCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
 	var profile string
+	var fix bool
+	var fixOpts diag.DoctorFixOptions
 
 	cmd := &cobra.Command{
 		Use:   "doctor",
-		Short: "Run read-only health checks for local CLI tools",
-		Long: `Prints a human-readable health-check table for local CLI tools
-(default --profile human). For agent-readable diagnostics, see 'all-cli diagnose'.`,
+		Short: "Run health checks for local CLI tools and optionally install missing ones",
+		Long: `Prints a human-readable health-check table for local CLI tools (default
+--profile human). For agent-readable diagnostics, see 'all-cli diagnose'.
+
+With --fix, doctor also installs missing tools that have a supported installer
+(brew, npm, pipx, or go). Use --fix --dry-run to preview the install commands
+first, and --tools to limit which tools are fixed. Each install command runs with
+a 10 minute timeout. Rerun doctor afterwards to confirm the new state.`,
+		Example: `  all-cli doctor
+  all-cli doctor --fix --dry-run
+  all-cli doctor --fix --tools gh,kubectl --installer brew`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if !fix && (fixOpts.DryRun || cmd.Flags().Changed("installer")) {
+				return fmt.Errorf("--dry-run and --installer require --fix")
+			}
+			installer, err := diag.NormalizeDoctorInstaller(fixOpts.Installer)
+			if err != nil {
+				return err
+			}
+			fixOpts.Installer = installer
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
 				return err
 			}
-			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), report)
+			if !fix {
+				if opts.JSON {
+					return output.PrintJSON(cmd.OutOrStdout(), report)
+				}
+				printDoctorReport(cmd.OutOrStdout(), report)
+				return nil
 			}
-			printDoctorReport(cmd.OutOrStdout(), report)
-			return nil
+			installRunner := execx.TimeoutRunner{Runner: runner, Timeout: doctorInstallTimeout}
+			fixes := diag.RunDoctorFixes(cmd.Context(), installRunner, report, fixOpts, doctorLookPath)
+			if opts.JSON {
+				fixReport := model.DoctorFixReport{SchemaVersion: model.DoctorFixSchemaVersionV01, Report: report, Fixes: fixes}
+				if err := output.PrintJSON(cmd.OutOrStdout(), fixReport); err != nil {
+					return err
+				}
+			} else {
+				printDoctorReport(cmd.OutOrStdout(), report)
+				printDoctorFixes(cmd.OutOrStdout(), fixes)
+			}
+			return doctorFixError(fixes)
 		},
 	}
 
-	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to check (e.g. kubectl,docker)")
+	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to check and fix (e.g. kubectl,docker)")
 	cmd.Flags().StringVar(&profile, "profile", diag.ProfileHuman, "Output profile: agent|human|ci")
+	cmd.Flags().BoolVar(&fix, "fix", false, "Install missing tools that have a supported installer")
+	cmd.Flags().BoolVar(&fixOpts.DryRun, "dry-run", false, "With --fix, preview install commands without running them")
+	cmd.Flags().StringVar(&fixOpts.Installer, "installer", diag.DoctorInstallerAuto, "With --fix, installer to use: auto|brew|npm|pipx|go")
 	return cmd
 }
 

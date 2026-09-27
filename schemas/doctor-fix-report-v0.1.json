@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oldwinter/all-cli/schemas/doctor-fix-report-v0.1.json",
+  "title": "all-cli doctor --fix report",
+  "type": "object",
+  "required": ["schema_version", "report", "fixes"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "doctor-fix-v0.1"
+    },
+    "report": { "$ref": "diagnostic-report-v0.1.json" },
+    "fixes": { "$ref": "#/$defs/fix_run" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "fix_run": {
+      "type": "object",
+      "required": ["dry_run", "installer", "summary", "items"],
+      "properties": {
+        "dry_run": { "type": "boolean" },
+        "installer": {
+          "type": "string",
+          "enum": ["auto", "brew", "npm", "pipx", "go"]
+        },
+        "summary": { "$ref": "#/$defs/fix_summary" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fix_item" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "fix_summary": {
+      "type": "object",
+      "required": ["total", "supported", "installed", "dry_run", "skipped", "failed"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "supported": { "type": "integer", "minimum": 0 },
+        "installed": { "type": "integer", "minimum": 0 },
+        "dry_run": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "fix_item": {
+      "type": "object",
+      "required": ["tool_id", "supported", "status"],
+      "properties": {
+        "tool_id": { "type": "string" },
+        "installer": {
+          "type": "string",
+          "enum": ["brew", "npm", "pipx", "go"]
+        },
+        "command": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "supported": { "type": "boolean" },
+        "status": {
+          "type": "string",
+          "enum": ["dry_run", "installed", "skipped", "failed"]
+        },
+        "reason": { "type": "string" },
+        "exit_code": { "type": "integer" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
