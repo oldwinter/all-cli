@@ -28,6 +28,7 @@ func newKargoStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show kargo status and current context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSingleToolStatusCommand(cmd, opts, runner, "kargo")
 		},
@@ -38,6 +39,7 @@ func newKargoCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current kargo API/project context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := kargo.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

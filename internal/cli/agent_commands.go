@@ -30,6 +30,7 @@ func newDiagnoseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Long: `Generates structured diagnostics from the same tool evaluation used by status.
 Diagnostics include severity, evidence, suggested actions, autofix safety, and related tool IDs.
 Defaults to the agent profile. For a human-readable health-check table, see 'all-cli doctor'.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
@@ -57,6 +58,7 @@ func newDoctorCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Short: "Run read-only health checks for local CLI tools",
 		Long: `Prints a human-readable health-check table for local CLI tools
 (default --profile human). For agent-readable diagnostics, see 'all-cli diagnose'.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
@@ -85,6 +87,7 @@ func newFixCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Short: "Preview safe diagnostic fixes",
 		Long: `Builds a fix plan from diagnostics. The first implementation is dry-run only:
 it does not run commands or mutate global CLI configuration.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if !dryRun {
 				return fmt.Errorf("fix currently requires --dry-run (example: all-cli fix --dry-run)")
@@ -121,6 +124,7 @@ human-readable table that diff cannot parse.`,
   all-cli snapshot --json > after.json
   all-cli diff before.json after.json
   all-cli snapshot --json | all-cli diff before.json -`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildStatusReport(cmd.Context(), runner, opts.Timeout, toolsFilter)
 			if err != nil {
