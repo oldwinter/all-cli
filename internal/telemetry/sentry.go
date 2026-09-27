@@ -24,6 +24,7 @@ type sentrySink struct {
 }
 
 var (
+	bearerPattern = regexp.MustCompile(`(?i)\b(Bearer|Basic|Token|Digest|Negotiate|OAuth)\s+[A-Za-z0-9._~+/=-]+`)
 	secretPattern = regexp.MustCompile(`(?i)\b(token|password|secret|api[_-]?key|authorization)\s*[:=]\s*[^,\s;]+`)
 	pathPattern   = regexp.MustCompile(`(?:[A-Za-z]:\\|/)(?:[^/\s:\\]+[/\\]){1,}[^,\s:]*`)
 )
@@ -127,7 +128,8 @@ func scrubError(err error) string {
 	if err == nil {
 		return ""
 	}
-	message := secretPattern.ReplaceAllString(err.Error(), "$1=<redacted>")
+	message := bearerPattern.ReplaceAllString(err.Error(), "$1 <redacted>")
+	message = secretPattern.ReplaceAllString(message, "$1=<redacted>")
 	message = pathPattern.ReplaceAllString(message, "<path>")
 	const maxLength = 8 * 1024
 	if len(message) > maxLength {
