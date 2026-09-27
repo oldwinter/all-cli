@@ -202,34 +202,36 @@ recreate, prune, remove containers, or change Docker contexts.`,
 				Errors:   dedupeMessages(errs),
 			}
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), result)
-			}
-
-			printDiagnostics(cmd.ErrOrStderr(), result.Warnings, result.Errors)
-			if dryRun {
-				fmt.Fprintln(cmd.OutOrStdout(), "Docker update plan (dry-run):")
+				if err := output.PrintJSON(cmd.OutOrStdout(), result); err != nil {
+					return err
+				}
 			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), "Docker update results:")
-			}
-			if len(updates) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No Docker image update candidates found.")
-			}
-			for _, update := range updates {
-				status := "planned"
-				if update.Applied {
-					status = "pulled"
+				printDiagnostics(cmd.ErrOrStderr(), result.Warnings, result.Errors)
+				if dryRun {
+					fmt.Fprintln(cmd.OutOrStdout(), "Docker update plan (dry-run):")
+				} else {
+					fmt.Fprintln(cmd.OutOrStdout(), "Docker update results:")
 				}
-				if update.Error != "" {
-					status = "error"
+				if len(updates) == 0 {
+					fmt.Fprintln(cmd.OutOrStdout(), "No Docker image update candidates found.")
 				}
-				line := fmt.Sprintf("- %s: %s", status, strings.Join(update.Command, " "))
-				if len(update.SourceContainers) > 0 {
-					line += fmt.Sprintf(" (containers: %s)", strings.Join(update.SourceContainers, ","))
+				for _, update := range updates {
+					status := "planned"
+					if update.Applied {
+						status = "pulled"
+					}
+					if update.Error != "" {
+						status = "error"
+					}
+					line := fmt.Sprintf("- %s: %s", status, strings.Join(update.Command, " "))
+					if len(update.SourceContainers) > 0 {
+						line += fmt.Sprintf(" (containers: %s)", strings.Join(update.SourceContainers, ","))
+					}
+					if update.Error != "" {
+						line += fmt.Sprintf(" error=%s", update.Error)
+					}
+					fmt.Fprintln(cmd.OutOrStdout(), line)
 				}
-				if update.Error != "" {
-					line += fmt.Sprintf(" error=%s", update.Error)
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), line)
 			}
 			if len(result.Errors) > 0 {
 				return fmt.Errorf("docker update completed with errors")
