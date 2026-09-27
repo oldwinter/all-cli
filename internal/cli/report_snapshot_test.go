@@ -87,8 +87,8 @@ func TestReportFromSnapshotErrors(t *testing.T) {
 		{"unsupported version", []string{"--from", "-"}, `{"schema_version":"totally-made-up"}`, "unsupported schema_version"},
 		{"diagnostic report", []string{"--from", "-"}, `{"schema_version":"diagnostic-v0.1","diagnostics":[]}`, "unsupported schema_version"},
 		{"oversized stdin", []string{"--from", "-"}, strings.Repeat(" ", int(maxStdinSnapshotBytes)+1), "exceeds 1 MiB"},
-		{"tools conflict", []string{"--from", "-", "--tools", "gh"}, "", "from tools"},
-		{"empty tools conflict", []string{"--from", "-", "--tools="}, "", "from tools"},
+		{"unknown tool before reading stdin", []string{"--from", "-", "--tools", "kubctl"}, "", `did you mean "kubectl"`},
+		{"invalid tool filter", []string{"--from", "-", "--tools", ", ,"}, "", "invalid --tools value"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := newReportCommand(&rootOptions{}, cliFakeRunner{})

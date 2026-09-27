@@ -315,13 +315,16 @@ warnings, and errors:
 
 ```bash
 all-cli report --from before.json > report.md
+all-cli report --from before.json --tools kubectl,docker > cluster-report.md
 all-cli snapshot --tools kubectl,docker --json | all-cli report --from -
 ```
 
-`--from -` reads standard input, limited to 1 MiB. `--from` and `--tools` are
-mutually exclusive; select tools when capturing the snapshot. Add `--json` to
-emit the captured status with diagnostics derived from those facts instead of
-Markdown. Without `--from`, `report` checks local tools as usual.
+`--from -` reads standard input, limited to 1 MiB. Add `--tools` to select tracked
+tool IDs from either a file or standard input without editing or recapturing the
+snapshot. Selected tools keep their original order and captured facts; tools
+absent from the snapshot are omitted. An empty `--tools` value keeps all tools.
+Add `--json` to emit the selected status with diagnostics derived only from those
+facts instead of Markdown. Without `--from`, `report` checks local tools as usual.
 
 ### AI-friendly JSON additions
 
