@@ -27,6 +27,7 @@ func newAWSStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show AWS CLI status and current context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSingleToolStatusCommand(cmd, opts, runner, "aws")
 		},
@@ -37,6 +38,7 @@ func newAWSCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current AWS profile, region, and output format",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolaws.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -84,6 +86,7 @@ func newAWSListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List AWS CLI profiles",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolaws.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

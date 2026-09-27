@@ -26,6 +26,7 @@ func newWranglerStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Com
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show Wrangler status and current account context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSingleToolStatusCommand(cmd, opts, runner, "wrangler")
 		},
@@ -36,6 +37,7 @@ func newWranglerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Co
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show Wrangler login state and account summary",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolwrangler.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

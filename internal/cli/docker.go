@@ -33,6 +33,7 @@ func newDockerStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show docker status and current context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSingleToolStatusCommand(cmd, opts, runner, "docker")
 		},
@@ -43,6 +44,7 @@ func newDockerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current docker context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -72,6 +74,7 @@ func newDockerListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List docker contexts",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -135,6 +138,7 @@ func newDockerFixCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 		Short: "Preview Docker diagnostic fixes",
 		Long: `Builds a Docker-only fix plan from diagnostics. This command is dry-run only:
 it does not run Docker commands or mutate Docker configuration.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if !dryRun {
 				return fmt.Errorf("docker fix currently requires --dry-run")
@@ -167,6 +171,7 @@ func newDockerUpdateCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 Use --all to include stopped containers or --image to target explicit image refs.
 Without --dry-run, this command runs docker pull for planned image refs only; it does not stop,
 recreate, prune, remove containers, or change Docker contexts.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

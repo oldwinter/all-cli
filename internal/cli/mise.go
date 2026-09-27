@@ -27,6 +27,7 @@ func newMiseStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show mise status and current resolved runtimes",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSingleToolStatusCommand(cmd, opts, runner, "mise")
 		},
@@ -37,6 +38,7 @@ func newMiseCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show resolved mise runtime versions",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolmise.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

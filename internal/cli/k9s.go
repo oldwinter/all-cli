@@ -26,6 +26,7 @@ func newK9sStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show k9s status and current context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSingleToolStatusCommand(cmd, opts, runner, "k9s")
 		},
@@ -36,6 +37,7 @@ func newK9sCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current k9s context, namespace, and config path",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolk9s.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
