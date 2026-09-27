@@ -86,13 +86,18 @@ func TestDockerCurrentJSON(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	var got struct {
-		Current map[string]string `json:"current"`
+		Current  map[string]string `json:"current"`
+		Warnings []string          `json:"warnings"`
+		Errors   []string          `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
 	}
 	if got.Current["context"] != "prod" {
 		t.Fatalf("unexpected current: %#v", got.Current)
+	}
+	if got.Warnings == nil || got.Errors == nil {
+		t.Fatalf("expected warnings/errors to be arrays, got %#v", got)
 	}
 }
 
@@ -157,10 +162,14 @@ func TestDockerCurrentJSONError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var got struct {
-		Errors []string `json:"errors"`
+		Warnings []string `json:"warnings"`
+		Errors   []string `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
+	}
+	if got.Warnings == nil {
+		t.Fatalf("expected warnings array, got %#v", got)
 	}
 	if len(got.Errors) != 2 || got.Errors[0] != "docker unavailable" || !strings.Contains(got.Errors[1], "docker context show failed") {
 		t.Fatalf("unexpected payload: %#v", got)
@@ -213,12 +222,17 @@ func TestDockerListJSON(t *testing.T) {
 	var got struct {
 		Current  map[string]string `json:"current"`
 		Contexts []map[string]any  `json:"contexts"`
+		Warnings []string          `json:"warnings"`
+		Errors   []string          `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
 	}
 	if got.Current["context"] != "prod" || len(got.Contexts) != 2 {
 		t.Fatalf("unexpected payload: %#v", got)
+	}
+	if got.Warnings == nil || got.Errors == nil {
+		t.Fatalf("expected warnings/errors to be arrays, got %#v", got)
 	}
 }
 
@@ -339,10 +353,14 @@ func TestDockerListJSONError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var got struct {
-		Errors []string `json:"errors"`
+		Warnings []string `json:"warnings"`
+		Errors   []string `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
+	}
+	if got.Warnings == nil {
+		t.Fatalf("expected warnings array, got %#v", got)
 	}
 	if len(got.Errors) != 2 || got.Errors[0] != "list failed" {
 		t.Fatalf("unexpected payload: %#v", got)

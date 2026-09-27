@@ -46,15 +46,15 @@ func newDockerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, _, errs, err := a.Current(ctx)
+			cur, warnings, errs, err := a.Current(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
-					"warnings": []string(nil),
-					"errors":   errs,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 			for _, e := range errs {
@@ -87,8 +87,8 @@ func newDockerListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"contexts": contexts,
-					"warnings": warnings,
-					"errors":   errs,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 

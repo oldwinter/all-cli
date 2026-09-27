@@ -98,8 +98,8 @@ func newGHCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
-					"warnings": warnings,
-					"errors":   errs,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 			for _, w := range warnings {
