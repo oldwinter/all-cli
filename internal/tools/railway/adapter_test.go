@@ -3,6 +3,8 @@ package railway
 import (
 	"context"
 	"errors"
+	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -53,6 +55,223 @@ func TestCurrentParsesWhoamiJSON(t *testing.T) {
 	}
 	if len(warnings) == 0 {
 		t.Fatalf("expected warning for multiple workspaces")
+	}
+}
+
+func failed(stdout, stderr string, err error) execx.CmdResult {
+	return execx.CmdResult{ExitCode: 1, Stdout: stdout, Stderr: stderr, Err: err}
+}
+
+func checkErr(t *testing.T, err error, wantErr bool, wantIs error, contain string) {
+	t.Helper()
+
+	if !wantErr {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		return
+	}
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if wantIs != nil && !errors.Is(err, wantIs) {
+		t.Fatalf("error %v does not wrap %v", err, wantIs)
+	}
+	if contain != "" && !strings.Contains(err.Error(), contain) {
+		t.Fatalf("error %q does not contain %q", err, contain)
+	}
+}
+
+func TestWhoamiOutcomes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		res        execx.CmdResult
+		want       Whoami
+		wantErrs   []string
+		wantErr    bool
+		wantErrIs  error
+		errContain string
+	}{
+		{
+			name: "valid json",
+			res:  execx.CmdResult{Stdout: `{"name":"Old Winter","email":"cdd2zju@gmail.com","workspaces":[{"id":"ws_1","name":"Team A"}]}`},
+			want: Whoami{Name: "Old Winter", Email: "cdd2zju@gmail.com", Workspaces: []Workspace{{ID: "ws_1", Name: "Team A"}}},
+		},
+		{
+			name:      "deadline exceeded is returned as is",
+			res:       failed("", "", fmt.Errorf("run: %w", context.DeadlineExceeded)),
+			wantErr:   true,
+			wantErrIs: context.DeadlineExceeded,
+		},
+		{
+			name:      "canceled is returned as is",
+			res:       failed("", "", context.Canceled),
+			wantErr:   true,
+			wantErrIs: context.Canceled,
+		},
+		{
+			name: "auth failure in stdout means not logged in",
+			res:  failed("Error: Not logged in", "ignored", errors.New("exit status 1")),
+		},
+		{
+			name: "auth failure hint in stderr means not logged in",
+			res:  failed("", "Please login with `railway login`", errors.New("exit status 1")),
+		},
+		{
+			name:       "other failure reports stdout first",
+			res:        failed("rate limited\n", "ignored stderr", errors.New("exit status 1")),
+			wantErrs:   []string{"rate limited"},
+			wantErr:    true,
+			errContain: "railway whoami failed (exit=1)",
+		},
+		{
+			name:       "other failure reports stderr",
+			res:        failed("", "  boom: network unreachable \n", errors.New("exit status 1")),
+			wantErrs:   []string{"boom: network unreachable"},
+			wantErr:    true,
+			errContain: "railway whoami failed (exit=1)",
+		},
+		{
+			name:       "other failure with no output falls back to error text",
+			res:        failed("", "", errors.New("executable file not found")),
+			wantErrs:   []string{"executable file not found"},
+			wantErr:    true,
+			errContain: "railway whoami failed",
+		},
+		{
+			name:       "invalid json",
+			res:        execx.CmdResult{Stdout: `{"email": }`},
+			wantErr:    true,
+			errContain: "failed to parse railway whoami JSON",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			a := New(fakeRunner{results: map[string]execx.CmdResult{"railway whoami --json": tt.res}})
+			who, warnings, errs, err := a.Whoami(context.Background())
+			checkErr(t, err, tt.wantErr, tt.wantErrIs, tt.errContain)
+			if !reflect.DeepEqual(who, tt.want) {
+				t.Fatalf("who = %#v, want %#v", who, tt.want)
+			}
+			if len(warnings) != 0 {
+				t.Fatalf("unexpected warnings: %#v", warnings)
+			}
+			if !reflect.DeepEqual(errs, tt.wantErrs) {
+				t.Fatalf("errs = %#v, want %#v", errs, tt.wantErrs)
+			}
+		})
+	}
+}
+
+func TestConfiguredOutcomes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		res      execx.CmdResult
+		want     bool
+		wantErrs []string
+		wantErr  bool
+	}{
+		{
+			name: "email present",
+			res:  execx.CmdResult{Stdout: `{"email":"cdd2zju@gmail.com","workspaces":[]}`},
+			want: true,
+		},
+		{
+			name: "blank email",
+			res:  execx.CmdResult{Stdout: `{"email":"  ","workspaces":[]}`},
+			want: false,
+		},
+		{
+			name:     "whoami failure is propagated",
+			res:      failed("", "boom", errors.New("exit status 1")),
+			wantErrs: []string{"boom"},
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			a := New(fakeRunner{results: map[string]execx.CmdResult{"railway whoami --json": tt.res}})
+			ok, _, errs, err := a.Configured(context.Background())
+			checkErr(t, err, tt.wantErr, nil, "")
+			if ok != tt.want {
+				t.Fatalf("ok = %v, want %v", ok, tt.want)
+			}
+			if !reflect.DeepEqual(errs, tt.wantErrs) {
+				t.Fatalf("errs = %#v, want %#v", errs, tt.wantErrs)
+			}
+		})
+	}
+}
+
+func TestCurrentOutcomes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		res          execx.CmdResult
+		want         map[string]string
+		wantWarnings []string
+		wantErrs     []string
+		wantErr      bool
+	}{
+		{
+			name:     "whoami failure returns no context",
+			res:      failed("", "boom", errors.New("exit status 1")),
+			wantErrs: []string{"boom"},
+			wantErr:  true,
+		},
+		{
+			name: "not logged in returns no context",
+			res:  failed("", "Unauthorized", errors.New("exit status 1")),
+		},
+		{
+			name: "blank email returns no context",
+			res:  execx.CmdResult{Stdout: `{"email":" ","workspaces":[]}`},
+		},
+		{
+			name: "single workspace becomes current workspace",
+			res:  execx.CmdResult{Stdout: `{"email":"cdd2zju@gmail.com","workspaces":[{"id":"ws_1","name":"Team A"}]}`},
+			want: map[string]string{"email": "cdd2zju@gmail.com", "workspaces_count": "1", "workspace": "Team A"},
+		},
+		{
+			name: "no name and no workspaces",
+			res:  execx.CmdResult{Stdout: `{"email":"cdd2zju@gmail.com","workspaces":[]}`},
+			want: map[string]string{"email": "cdd2zju@gmail.com", "workspaces_count": "0"},
+		},
+		{
+			name: "workspace with blank name is not reported",
+			res:  execx.CmdResult{Stdout: `{"email":"cdd2zju@gmail.com","workspaces":[{"id":"ws_1","name":" "}]}`},
+			want: map[string]string{"email": "cdd2zju@gmail.com", "workspaces_count": "1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			a := New(fakeRunner{results: map[string]execx.CmdResult{"railway whoami --json": tt.res}})
+			cur, warnings, errs, err := a.Current(context.Background())
+			checkErr(t, err, tt.wantErr, nil, "")
+			if !reflect.DeepEqual(cur, tt.want) {
+				t.Fatalf("current = %#v, want %#v", cur, tt.want)
+			}
+			if !reflect.DeepEqual(warnings, tt.wantWarnings) {
+				t.Fatalf("warnings = %#v, want %#v", warnings, tt.wantWarnings)
+			}
+			if !reflect.DeepEqual(errs, tt.wantErrs) {
+				t.Fatalf("errs = %#v, want %#v", errs, tt.wantErrs)
+			}
+		})
 	}
 }
 

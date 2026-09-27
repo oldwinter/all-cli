@@ -30,6 +30,7 @@ func newDiagnoseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Long: `Generates structured diagnostics from the same tool evaluation used by status.
 Diagnostics include severity, evidence, suggested actions, autofix safety, and related tool IDs.
 Defaults to the agent profile. For a human-readable health-check table, see 'all-cli doctor'.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
@@ -67,6 +68,7 @@ a 10 minute timeout. Rerun doctor afterwards to confirm the new state.`,
 		Example: `  all-cli doctor
   all-cli doctor --fix --dry-run
   all-cli doctor --fix --tools gh,kubectl --installer brew`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if !fix && (fixOpts.DryRun || cmd.Flags().Changed("installer")) {
 				return fmt.Errorf("--dry-run and --installer require --fix")
@@ -120,6 +122,7 @@ func newFixCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Short: "Preview safe diagnostic fixes",
 		Long: `Builds a fix plan from diagnostics. The first implementation is dry-run only:
 it does not run commands or mutate global CLI configuration.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if !dryRun {
 				return fmt.Errorf("fix currently requires --dry-run (example: all-cli fix --dry-run)")
@@ -156,6 +159,7 @@ human-readable table that diff cannot parse.`,
   all-cli snapshot --json > after.json
   all-cli diff before.json after.json
   all-cli snapshot --json | all-cli diff before.json -`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildStatusReport(cmd.Context(), runner, opts.Timeout, toolsFilter)
 			if err != nil {
@@ -361,6 +365,9 @@ func readStatusSnapshot(path string, stdin io.Reader) (model.StatusReport, error
 	}
 	if strings.TrimSpace(report.SchemaVersion) == "" {
 		return model.StatusReport{}, fmt.Errorf("parse snapshot %s: missing schema_version", source)
+	}
+	if report.SchemaVersion != model.SchemaVersionV01 {
+		return model.StatusReport{}, fmt.Errorf("parse snapshot %s: unsupported schema_version %q (expected %q)", source, report.SchemaVersion, model.SchemaVersionV01)
 	}
 	return report, nil
 }

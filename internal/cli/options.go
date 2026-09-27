@@ -22,6 +22,7 @@ func newOptionsCommand(opts *rootOptions) *cobra.Command {
 Use --json for a machine-readable object.`,
 		Example: `  all-cli options
   all-cli options --json`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			noProgress := opts.NoProgress || allCliNoProgressEnvSet()
 			if opts.JSON {

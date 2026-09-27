@@ -310,6 +310,47 @@ func TestDiffCommandRejectsOversizedStdinSnapshot(t *testing.T) {
 	}
 }
 
+func TestDiffCommandValidatesSnapshotSchemaVersion(t *testing.T) {
+	validPath := writeStatusReportFixture(t, t.TempDir(), "valid.json", model.NewStatusReport(0))
+
+	for _, tt := range []struct {
+		name    string
+		body    string
+		wantErr string
+	}{
+		{"empty tools snapshot", `{"schema_version":"v0.1","tools":[]}`, ""},
+		{"unknown version", `{"schema_version":"v9.9","tools":[]}`, "unsupported schema_version"},
+		{"diagnostic report", `{"schema_version":"diagnostic-v0.1","tools":[],"diagnostics":[]}`, "unsupported schema_version"},
+		{"snapshot diff report", `{"schema_version":"snapshot-diff-v0.1","changes":[]}`, "unsupported schema_version"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "snapshot.json")
+			if err := os.WriteFile(path, []byte(tt.body), 0o600); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+
+			opts := &rootOptions{JSON: true, Timeout: time.Second}
+			stdout, _, err := executeTestCommand(t, newDiffCommand(opts), validPath, path)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) || stdout != "" {
+					t.Fatalf("stdout=%q err=%v, want empty stdout and error containing %q", stdout, err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("diff: %v", err)
+			}
+			var got model.SnapshotDiffReport
+			if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+				t.Fatalf("decode diff: %v", err)
+			}
+			if len(got.Changes) != 0 {
+				t.Fatalf("unexpected diff report: %#v", got)
+			}
+		})
+	}
+}
+
 func writeStatusReportFixture(t *testing.T, dir, name string, report model.StatusReport) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
