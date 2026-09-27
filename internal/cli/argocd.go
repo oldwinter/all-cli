@@ -50,8 +50,8 @@ func newArgoCDCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
-					"warnings": warnings,
-					"errors":   errs,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 			for _, w := range warnings {
@@ -100,8 +100,8 @@ func newArgoCDListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  current,
 					"contexts": contexts,
-					"warnings": warnings,
-					"errors":   errs,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 

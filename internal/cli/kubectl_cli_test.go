@@ -110,13 +110,18 @@ func TestKubectlCurrentJSON(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	var got struct {
-		Current map[string]string `json:"current"`
+		Current  map[string]string `json:"current"`
+		Warnings []string          `json:"warnings"`
+		Errors   []string          `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
 	}
 	if got.Current["context"] != "prod" || got.Current["namespace"] != "payments" {
 		t.Fatalf("unexpected current: %#v", got.Current)
+	}
+	if got.Warnings == nil || got.Errors == nil {
+		t.Fatalf("expected warnings/errors to be arrays, got %#v", got)
 	}
 }
 
@@ -190,14 +195,18 @@ func TestKubectlCurrentJSONError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var got struct {
-		Current map[string]string `json:"current"`
-		Errors  []string          `json:"errors"`
+		Current  map[string]string `json:"current"`
+		Warnings []string          `json:"warnings"`
+		Errors   []string          `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
 	}
 	if got.Current["namespace"] != "payments" || len(got.Errors) != 1 {
 		t.Fatalf("unexpected payload: %#v", got)
+	}
+	if got.Warnings == nil {
+		t.Fatalf("expected warnings array, got %#v", got)
 	}
 }
 
@@ -281,6 +290,8 @@ func TestKubectlListJSON(t *testing.T) {
 	var got struct {
 		Current  map[string]string `json:"current"`
 		Contexts []map[string]any  `json:"contexts"`
+		Warnings []string          `json:"warnings"`
+		Errors   []string          `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
@@ -290,6 +301,9 @@ func TestKubectlListJSON(t *testing.T) {
 	}
 	if got.Contexts[0]["name"] != "prod" || got.Contexts[0]["namespace"] != "payments" || got.Contexts[0]["is_current"] != true {
 		t.Fatalf("unexpected current context item: %#v", got.Contexts[0])
+	}
+	if got.Warnings == nil || got.Errors == nil {
+		t.Fatalf("expected warnings/errors to be arrays, got %#v", got)
 	}
 }
 

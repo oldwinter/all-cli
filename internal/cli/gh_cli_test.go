@@ -110,13 +110,18 @@ func TestGHCurrentJSON(t *testing.T) {
 	}
 
 	var got struct {
-		Current map[string]string `json:"current"`
+		Current  map[string]string `json:"current"`
+		Warnings []string          `json:"warnings"`
+		Errors   []string          `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
 	}
 	if got.Current["hostname"] != "github.com" || got.Current["user"] != "oldwinter" {
 		t.Fatalf("unexpected current: %#v", got.Current)
+	}
+	if got.Warnings == nil || got.Errors == nil {
+		t.Fatalf("expected warnings/errors to be arrays, got %#v", got)
 	}
 }
 

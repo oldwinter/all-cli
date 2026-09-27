@@ -43,15 +43,15 @@ func newKargoCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := kargo.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, _, errs, err := a.Current(ctx)
+			cur, warnings, errs, err := a.Current(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
-					"warnings": []string(nil),
-					"errors":   errs,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 			for _, e := range errs {
