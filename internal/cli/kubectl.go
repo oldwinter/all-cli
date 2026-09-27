@@ -45,12 +45,12 @@ func newKubectlCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Com
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, _, errs, _ := a.Current(ctx)
+			cur, warnings, errs, _ := a.Current(ctx)
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
-					"warnings": []string(nil),
-					"errors":   errs,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 			for _, e := range errs {
@@ -82,7 +82,7 @@ func newKubectlListCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 			ctx := cmd.Context()
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
 
-			contexts, _, errs, err := a.ListContexts(ctx)
+			contexts, warnings, errs, err := a.ListContexts(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
@@ -105,8 +105,8 @@ func newKubectlListCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"contexts": items,
-					"warnings": []string(nil),
-					"errors":   errs,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 			for _, e := range errs {

@@ -38,8 +38,8 @@ func newGLabStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
-					"warnings": warnings,
-					"errors":   errs,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 
@@ -87,8 +87,8 @@ func newGLabListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"instances": lst.Instances,
-					"warnings":  warnings,
-					"errors":    errs,
+					"warnings":  dedupeMessages(warnings),
+					"errors":    dedupeMessages(errs),
 				})
 			}
 
