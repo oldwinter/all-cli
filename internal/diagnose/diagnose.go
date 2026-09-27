@@ -2,7 +2,9 @@ package diagnose
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -412,13 +414,13 @@ func changedFields(before, after model.ToolSummary) []string {
 	if !reflect.DeepEqual(before.Capabilities, after.Capabilities) {
 		fields = append(fields, "capabilities")
 	}
-	if !reflect.DeepEqual(before.Current, after.Current) {
+	if !maps.Equal(before.Current, after.Current) {
 		fields = append(fields, "current")
 	}
-	if !reflect.DeepEqual(before.Warnings, after.Warnings) {
+	if !slices.Equal(before.Warnings, after.Warnings) {
 		fields = append(fields, "warnings")
 	}
-	if !reflect.DeepEqual(before.Errors, after.Errors) {
+	if !slices.Equal(before.Errors, after.Errors) {
 		fields = append(fields, "errors")
 	}
 	return fields

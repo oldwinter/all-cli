@@ -27,6 +27,7 @@ func newAliyunStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show Aliyun CLI status and current context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSingleToolStatusCommand(cmd, opts, runner, "aliyun")
 		},
@@ -37,6 +38,7 @@ func newAliyunCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current Aliyun profile and fields",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolaliyun.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -73,6 +75,7 @@ func newAliyunListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List Aliyun CLI profiles",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolaliyun.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
