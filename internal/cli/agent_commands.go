@@ -52,7 +52,7 @@ func newDoctorCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
 	var profile string
 	var fix bool
-	var fixOpts doctorFixOptions
+	var fixOpts diag.DoctorFixOptions
 
 	cmd := &cobra.Command{
 		Use:   "doctor",
@@ -71,7 +71,7 @@ a 10 minute timeout. Rerun doctor afterwards to confirm the new state.`,
 			if !fix && (fixOpts.DryRun || cmd.Flags().Changed("installer")) {
 				return fmt.Errorf("--dry-run and --installer require --fix")
 			}
-			installer, err := normalizeDoctorInstaller(fixOpts.Installer)
+			installer, err := diag.NormalizeDoctorInstaller(fixOpts.Installer)
 			if err != nil {
 				return err
 			}
@@ -88,7 +88,7 @@ a 10 minute timeout. Rerun doctor afterwards to confirm the new state.`,
 				return nil
 			}
 			installRunner := execx.TimeoutRunner{Runner: runner, Timeout: doctorInstallTimeout}
-			fixes := runDoctorFixes(cmd.Context(), installRunner, report, fixOpts)
+			fixes := diag.RunDoctorFixes(cmd.Context(), installRunner, report, fixOpts, doctorLookPath)
 			if opts.JSON {
 				fixReport := model.DoctorFixReport{SchemaVersion: model.DoctorFixSchemaVersionV01, Report: report, Fixes: fixes}
 				if err := output.PrintJSON(cmd.OutOrStdout(), fixReport); err != nil {
@@ -106,7 +106,7 @@ a 10 minute timeout. Rerun doctor afterwards to confirm the new state.`,
 	cmd.Flags().StringVar(&profile, "profile", diag.ProfileHuman, "Output profile: agent|human|ci")
 	cmd.Flags().BoolVar(&fix, "fix", false, "Install missing tools that have a supported installer")
 	cmd.Flags().BoolVar(&fixOpts.DryRun, "dry-run", false, "With --fix, preview install commands without running them")
-	cmd.Flags().StringVar(&fixOpts.Installer, "installer", doctorInstallerAuto, "With --fix, installer to use: auto|brew|npm|pipx|go")
+	cmd.Flags().StringVar(&fixOpts.Installer, "installer", diag.DoctorInstallerAuto, "With --fix, installer to use: auto|brew|npm|pipx|go")
 	return cmd
 }
 

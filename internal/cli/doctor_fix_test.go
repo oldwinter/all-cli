@@ -80,18 +80,20 @@ func TestDoctorFixJSON(t *testing.T) {
 	linearSkipped := model.DoctorFixItem{ToolID: "linear", Status: model.DoctorFixSkipped, Reason: "no supported automatic installer for this tool"}
 
 	tests := []struct {
-		name       string
-		args       []string
-		installers []string
-		results    map[string]execx.CmdResult
-		wantCalls  []string
-		wantItems  []model.DoctorFixItem
-		wantErr    string
+		name        string
+		args        []string
+		installers  []string
+		results     map[string]execx.CmdResult
+		wantCalls   []string
+		wantItems   []model.DoctorFixItem
+		wantSummary model.DoctorFixSummary
+		wantErr     string
 	}{
 		{
-			name:       "dry run previews without running",
-			args:       []string{"--fix", "--dry-run"},
-			installers: []string{"brew", "npm"},
+			name:        "dry run previews without running",
+			wantSummary: model.DoctorFixSummary{Total: 3, Supported: 2, DryRun: 2, Skipped: 1},
+			args:        []string{"--fix", "--dry-run"},
+			installers:  []string{"brew", "npm"},
 			wantItems: []model.DoctorFixItem{
 				{ToolID: "codex", Installer: "npm", Command: npmCodex, Supported: true, Status: model.DoctorFixDryRun},
 				{ToolID: "gh", Installer: "brew", Command: brewGH, Supported: true, Status: model.DoctorFixDryRun},
@@ -99,18 +101,20 @@ func TestDoctorFixJSON(t *testing.T) {
 			},
 		},
 		{
-			name:       "tools filter scopes fixes",
-			args:       []string{"--fix", "--tools", "gh"},
-			installers: []string{"brew", "npm"},
-			wantCalls:  []string{"brew install gh"},
+			name:        "tools filter scopes fixes",
+			wantSummary: model.DoctorFixSummary{Total: 1, Supported: 1, Installed: 1},
+			args:        []string{"--fix", "--tools", "gh"},
+			installers:  []string{"brew", "npm"},
+			wantCalls:   []string{"brew install gh"},
 			wantItems: []model.DoctorFixItem{
 				{ToolID: "gh", Installer: "brew", Command: brewGH, Supported: true, Status: model.DoctorFixInstalled},
 			},
 		},
 		{
-			name:       "failed install reports error",
-			args:       []string{"--fix", "--tools", "gh,codex"},
-			installers: []string{"brew", "npm"},
+			name:        "failed install reports error",
+			wantSummary: model.DoctorFixSummary{Total: 2, Supported: 2, Installed: 1, Failed: 1},
+			args:        []string{"--fix", "--tools", "gh,codex"},
+			installers:  []string{"brew", "npm"},
 			results: map[string]execx.CmdResult{
 				"npm install -g @openai/codex": {ExitCode: 243, Err: errors.New("exit status 243"), Stderr: "npm ERR! code EACCES\n"},
 			},
@@ -122,25 +126,28 @@ func TestDoctorFixJSON(t *testing.T) {
 			wantErr: "1 install command(s) failed",
 		},
 		{
-			name:       "installer unsupported for tool",
-			args:       []string{"--fix", "--installer", "pipx", "--tools", "gh"},
-			installers: []string{"brew", "pipx"},
+			name:        "installer unsupported for tool",
+			wantSummary: model.DoctorFixSummary{Total: 1, Skipped: 1},
+			args:        []string{"--fix", "--installer", "pipx", "--tools", "gh"},
+			installers:  []string{"brew", "pipx"},
 			wantItems: []model.DoctorFixItem{
 				{ToolID: "gh", Status: model.DoctorFixSkipped, Reason: "pipx installer is not supported for this tool"},
 			},
 		},
 		{
-			name:       "explicit installer missing from PATH",
-			args:       []string{"--fix", "--installer", "brew", "--tools", "gh"},
-			installers: []string{"npm"},
+			name:        "explicit installer missing from PATH",
+			wantSummary: model.DoctorFixSummary{Total: 1, Supported: 1, Skipped: 1},
+			args:        []string{"--fix", "--installer", "brew", "--tools", "gh"},
+			installers:  []string{"npm"},
 			wantItems: []model.DoctorFixItem{
 				{ToolID: "gh", Installer: "brew", Command: brewGH, Supported: true, Status: model.DoctorFixSkipped, Reason: "installer brew was not found in PATH"},
 			},
 		},
 		{
-			name:       "auto falls back to next installer in PATH",
-			args:       []string{"--fix", "--dry-run", "--tools", "gh,codex"},
-			installers: []string{"npm"},
+			name:        "auto falls back to next installer in PATH",
+			wantSummary: model.DoctorFixSummary{Total: 2, Supported: 2, DryRun: 1, Skipped: 1},
+			args:        []string{"--fix", "--dry-run", "--tools", "gh,codex"},
+			installers:  []string{"npm"},
 			wantItems: []model.DoctorFixItem{
 				{ToolID: "codex", Installer: "npm", Command: npmCodex, Supported: true, Status: model.DoctorFixDryRun},
 				{ToolID: "gh", Installer: "brew", Command: brewGH, Supported: true, Status: model.DoctorFixSkipped, Reason: "no supported installer found in PATH (tried: brew)"},
@@ -175,7 +182,7 @@ func TestDoctorFixJSON(t *testing.T) {
 			if !reflect.DeepEqual(got.Fixes.Items, tt.wantItems) {
 				t.Fatalf("items = %#v\nwant %#v", got.Fixes.Items, tt.wantItems)
 			}
-			if got.Fixes.Summary != summarizeDoctorFixes(tt.wantItems) {
+			if got.Fixes.Summary != tt.wantSummary {
 				t.Fatalf("summary = %#v", got.Fixes.Summary)
 			}
 			if !reflect.DeepEqual(runner.calls, tt.wantCalls) {
@@ -246,24 +253,5 @@ func TestDoctorWithoutFixKeepsDiagnosticReport(t *testing.T) {
 	}
 	if got.SchemaVersion != model.DiagnosticSchemaVersionV01 || len(runner.calls) != 0 {
 		t.Fatalf("expected read-only diagnostic report, got schema=%q calls=%q", got.SchemaVersion, runner.calls)
-	}
-}
-
-func TestDoctorCommandFailureFallsBackToStdoutAndExitCode(t *testing.T) {
-	tests := []struct {
-		name string
-		res  execx.CmdResult
-		want string
-	}{
-		{name: "stdout", res: execx.CmdResult{ExitCode: 1, Stdout: "  Error:\n  formula not found  "}, want: "Error: formula not found"},
-		{name: "exit code", res: execx.CmdResult{ExitCode: 7}, want: "command exited with code 7"},
-		{name: "truncated", res: execx.CmdResult{ExitCode: 1, Stderr: strings.Repeat("x", 300)}, want: strings.Repeat("x", 237) + "..."},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := doctorCommandFailure(tt.res); got != tt.want {
-				t.Fatalf("doctorCommandFailure() = %q, want %q", got, tt.want)
-			}
-		})
 	}
 }
