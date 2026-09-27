@@ -30,6 +30,7 @@ func newKubectlStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show kubectl status and current context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSingleToolStatusCommand(cmd, opts, runner, "kubectl")
 		},
@@ -40,6 +41,7 @@ func newKubectlCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Com
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current kubectl context and namespace",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -75,6 +77,7 @@ func newKubectlListCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List kubeconfig contexts",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

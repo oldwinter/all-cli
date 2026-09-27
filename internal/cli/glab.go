@@ -29,6 +29,7 @@ func newGLabStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show effective and global glab host context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -74,6 +75,7 @@ func newGLabListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List all configured glab instances",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

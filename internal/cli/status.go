@@ -54,6 +54,7 @@ When not using --json, a progress indicator may be shown on stderr while tools a
   all-cli status --categories ai,cloud
   all-cli status --categories ai --missing-only
   all-cli status --installed-only --quiet`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			groupByValue, err := parseStatusGroupBy(groupBy)
 			if err != nil {

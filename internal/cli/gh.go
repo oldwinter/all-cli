@@ -35,6 +35,7 @@ func newGHStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show gh auth status (hosts and accounts)",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := gh.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -88,6 +89,7 @@ func newGHCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show the selected primary gh host/user",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := gh.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -131,6 +133,7 @@ func newGHUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Short: "Switch the active gh account for a host",
 		Example: `  all-cli gh list
   all-cli gh use --hostname github.com --user <login>`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := gh.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

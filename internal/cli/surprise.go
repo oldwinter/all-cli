@@ -22,6 +22,7 @@ func newSurpriseCommand() *cobra.Command {
 		Use:    "surprise",
 		Hidden: true,
 		Short:  "A small thank-you for curious users",
+		Args:   cobra.NoArgs,
 		Run: func(cmd *cobra.Command, _ []string) {
 			out := cmd.OutOrStdout()
 			recommendation := dailySurpriseRecommendation(time.Now())

@@ -28,6 +28,7 @@ func newArgoCDStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show argocd status and current context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSingleToolStatusCommand(cmd, opts, runner, "argocd")
 		},
@@ -38,6 +39,7 @@ func newArgoCDCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current argocd context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := argocd.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -73,6 +75,7 @@ func newArgoCDListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List argocd contexts",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := argocd.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
