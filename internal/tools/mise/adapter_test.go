@@ -132,7 +132,7 @@ func TestParseMiseCurrentWarnsOnShortLine(t *testing.T) {
 	}
 
 	cur, warnings, errs, err = parseMiseCurrent("")
-	if err != nil || len(cur) != 0 || len(warnings) != 0 {
-		t.Fatalf("empty stdout: cur=%#v warnings=%#v err=%v", cur, warnings, err)
+	if err != nil || len(cur) != 0 || len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("empty stdout: cur=%#v warnings=%#v errs=%v err=%v", cur, warnings, errs, err)
 	}
 }
