@@ -234,3 +234,16 @@ func TestSortToolsForTableSecondaryTieBreaks(t *testing.T) {
 		}
 	}
 }
+
+func TestCollectToolMessagesSkipsBlank(t *testing.T) {
+	tools := []model.ToolSummary{{ID: "gh"}, {ID: "aws"}}
+	got := collectToolMessages(tools, func(t model.ToolSummary) []string {
+		if t.ID == "gh" {
+			return []string{"  ", "real warning"}
+		}
+		return nil
+	})
+	if len(got) != 1 || got[0] != "gh: real warning" {
+		t.Fatalf("collectToolMessages = %v", got)
+	}
+}

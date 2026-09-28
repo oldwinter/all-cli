@@ -1045,3 +1045,81 @@ func TestReverifyFailureDropsVerifiedMetadata(t *testing.T) {
 		t.Fatalf("state=%s verified=%+v, want failed without verified metadata", item.State, item.Verified)
 	}
 }
+
+// TestBlockDeliveredItemFails covers the transition-error path: delivered is
+// terminal, so blocking it must fail without mutating the item.
+func TestBlockDeliveredItemFails(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-036")
+	for _, args := range [][]string{{"claim", "WI-036"}, {"verify", "WI-036"}, {"deliver", "WI-036"}} {
+		if _, _, err := run(t, opts, args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	if _, _, err := run(t, opts, "block", "WI-036", "--reason", "late"); err == nil {
+		t.Fatal("block on delivered item should fail")
+	}
+	item, _ := opts.store().Load("WI-036")
+	if item.State != StateDelivered {
+		t.Fatalf("state = %s, want delivered", item.State)
+	}
+}
+
+func TestBlockDryRunAndSaveError(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-036")
+
+	stdout, _, err := run(t, opts, "block", "WI-036", "--reason", "preview", "--dry-run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, "dry-run: would block") {
+		t.Fatalf("dry-run output = %q", stdout)
+	}
+	item, _ := opts.store().Load("WI-036")
+	if item.State != StateQueued {
+		t.Fatalf("dry-run mutated state to %s", item.State)
+	}
+
+	makeBacklogReadonly(t, dir)
+	if _, _, err := run(t, opts, "block", "WI-036", "--reason", "x"); err == nil {
+		t.Fatal("block should fail when save fails")
+	}
+}
+
+func TestUnblockAndEvidenceSaveErrors(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-036")
+	if _, _, err := run(t, opts, "block", "WI-036", "--reason", "park"); err != nil {
+		t.Fatal(err)
+	}
+	makeBacklogReadonly(t, dir)
+	if _, _, err := run(t, opts, "unblock", "WI-036"); err == nil {
+		t.Fatal("unblock should fail when save fails")
+	}
+	if _, _, err := run(t, opts, "evidence", "WI-036", "--note", "x"); err == nil {
+		t.Fatal("evidence should fail when save fails")
+	}
+}
+
+func TestStatusListErrorPropagates(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	blocker := filepath.Join(dir, ".factory", "backlog")
+	if err := os.MkdirAll(filepath.Dir(blocker), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "status"); err == nil {
+		t.Fatal("status should fail when the backlog dir is not listable")
+	}
+}
+
+func TestValidateCommandPropagatesFailure(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	// No schema file under the temp root -> ValidateBacklog fails.
+	if _, _, err := run(t, opts, "validate"); err == nil {
+		t.Fatal("validate should fail without a schema")
+	}
+}
