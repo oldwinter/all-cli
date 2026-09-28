@@ -412,3 +412,111 @@ func containsUnknownJSON(groups ...[]string) bool {
 	}
 	return false
 }
+
+func TestStatusFromTextGenericErrorIsSanitized(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {
+			ExitCode: 1,
+			Err:      errors.New("exit status 1"),
+			Stderr:   "segmentation fault",
+		},
+	}})
+
+	_, _, errs, err := a.statusFromText(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "gh auth status failed") {
+		t.Fatalf("err = %v, want gh auth status failure", err)
+	}
+	if len(errs) != 1 || errs[0] != "segmentation fault" {
+		t.Fatalf("errs = %#v", errs)
+	}
+}
+
+func TestStatusFromTextHostsWithoutSuccess(t *testing.T) {
+	text := "github.com\n  X Failed to log in to github.com account bob (token)\n"
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {ExitCode: 1, Err: errors.New("exit status 1"), Stderr: text},
+	}})
+
+	st, warnings, errs, err := a.statusFromText(context.Background())
+	if err != nil || len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("st=%+v warnings=%v errs=%v err=%v", st, warnings, errs, err)
+	}
+	if len(st.Hosts) != 1 || st.Hosts[0].Accounts[0].State != "error" {
+		t.Fatalf("unexpected status: %#v", st)
+	}
+}
+
+func TestStatusFromTextFallthroughTreatsEmptyAsUnauthenticated(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {Stdout: "no hosts here"},
+	}})
+
+	st, warnings, errs, err := a.statusFromText(context.Background())
+	if err != nil || len(errs) != 0 {
+		t.Fatalf("err=%v errs=%v", err, errs)
+	}
+	if len(st.Hosts) != 0 || len(warnings) != 1 || !strings.Contains(warnings[0], "unauthenticated") {
+		t.Fatalf("st=%+v warnings=%v", st, warnings)
+	}
+}
+
+func TestSanitizeGHAuthError(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"unknown option: --json", unsupportedJSONMessage},
+		{"flag provided but not defined: --json", unsupportedJSONMessage},
+		{"some crash\nUsage: gh auth login", "some crash"},
+		{"  plain error  ", "plain error"},
+	}
+	for _, tc := range cases {
+		if got := sanitizeGHAuthError(tc.in); got != tc.want {
+			t.Fatalf("sanitizeGHAuthError(%q)=%q want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestFirstToken(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"", ""},
+		{"  ", ""},
+		{"bob", "bob"},
+		{"bob extra", "bob"},
+		{"bob (token)", "bob"},
+	}
+	for _, tc := range cases {
+		if got := firstToken(tc.in); got != tc.want {
+			t.Fatalf("firstToken(%q)=%q want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestStatusFromTextFallbackOnJSONUnsupported(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {
+			ExitCode: 1,
+			Err:      errors.New("exit status 1"),
+			Stderr:   "unknown flag: --json",
+		},
+	}})
+
+	_, _, errs, err := a.statusFromText(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "gh auth status failed") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(errs) != 1 || errs[0] != unsupportedJSONMessage {
+		t.Fatalf("errs = %#v, want sanitized unsupported message", errs)
+	}
+}
+
+func TestStatusFromTextContextErrorPropagates(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {ExitCode: -1, Err: context.DeadlineExceeded},
+	}})
+
+	_, _, errs, err := a.statusFromText(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "gh auth status failed") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(errs) != 1 || errs[0] == "" {
+		t.Fatalf("errs = %#v", errs)
+	}
+}

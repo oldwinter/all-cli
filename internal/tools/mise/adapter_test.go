@@ -90,3 +90,31 @@ func TestAdapterCurrent_Failure(t *testing.T) {
 		t.Fatalf("unexpected errs: %#v", errs)
 	}
 }
+
+func TestAdapterCurrent_Success(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"mise current": {Stdout: "go 1.26.1\nnode 25.8.1\n"},
+	}})
+
+	cur, warnings, errs, err := a.Current(context.Background())
+	if err != nil || len(errs) != 0 || len(warnings) != 0 {
+		t.Fatalf("cur=%v warnings=%v errs=%v err=%v", cur, warnings, errs, err)
+	}
+	if cur["go"] != "1.26.1" || cur["node"] != "25.8.1" {
+		t.Fatalf("unexpected current: %#v", cur)
+	}
+}
+
+func TestAdapterCurrent_EmptyStderrUsesRunnerError(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"mise current": {ExitCode: 2, Err: errors.New("spawn failed")},
+	}})
+
+	_, _, errs, err := a.Current(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "mise current failed") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(errs) != 1 || errs[0] != "spawn failed" {
+		t.Fatalf("errs = %#v", errs)
+	}
+}
