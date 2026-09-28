@@ -1,0 +1,64 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-053",
+  "title": "E2e covers committed HEAD-move delivery rejection",
+  "kind": "test",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "e2e asserts deliver rejects when HEAD moved after verify (committed drift), then recovers"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -run TestEndToEnd -count=1"
+  ],
+  "branch": "factory/wi-053-e2e-covers-committed-head-move-delivery-rejection",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:40:48Z",
+    "head": "98ed0cb",
+    "fingerprint": "57b55e927e927e549916e00a5b886a5c89ffa999990771220a60a30ccb3141ee"
+  },
+  "created_at": "2026-09-28T21:40:10Z",
+  "updated_at": "2026-09-28T21:40:51Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:40:10Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "98ed0cb"
+    },
+    {
+      "ts": "2026-09-28T21:40:48Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -run TestEndToEnd -count=1",
+      "note": "pass",
+      "head": "98ed0cb",
+      "log": ".factory/run/WI-053/20260928T214046.762956000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:40:48Z",
+      "event": "verify-pass",
+      "head": "98ed0cb"
+    },
+    {
+      "ts": "2026-09-28T21:40:51Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -run TestEndToEnd -count=1",
+      "note": "pass",
+      "head": "98ed0cb",
+      "log": ".factory/run/WI-053/20260928T214049.080368000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:40:51Z",
+      "event": "deliver",
+      "note": "e2e-head-move-leg",
+      "head": "98ed0cb"
+    }
+  ]
+}

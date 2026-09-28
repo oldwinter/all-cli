@@ -39,6 +39,19 @@ func TestEndToEndStaleDelivery(t *testing.T) {
 	fx.commit(t, "fix")
 	fx.factory(t, "retry", "WI-900")
 	fx.factory(t, "verify", "WI-900")
+
+	// Committed drift: a new commit after verify moves HEAD; deliver must
+	// refuse and demote even though the tree is clean and the check still
+	// passes — the rejection is bound to the commit, not the content.
+	fx.writeSource(t, "pass but moved\n")
+	fx.commit(t, "move-head")
+	if out, err := fx.run("deliver", "WI-900"); err == nil {
+		t.Fatalf("deliver accepted moved HEAD: %s", out)
+	}
+	fx.wantState(t, "in_progress")
+
+	// Re-verify at the new HEAD passes and delivery succeeds.
+	fx.factory(t, "verify", "WI-900")
 	fx.factory(t, "deliver", "WI-900")
 	fx.wantState(t, "delivered")
 
