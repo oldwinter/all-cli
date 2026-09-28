@@ -1123,3 +1123,28 @@ func TestValidateCommandPropagatesFailure(t *testing.T) {
 		t.Fatal("validate should fail without a schema")
 	}
 }
+
+// TestClaimVerifiedItemRefused pins WI-040: verified -> in_progress exists for
+// stale-verify rollback only; a plain claim must not silently demote.
+func TestClaimVerifiedItemRefused(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-040")
+	for _, args := range [][]string{{"claim", "WI-040"}, {"verify", "WI-040"}} {
+		if _, _, err := run(t, opts, args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	_, _, err := run(t, opts, "claim", "WI-040")
+	if err == nil || !strings.Contains(err.Error(), "is verified") {
+		t.Fatalf("claim verified err = %v", err)
+	}
+	item, _ := opts.store().Load("WI-040")
+	if item.State != StateVerified || item.Verified == nil {
+		t.Fatalf("state=%s verified=%+v after refused claim", item.State, item.Verified)
+	}
+	// And the sibling path stays correct: queued claims still work.
+	intakeOK(t, opts, "WI-041")
+	if _, _, err := run(t, opts, "claim", "WI-041"); err != nil {
+		t.Fatalf("claim queued: %v", err)
+	}
+}

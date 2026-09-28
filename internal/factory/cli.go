@@ -325,6 +325,11 @@ func claimItem(opts *options, id string, w io.Writer, retry bool) error {
 		fmt.Fprintf(w, "%s already in_progress (attempts=%d)\n", id, item.Attempts)
 		return nil
 	}
+	if !retry && item.State == StateVerified {
+		// verified -> in_progress exists for stale-verify rollbacks only; a
+		// plain claim must not silently discard the verification record.
+		return fmt.Errorf("item %s is verified; use 'factory verify %s' to re-verify or 'factory deliver %s' to deliver", id, id, id)
+	}
 	if err := item.Transition(StateInProgress, opts.now()); err != nil {
 		return err
 	}
