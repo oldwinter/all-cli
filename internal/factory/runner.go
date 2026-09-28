@@ -60,7 +60,7 @@ func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''
 // RunChecks executes each check from the item's root directory. It stops at
 // the first failing check and returns the results produced so far.
 func (r Runner) RunChecks(ctx context.Context, item *WorkItem) ([]CheckResult, error) {
-	stamp := r.Now().UTC().Format("20060102T150405Z")
+	stamp := r.Now().UTC().Format("20060102T150405.000000000Z")
 	logDir := filepath.Join(r.RunDir, item.ID)
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create run dir %s: %w", logDir, err)
@@ -68,7 +68,7 @@ func (r Runner) RunChecks(ctx context.Context, item *WorkItem) ([]CheckResult, e
 	var results []CheckResult
 	for i, check := range item.Checks {
 		logName := fmt.Sprintf("%s-check-%d.log", stamp, i)
-		logPath := filepath.Join(logDir, logName)
+		logPath := uniqueLogPath(logDir, logName)
 		wrapped := "cd " + shellQuote(r.Root) + " && " + check
 		res := r.Exec.Run(ctx, "sh", "-c", wrapped)
 		result := CheckResult{Command: check, ExitCode: res.ExitCode, Err: res.Err}
@@ -97,4 +97,18 @@ func (r Runner) RunChecks(ctx context.Context, item *WorkItem) ([]CheckResult, e
 		}
 	}
 	return results, nil
+}
+
+// uniqueLogPath returns dir/name, or dir/name-N for the first free N, so two
+// runs sharing a timestamp can never overwrite an earlier log the evidence
+// already points at.
+func uniqueLogPath(dir, name string) string {
+	path := filepath.Join(dir, name)
+	for n := 1; ; n++ {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			return path
+		}
+		ext := filepath.Ext(name)
+		path = filepath.Join(dir, fmt.Sprintf("%s-%d%s", strings.TrimSuffix(name, ext), n, ext))
+	}
 }

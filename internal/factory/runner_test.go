@@ -184,3 +184,44 @@ func TestShellQuote(t *testing.T) {
 		t.Fatalf("shellQuote = %q", got)
 	}
 }
+
+// TestRunChecksLogPathsUniqueAcrossRuns pins WI-034: with a frozen clock two
+// runs get identical stamps; the second run must pick a suffixed name instead
+// of overwriting the log the first run's evidence recorded.
+func TestRunChecksLogPathsUniqueAcrossRuns(t *testing.T) {
+	exec := &fakeExec{def: execx.CmdResult{Stdout: "first run"}}
+	runner, dir := testRunner(t, exec)
+	item := validItem()
+	item.Checks = []string{"echo first"}
+
+	first, err := runner.RunChecks(context.Background(), item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exec.def = execx.CmdResult{Stdout: "second run"}
+	second, err := runner.RunChecks(context.Background(), item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first[0].Log == second[0].Log {
+		t.Fatalf("colliding log path %q across runs", first[0].Log)
+	}
+	got := map[string]string{}
+	for _, res := range [][]CheckResult{first, second} {
+		data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(res[0].Log)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got[res[0].Log] = string(data)
+	}
+	for _, res := range first {
+		if !strings.Contains(got[res.Log], "first run") {
+			t.Fatalf("first run log %q clobbered: %q", res.Log, got[res.Log])
+		}
+	}
+	for _, res := range second {
+		if !strings.Contains(got[res.Log], "second run") {
+			t.Fatalf("second run log %q missing: %q", res.Log, got[res.Log])
+		}
+	}
+}
