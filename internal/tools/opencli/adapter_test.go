@@ -202,3 +202,48 @@ func TestCurrentParsesDoctorSummaryWithChromeLabel(t *testing.T) {
 		t.Fatalf("expected one warning, got %#v", warnings)
 	}
 }
+
+func TestDoctorFailureAndPropagation(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// stderr message preferred when present.
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"opencli doctor": {Err: errors.New("exit 1"), ExitCode: 1, Stderr: "bridge crashed"},
+	}})
+	if _, _, errs, err := a.Doctor(ctx); err == nil || len(errs) != 1 || errs[0] != "bridge crashed" {
+		t.Fatalf("doctor err=%v errs=%v", err, errs)
+	}
+	if _, _, _, err := a.Configured(ctx); err == nil {
+		t.Fatal("expected Configured to propagate doctor error")
+	}
+	if _, _, _, err := a.Current(ctx); err == nil {
+		t.Fatal("expected Current to propagate doctor error")
+	}
+
+	// Blank output falls back to the raw error text.
+	a = New(fakeRunner{results: map[string]execx.CmdResult{
+		"opencli doctor": {Err: errors.New("spawn fail"), ExitCode: 127},
+	}})
+	_, _, errs, err := a.Doctor(ctx)
+	if err == nil || len(errs) != 1 || errs[0] != "spawn fail" {
+		t.Fatalf("doctor err=%v errs=%v", err, errs)
+	}
+}
+
+func TestCurrentReportsEnvAndTargets(t *testing.T) {
+	t.Parallel()
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"opencli doctor": {Stdout: "[OK] Extension installed in browser\n[OK] Extension token (Chrome LevelDB): detected\n[OK] Environment token: set\n[OK] ~/.zshrc [Shell]: configured\n[OK] ~/.codex/config.toml [Codex]: configured\n[WARN] something off\n"},
+	}})
+	cur, warnings, _, err := a.Current(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cur["bridge"] != "installed" || cur["token"] != "detected" || cur["env"] != "set" || cur["targets"] != "codex,shell" {
+		t.Fatalf("current = %#v", cur)
+	}
+	if len(warnings) != 1 || warnings[0] != "something off" {
+		t.Fatalf("warnings = %#v", warnings)
+	}
+}

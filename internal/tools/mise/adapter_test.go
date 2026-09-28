@@ -118,3 +118,21 @@ func TestAdapterCurrent_EmptyStderrUsesRunnerError(t *testing.T) {
 		t.Fatalf("errs = %#v", errs)
 	}
 }
+
+func TestParseMiseCurrentWarnsOnShortLine(t *testing.T) {
+	cur, warnings, errs, err := parseMiseCurrent("node 25.8.1\nsinglefield\n\n")
+	if err != nil || len(errs) != 0 {
+		t.Fatalf("errs=%v err=%v", errs, err)
+	}
+	if cur["node"] != "25.8.1" {
+		t.Fatalf("cur = %#v", cur)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "singlefield") {
+		t.Fatalf("warnings = %#v", warnings)
+	}
+
+	cur, warnings, errs, err = parseMiseCurrent("")
+	if err != nil || len(cur) != 0 || len(warnings) != 0 {
+		t.Fatalf("empty stdout: cur=%#v warnings=%#v err=%v", cur, warnings, err)
+	}
+}

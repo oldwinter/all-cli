@@ -285,3 +285,70 @@ func TestCurrentNotLoggedInWhenWhoamiFails(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %#v %#v", warnings, errs)
 	}
 }
+
+func TestParseWhoamiJSONEdges(t *testing.T) {
+	t.Parallel()
+	if _, ok := parseWhoamiJSON("  "); ok {
+		t.Fatal("expected false for blank stdout")
+	}
+	if _, ok := parseWhoamiJSON("not json"); ok {
+		t.Fatal("expected false for invalid JSON")
+	}
+	w, ok := parseWhoamiJSON(`{"loggedIn":true,"accounts":[{"id":"b"},{"id":"a"},{"id":"a"},{"id":""}]}`)
+	if !ok || !w.LoggedIn || len(w.AccountIDs) != 2 || w.AccountIDs[0] != "a" {
+		t.Fatalf("whoami = %#v ok=%v", w, ok)
+	}
+}
+
+func TestWhoamiJSONFallsBackToText(t *testing.T) {
+	t.Parallel()
+	hex32 := "0123456789abcdef0123456789abcdef"
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"wrangler whoami --json": {Stdout: "not json"},
+		"wrangler whoami":        {Stdout: "You are logged in with account " + hex32},
+	}})
+	w, _, _, err := a.Whoami(context.Background())
+	if err != nil || !w.LoggedIn || len(w.AccountIDs) != 1 || w.AccountIDs[0] != hex32 {
+		t.Fatalf("whoami = %#v err=%v", w, err)
+	}
+}
+
+func TestWhoamiNonFatalTextFallbackNotLoggedIn(t *testing.T) {
+	t.Parallel()
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"wrangler whoami --json": {Err: errors.New("unsupported"), ExitCode: 1},
+		"wrangler whoami":        {Err: errors.New("nope"), ExitCode: 1},
+	}})
+	w, _, _, err := a.Whoami(context.Background())
+	if err != nil || w.LoggedIn {
+		t.Fatalf("whoami = %#v err=%v", w, err)
+	}
+}
+
+func TestWranglerCurrentMultiAccountWarning(t *testing.T) {
+	t.Parallel()
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"wrangler whoami --json": {Stdout: `{"loggedIn":true,"accounts":[{"id":"b"},{"id":"a"}]}`},
+	}})
+	cur, warnings, _, err := a.Current(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cur["accounts_count"] != "2" || cur["account_id"] != "" {
+		t.Fatalf("cur = %#v", cur)
+	}
+	if len(warnings) == 0 {
+		t.Fatal("expected multi-account warning")
+	}
+}
+
+func TestWranglerCurrentSingleAccountID(t *testing.T) {
+	t.Parallel()
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"wrangler whoami --json": {Stdout: `{"loggedIn":true,"accounts":[{"id":"acct1"}]}`},
+	}})
+	cur, warnings, _, err := a.Current(context.Background())
+	if err != nil || cur["account_id"] != "acct1" || len(warnings) != 0 {
+		t.Fatalf("cur=%#v warnings=%#v err=%v", cur, warnings, err)
+	}
+}

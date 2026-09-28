@@ -180,3 +180,73 @@ broken    | AK:***123          | Invalid
 		t.Fatalf("unexpected warnings: %#v", warnings)
 	}
 }
+
+func TestCurrentProfileFallbacks(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// ListProfiles failure propagates.
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"aliyun configure list": {Err: errors.New("boom"), ExitCode: 1, Stderr: "nope"},
+	}})
+	if _, _, errs, err := a.Current(ctx); err == nil || len(errs) != 1 || errs[0] != "nope" {
+		t.Fatalf("err=%v errs=%v", err, errs)
+	}
+
+	// No profiles -> nil current.
+	a = New(fakeRunner{results: map[string]execx.CmdResult{
+		"aliyun configure list": {Stdout: "Profile   | Credential   | Valid   | Region   | Language\n--------- | ---------  | -----   | ------   | --------\n"},
+	}})
+	cur, _, _, err := a.Current(ctx)
+	if err != nil || cur != nil {
+		t.Fatalf("cur=%#v err=%v", cur, err)
+	}
+
+	// No starred profile -> warning + first profile; blank region/language omitted.
+	a = New(fakeRunner{results: map[string]execx.CmdResult{
+		"aliyun configure list": {Stdout: "prof1 | ak | Valid |  | \nprof2 | ak | Invalid | cn-hangzhou | en\n"},
+	}})
+	cur, warnings, _, err := a.Current(ctx)
+	if err != nil || cur["profile"] != "prof1" {
+		t.Fatalf("cur=%#v err=%v", cur, err)
+	}
+	if len(warnings) == 0 || !strings.Contains(warnings[0], "no current aliyun profile") {
+		t.Fatalf("warnings = %#v", warnings)
+	}
+	if _, ok := cur["region"]; ok {
+		t.Fatalf("expected blank region omitted: %#v", cur)
+	}
+}
+
+func TestParseConfigureListSkipsBadLines(t *testing.T) {
+	t.Parallel()
+	profiles, warnings, _, err := parseConfigureList("no pipe line\na|b\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 0 {
+		t.Fatalf("profiles = %#v", profiles)
+	}
+	if len(warnings) != 1 {
+		t.Fatalf("warnings = %#v", warnings)
+	}
+}
+
+func TestListProfilesBlankStderrFallsBackToErr(t *testing.T) {
+	t.Parallel()
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"aliyun configure list": {Err: errors.New("spawn exploded"), ExitCode: 2},
+	}})
+	_, _, errs, err := a.ListProfiles(context.Background())
+	if err == nil || len(errs) != 1 || errs[0] != "spawn exploded" {
+		t.Fatalf("err=%v errs=%v", err, errs)
+	}
+}
+
+func TestParseConfigureListSkipsBlankName(t *testing.T) {
+	t.Parallel()
+	profiles, _, _, err := parseConfigureList("   | ak | Valid | r | l\nok | ak | Valid | r | l\n")
+	if err != nil || len(profiles) != 1 || profiles[0].Name != "ok" {
+		t.Fatalf("profiles = %#v err=%v", profiles, err)
+	}
+}

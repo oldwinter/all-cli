@@ -534,3 +534,95 @@ func TestExtractAfterMissingNeedle(t *testing.T) {
 		t.Fatalf("extractAfter = %q, want empty", got)
 	}
 }
+
+func TestParseAccountLineEdgeCases(t *testing.T) {
+	// State word without a parseable host/login must not produce an account.
+	if _, _, ok := parseAccountLine("Failed to log in"); ok {
+		t.Fatal("expected no account for bare 'Failed to log in' line")
+	}
+	// Host-only form ("using token" without account/as) — reachable on the
+	// failure-state line since success lines require " account "/" as ".
+	acc, host, ok := parseAccountLine("Failed to log in to github.com using token (oauth_token)")
+	if !ok || host != "github.com" || acc.Login != "" || acc.State != "error" || acc.TokenSource != "oauth_token" {
+		t.Fatalf("host-only parse = %#v host=%q ok=%v", acc, host, ok)
+	}
+	// " as " separator form.
+	acc, host, ok = parseAccountLine("Logged in to ghe.example as bob")
+	if !ok || host != "ghe.example" || acc.Login != "bob" {
+		t.Fatalf("as-form parse = %#v host=%q ok=%v", acc, host, ok)
+	}
+}
+
+func TestParseHostAndLoginAndTokenSourceEdges(t *testing.T) {
+	if host, login := parseHostAndLogin("no marker line"); host != "" || login != "" {
+		t.Fatalf("unexpected host/login %q %q", host, login)
+	}
+	if src := parseParenTokenSource("no parens"); src != "" {
+		t.Fatalf("expected empty token source, got %q", src)
+	}
+	if src := parseParenTokenSource("reversed )then("); src != "" {
+		t.Fatalf("expected empty for reversed parens, got %q", src)
+	}
+	if src := parseParenTokenSource("token (a/b)"); src != "" {
+		t.Fatalf("expected empty for path-like source, got %q", src)
+	}
+	if src := parseParenTokenSource("token ()"); src != "" {
+		t.Fatalf("expected empty for empty parens, got %q", src)
+	}
+	if got := protocolFromLegacyLine("configured to use ssh protocol"); got != "ssh" {
+		t.Fatalf("protocol = %q", got)
+	}
+	if got := protocolFromLegacyLine("unrelated detail"); got != "" {
+		t.Fatalf("expected empty protocol, got %q", got)
+	}
+}
+
+func TestGHCurrentMultipleHostsAndErrors(t *testing.T) {
+	ctx := context.Background()
+	twoHosts := `{"hosts":{"github.com":[{"login":"u1","state":"success","active":true}],"ghe.example":[{"login":"u2","state":"success","active":true}]}}`
+
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status --json hosts": {Stdout: twoHosts},
+	}})
+	cur, warnings, _, err := a.Current(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cur["hostname"] != "github.com" || cur["user"] != "u1" {
+		t.Fatalf("current = %#v", cur)
+	}
+	if len(warnings) == 0 {
+		t.Fatal("expected multiple-hosts warning")
+	}
+
+	// Empty host set returns nil current with no error.
+	a = New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status --json hosts": {Stdout: `{"hosts":{}}`},
+	}})
+	cur, _, _, err = a.Current(ctx)
+	if err != nil || cur != nil {
+		t.Fatalf("empty hosts: cur=%#v err=%v", cur, err)
+	}
+
+	// A non-fallback status error propagates through Current and Configured.
+	failing := fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status --json hosts": {Err: errors.New("boom"), ExitCode: 1, Stderr: "crash"},
+	}}
+	a = New(failing)
+	if _, _, _, err := a.Current(ctx); err == nil {
+		t.Fatal("expected Current to propagate status error")
+	}
+	if _, _, _, err := a.Configured(ctx); err == nil {
+		t.Fatal("expected Configured to propagate status error")
+	}
+}
+
+func TestConfiguredFalseWhenNoSuccessAccount(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status --json hosts": {Stdout: `{"hosts":{"github.com":[{"login":"u1","state":"error","active":false}]}}`},
+	}})
+	ok, _, _, err := a.Configured(context.Background())
+	if err != nil || ok {
+		t.Fatalf("configured=%v err=%v", ok, err)
+	}
+}
