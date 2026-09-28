@@ -6,7 +6,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // TestEndToEndStaleDelivery drives the real factory binary through the
@@ -85,6 +87,86 @@ func TestEndToEndLockContention(t *testing.T) {
 	}
 	fx.factory(t, "claim", "WI-900")
 	fx.wantState(t, "in_progress")
+}
+
+// TestEndToEndSignalCancel proves SIGTERM during verify cancels the check's
+// whole process group, releases the backlog lock, and lands the item in
+// failed (retriable) instead of leaving it stuck in verifying.
+func TestEndToEndSignalCancel(t *testing.T) {
+	fx := newE2EFixture(t)
+	fx.factory(t, "intake", "--id", "WI-900", "--title", "sig", "--acceptance", "a",
+		"--check", "sleep 91")
+	fx.factory(t, "claim", "WI-900")
+
+	cmd := exec.Command(fx.bin, "--root", fx.root, "verify", "WI-900")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	fx.waitState(t, "verifying")
+	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		t.Fatal(err)
+	}
+	waitErr := make(chan error, 1)
+	go func() { waitErr <- cmd.Wait() }()
+	select {
+	case <-waitErr:
+	case <-time.After(10 * time.Second):
+		t.Fatal("verify did not exit after SIGTERM")
+	}
+
+	fx.wantState(t, "failed")
+	if _, err := os.Stat(filepath.Join(fx.root, ".factory", "lock")); !os.IsNotExist(err) {
+		t.Fatal("lock file leaked after signal-cancelled verify")
+	}
+	// The sleeping check's process group must be gone. The bracket keeps the
+	// pgrep wrapper's own command line from matching the pattern.
+	out, err := exec.Command("sh", "-c", "pgrep -f 'sleep 9[1]' || true").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(strings.TrimSpace(string(out))) != 0 {
+		t.Fatalf("orphaned check processes: %s", out)
+	}
+}
+
+// TestEndToEndStaleLockRecovery proves the documented crash path: SIGKILL
+// orphans the lock, the next mutating command refuses with a named file, and
+// removing the stale lock restores the pipeline.
+func TestEndToEndStaleLockRecovery(t *testing.T) {
+	fx := newE2EFixture(t)
+	fx.factory(t, "intake", "--id", "WI-900", "--title", "kill", "--acceptance", "a",
+		"--check", "sleep 92")
+	fx.factory(t, "claim", "WI-900")
+
+	cmd := exec.Command(fx.bin, "--root", fx.root, "verify", "WI-900")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	fx.waitState(t, "verifying")
+	if err := cmd.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = cmd.Wait()
+
+	// SIGKILL leaves the lock and the verifying state behind.
+	fx.wantState(t, "verifying")
+	lockPath := filepath.Join(fx.root, ".factory", "lock")
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatal("expected orphaned lock after SIGKILL")
+	}
+	if out, err := fx.run("claim", "WI-900"); err == nil || !strings.Contains(out, "another factory command holds") {
+		t.Fatalf("claim under stale lock: %q err=%v", out, err)
+	}
+
+	// Documented recovery: remove the stale lock, re-verify the stuck item.
+	if err := os.Remove(lockPath); err != nil {
+		t.Fatal(err)
+	}
+	// Point the check at something instant for the recovery pass.
+	editChecks(t, filepath.Join(fx.root, ".factory", "backlog", "WI-900.json"), []string{"true"})
+	fx.factory(t, "verify", "WI-900")
+	fx.factory(t, "deliver", "WI-900")
+	fx.wantState(t, "delivered")
 }
 
 // e2eFixture is an isolated git repo with a backlog driven by the real binary.
@@ -171,7 +253,7 @@ func (fx *e2eFixture) factory(t *testing.T, args ...string) {
 	}
 }
 
-func (fx *e2eFixture) wantState(t *testing.T, want string) {
+func (fx *e2eFixture) itemState(t *testing.T) string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(fx.root, ".factory", "backlog", "WI-900.json"))
 	if err != nil {
@@ -183,7 +265,47 @@ func (fx *e2eFixture) wantState(t *testing.T, want string) {
 	if err := json.Unmarshal(data, &item); err != nil {
 		t.Fatal(err)
 	}
-	if item.State != want {
-		t.Fatalf("state=%s, want %s", item.State, want)
+	return item.State
+}
+
+// waitState polls the on-disk item until it reaches the wanted state, so a
+// test can signal the binary at a known pipeline point.
+func (fx *e2eFixture) waitState(t *testing.T, want string) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for fx.itemState(t) != want {
+		if time.Now().After(deadline) {
+			t.Fatalf("item never entered %s", want)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func (fx *e2eFixture) wantState(t *testing.T, want string) {
+	t.Helper()
+	if got := fx.itemState(t); got != want {
+		t.Fatalf("state=%s, want %s", got, want)
+	}
+}
+
+// editChecks rewrites an item's check list in place, like an operator's
+// hand-edit between factory commands.
+func editChecks(t *testing.T, path string, checks []string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var item map[string]any
+	if err := json.Unmarshal(data, &item); err != nil {
+		t.Fatal(err)
+	}
+	item["checks"] = checks
+	out, err := json.Marshal(item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

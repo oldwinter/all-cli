@@ -2,6 +2,8 @@ package execx
 
 import (
 	"context"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 )
@@ -41,6 +43,37 @@ func TestDefaultRunnerContextCancellation(t *testing.T) {
 	res := r.Run(ctx, "sleep", "10")
 	if res.Err == nil {
 		t.Fatal("expected error for cancelled context")
+	}
+}
+
+// TestDefaultRunnerCancelsProcessGroup proves a cancelled run kills the whole
+// process group — a shell's grandchildren must not outlive the command.
+func TestDefaultRunnerCancelsProcessGroup(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	r := DefaultRunner{}
+	done := make(chan CmdResult, 1)
+	go func() { done <- r.Run(ctx, "sh", "-c", "sleep 93") }()
+
+	// Give the grandchild a moment to spawn, then cancel.
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+
+	select {
+	case res := <-done:
+		if res.Err == nil {
+			t.Fatal("expected error for cancelled context")
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("cancelled run did not return")
+	}
+
+	// The bracket keeps the pgrep wrapper's own command line from matching.
+	out, err := exec.Command("sh", "-c", "pgrep -f 'sleep 9[3]' || true").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(strings.TrimSpace(string(out))) != 0 {
+		t.Fatalf("orphaned grandchild processes: %s", out)
 	}
 }
 

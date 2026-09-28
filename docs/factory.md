@@ -114,6 +114,12 @@ Still do not hand-edit an item while `verify`/`deliver` is running on it: the
 lock serializes factory commands, not your editor, and the in-flight write
 wins.
 
+SIGINT/SIGTERM cancel cleanly: the running check's whole process group is
+killed, the item lands in `failed` (retriable with `factory verify`), and the
+lock is removed. SIGKILL can't run cleanup — it orphans the lock and any check
+children and leaves the item in `verifying`; delete the stale lock and re-run
+`verify` to recover.
+
 ## Manual approvals stay manual
 
 The factory never merges, pushes, tags, or opens PRs by itself, and never
