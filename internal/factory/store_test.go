@@ -135,6 +135,52 @@ func TestStoreListSkipsNonItemFiles(t *testing.T) {
 	}
 }
 
+func TestSortItemsTieBreaksByID(t *testing.T) {
+	t.Parallel()
+
+	mk := func(id string, order int) *WorkItem {
+		it := validItem()
+		it.ID, it.Order = id, order
+		return it
+	}
+	items := []*WorkItem{mk("WI-030", 5), mk("WI-010", 5), mk("WI-020", 1)}
+	SortItems(items)
+	if items[0].ID != "WI-020" || items[1].ID != "WI-010" || items[2].ID != "WI-030" {
+		t.Fatalf("order = %s,%s,%s", items[0].ID, items[1].ID, items[2].ID)
+	}
+}
+
+func TestStoreSaveFailsWhenDirIsFile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "backlog")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore(blocker)
+	if err := store.Save(validItem()); err == nil {
+		t.Fatal("expected save error when backlog dir is a file")
+	}
+}
+
+func TestStoreListFailsOnCorruptItem(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "WI-001.json"), []byte("{bad"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore(dir)
+	items, err := store.List()
+	if err == nil {
+		t.Fatal("expected list error on corrupt item")
+	}
+	if items != nil {
+		t.Fatalf("expected nil items, got %v", items)
+	}
+}
+
 func TestStoreExistsAndAtomicSaveLeavesNoTemp(t *testing.T) {
 	t.Parallel()
 

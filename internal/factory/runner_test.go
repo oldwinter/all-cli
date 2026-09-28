@@ -86,6 +86,50 @@ func TestRunChecksReportsProgress(t *testing.T) {
 	}
 }
 
+func TestGitHead(t *testing.T) {
+	t.Parallel()
+
+	okExec := &fakeExec{def: execx.CmdResult{Stdout: "  abc1234\n"}}
+	if got := gitHead(t.TempDir(), okExec)(); got != "abc1234" {
+		t.Fatalf("gitHead = %q", got)
+	}
+	failExec := &fakeExec{def: execx.CmdResult{ExitCode: 128, Err: errors.New("not a repo")}}
+	if got := gitHead(t.TempDir(), failExec)(); got != "" {
+		t.Fatalf("gitHead on failure = %q, want empty", got)
+	}
+}
+
+func TestRunnerDefaults(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	o := &options{root: dir, now: func() time.Time { return time.Unix(0, 0) }}
+	r := o.runner()
+	if r.Exec == nil || r.Root != dir || r.RunDir == "" || r.Now == nil || r.Head == nil {
+		t.Fatalf("runner not fully defaulted: %+v", r)
+	}
+	// headFunc falls back to real git; a temp dir is not a repo so it returns "".
+	if got := r.Head(); got != "" {
+		t.Fatalf("head in non-repo = %q, want empty", got)
+	}
+}
+
+func TestRunChecksFailsWhenRunDirUncreatable(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "runfile")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner, _ := testRunner(t, &fakeExec{def: execx.CmdResult{}})
+	runner.RunDir = blocker
+	item := validItem()
+	if _, err := runner.RunChecks(context.Background(), item); err == nil {
+		t.Fatal("expected error when run dir cannot be created")
+	}
+}
+
 func TestRunChecksStopsOnFailure(t *testing.T) {
 	exec := &fakeExec{
 		results: map[string]execx.CmdResult{"first": {ExitCode: 2, Err: errors.New("exit status 2")}},
