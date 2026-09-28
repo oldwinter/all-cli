@@ -25,4 +25,5 @@ func lockDir(root string) (string, error) {
 func writeLockMeta(f *os.File) {
 	_ = f.Truncate(0)
 	fmt.Fprintf(f, "pid=%d since=%s\n", os.Getpid(), time.Now().UTC().Format(time.RFC3339))
+	_ = f.Sync()
 }
