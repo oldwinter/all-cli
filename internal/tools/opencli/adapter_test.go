@@ -38,6 +38,52 @@ func TestStdoutOrStderr(t *testing.T) {
 	}
 }
 
+func TestDoctorSuccess(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"opencli doctor": {
+				Stdout: "[OK] Extension installed in browser\n[OK] Extension token (Chrome LevelDB): detected\n[MISSING] Environment token: missing\n[OK] ~/.zshrc [Shell]: configured\n",
+			},
+		},
+	})
+	diag, warnings, errs, err := a.Doctor(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v %#v", warnings, errs)
+	}
+	if !diag.BridgeInstalled || !diag.ExtensionTokenPresent || diag.EnvironmentTokenSet {
+		t.Fatalf("unexpected diagnosis: %#v", diag)
+	}
+	if len(diag.Targets) != 1 || diag.Targets[0] != "shell" {
+		t.Fatalf("unexpected targets: %#v", diag.Targets)
+	}
+}
+
+func TestDoctorFailureReturnsStderrAsError(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"opencli doctor": {
+				ExitCode: 1,
+				Err:      errors.New("exit status 1"),
+				Stderr:   "doctor exploded",
+			},
+		},
+	})
+	_, _, errs, err := a.Doctor(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if len(errs) != 1 || errs[0] != "doctor exploded" {
+		t.Fatalf("unexpected errs: %#v", errs)
+	}
+}
+
 func TestCurrentParsesDoctorSummary(t *testing.T) {
 	t.Parallel()
 

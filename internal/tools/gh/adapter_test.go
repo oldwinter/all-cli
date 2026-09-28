@@ -332,6 +332,20 @@ ghe.example.com
 	}
 }
 
+func TestPickPrimaryHost(t *testing.T) {
+	t.Parallel()
+
+	if got := pickPrimaryHost(nil); got != "" {
+		t.Fatalf("empty hosts = %q, want empty", got)
+	}
+	if got := pickPrimaryHost([]Host{{Hostname: "z.example"}, {Hostname: "a.example"}}); got != "a.example" {
+		t.Fatalf("expected lexicographic first host, got %q", got)
+	}
+	if got := pickPrimaryHost([]Host{{Hostname: "z.example"}, {Hostname: "github.com"}, {Hostname: "a.example"}}); got != "github.com" {
+		t.Fatalf("expected github.com preferred, got %q", got)
+	}
+}
+
 func TestUseAccount(t *testing.T) {
 	t.Parallel()
 

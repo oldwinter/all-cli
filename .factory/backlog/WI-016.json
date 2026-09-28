@@ -3,7 +3,7 @@
   "id": "WI-016",
   "title": "Cover low-coverage adapter paths",
   "kind": "test",
-  "state": "queued",
+  "state": "delivered",
   "order": 97,
   "source": {},
   "acceptance": [
@@ -14,7 +14,39 @@
     "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/gh ./internal/tools/opencli ./internal/tools/aliyun"
   ],
   "branch": "factory/wi-016-cover-low-coverage-adapter-paths",
-  "attempts": 0,
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:02:14Z",
+    "head": "bdeb929",
+    "fingerprint": "25a27ce6ac5973118fda77926d0a3885b7ebf2c8bb2d2c5d67927d67f7d934cd"
+  },
   "created_at": "2026-09-28T19:00:34Z",
-  "updated_at": "2026-09-28T19:00:34Z"
+  "updated_at": "2026-09-28T19:02:18Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:01:41Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "bdeb929"
+    },
+    {
+      "ts": "2026-09-28T19:02:14Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/gh ./internal/tools/opencli ./internal/tools/aliyun",
+      "note": "pass",
+      "head": "bdeb929",
+      "log": ".factory/run/WI-016/20260928T190212Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:02:14Z",
+      "event": "verify-pass",
+      "head": "bdeb929"
+    },
+    {
+      "ts": "2026-09-28T19:02:18Z",
+      "event": "deliver",
+      "note": "adapter-low-coverage-paths",
+      "head": "bdeb929"
+    }
+  ]
 }

@@ -130,6 +130,36 @@ func TestAdapterConfigured_Failure(t *testing.T) {
 	}
 }
 
+func TestAdapterListProfilesSkipsBlankNamesAndNonTableLines(t *testing.T) {
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"aliyun configure list": {
+				Stdout: `some preamble
+Profile   | Credential | Valid | Region      | Language
+--------- | ---------- | ----- | ----------- | --------
+*         | AK:***xx   | Valid | cn-beijing  | zh
+prod      | AK:***yy   | Valid | us-west-1   | en
+short | row
+`,
+			},
+		},
+	})
+
+	profiles, warnings, errs, err := a.ListProfiles(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errs: %#v", errs)
+	}
+	if len(profiles) != 1 || profiles[0].Name != "prod" || profiles[0].IsCurrent {
+		t.Fatalf("unexpected profiles: %#v", profiles)
+	}
+	if len(warnings) != 1 {
+		t.Fatalf("expected short-row warning, got %#v", warnings)
+	}
+}
+
 func TestParseConfigureList_WarnsOnShortRows(t *testing.T) {
 	stdout := `Profile   | Credential         | Valid
 --------- | ------------------ | -------
