@@ -1,0 +1,52 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-022",
+  "title": "Cover diagnose collection and failure helpers",
+  "kind": "test",
+  "state": "delivered",
+  "order": 115,
+  "source": {},
+  "acceptance": [
+    "diagnosticsForTool edge cases and doctorCommandFailure formatting are exercised",
+    "go test ./internal/diagnose passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/diagnose/..."
+  ],
+  "branch": "factory/wi-022-cover-diagnose-collection-and-failure-helpers",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:08:55Z",
+    "head": "6f66a83",
+    "fingerprint": "266ea898069d77075156024d4baa096c08fa715237b9db3f4c1bcb1170076805"
+  },
+  "created_at": "2026-09-28T19:08:28Z",
+  "updated_at": "2026-09-28T19:08:59Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:08:31Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "6f66a83"
+    },
+    {
+      "ts": "2026-09-28T19:08:55Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/diagnose/...",
+      "note": "pass",
+      "head": "6f66a83",
+      "log": ".factory/run/WI-022/20260928T190854Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:08:55Z",
+      "event": "verify-pass",
+      "head": "6f66a83"
+    },
+    {
+      "ts": "2026-09-28T19:08:59Z",
+      "event": "deliver",
+      "note": "diagnostics-matrix-covered",
+      "head": "6f66a83"
+    }
+  ]
+}
