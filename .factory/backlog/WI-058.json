@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-058",
+  "title": "all-cli: signal-aware context in main",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "cmd/all-cli installs signal.NotifyContext like cmd/factory so SIGINT/SIGTERM cancel in-flight tool probes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go build ./cmd/all-cli \u0026\u0026 env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1"
+  ],
+  "branch": "factory/wi-058-all-cli-signal-aware-context-in-main",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T22:17:18Z",
+    "head": "b5e5d84",
+    "fingerprint": "f2aa6ab75317f7ea9848fb8ffc973287d2ffc07cc3154d3f6db03f848670a1fa"
+  },
+  "created_at": "2026-09-28T22:16:57Z",
+  "updated_at": "2026-09-28T22:17:20Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T22:16:57Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "b5e5d84"
+    },
+    {
+      "ts": "2026-09-28T22:17:18Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go build ./cmd/all-cli \u0026\u0026 env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1",
+      "note": "pass",
+      "head": "b5e5d84",
+      "log": ".factory/run/WI-058/20260928T221716.400206000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:17:18Z",
+      "event": "verify-pass",
+      "head": "b5e5d84"
+    },
+    {
+      "ts": "2026-09-28T22:17:20Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go build ./cmd/all-cli \u0026\u0026 env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1",
+      "note": "pass",
+      "head": "b5e5d84",
+      "log": ".factory/run/WI-058/20260928T221718.920998000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:17:20Z",
+      "event": "deliver",
+      "head": "b5e5d84"
+    }
+  ]
+}

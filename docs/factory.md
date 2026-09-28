@@ -106,19 +106,21 @@ land. `claim` echoes the label so the intended target stays visible.
 The factory has no daemon — each command is one shot. To pause work, leave
 items `queued` or mark them `blocked`; nothing runs in the background.
 
-Mutating commands hold `.factory/lock` (created `O_EXCL`, removed on exit) so
-two factory processes cannot interleave backlog writes; read-only commands
-never lock. The lock records the holder's pid and start time; when the
-recorded pid no longer exists the next command reclaims it automatically, and
-otherwise it refuses and names the file. Still do not hand-edit an item while
-`verify`/`deliver` is running on it: the lock serializes factory commands,
-not your editor, and the in-flight write wins.
+Mutating commands hold `.factory/lock` so two factory processes cannot
+interleave backlog writes; read-only commands never lock. On Unix the lock is
+an advisory `flock` — the kernel releases it when the holder exits, so a
+crash never leaves a stale lock (the file may persist as a diagnostic
+breadcrumb naming the last holder's pid and start time). On Windows the lock
+is an `O_EXCL` file removed on exit; if a command dies mid-run it stays
+stale — delete it once the holder is gone. Still do not hand-edit an item
+while `verify`/`deliver` is running on it: the lock serializes factory
+commands, not your editor, and the in-flight write wins.
 
 SIGINT/SIGTERM cancel cleanly: the running check's whole process group is
 killed, the item lands in `failed` (retriable with `factory verify`), and the
-lock is removed. SIGKILL can't run cleanup — it orphans the lock and any check
-children and leaves the item in `verifying`; the dead-holder lock reclaims
-itself, so just re-run `verify` to recover.
+lock is released. SIGKILL can't run cleanup — it orphans check children and
+leaves the item in `verifying`, but the lock dies with the process, so just
+re-run `verify` to recover.
 
 ## Manual approvals stay manual
 

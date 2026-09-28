@@ -42,9 +42,8 @@ func TestEndToEndSignalCancel(t *testing.T) {
 	}
 
 	fx.wantState(t, "failed")
-	if _, err := os.Stat(filepath.Join(fx.root, ".factory", "lock")); !os.IsNotExist(err) {
-		t.Fatal("lock file leaked after signal-cancelled verify")
-	}
+	// The flock releases with the process; prove it via a mutating command.
+	fx.factory(t, "evidence", "WI-900", "--note", "post-cancel probe")
 	assertGroupDead(t, waitPgid(t, pgidFile))
 }
 
@@ -94,9 +93,7 @@ func TestEndToEndDeliverCancel(t *testing.T) {
 	// A cancelled re-check demotes to in_progress (same as a stale verdict);
 	// it must never falsely deliver or leave the item verified.
 	fx.wantState(t, "in_progress")
-	if _, err := os.Stat(filepath.Join(fx.root, ".factory", "lock")); !os.IsNotExist(err) {
-		t.Fatal("lock file leaked after signal-cancelled deliver")
-	}
+	fx.factory(t, "evidence", "WI-900", "--note", "post-cancel probe")
 	assertGroupDead(t, pgid)
 
 	// Recovery: drop the gate, re-verify, deliver.
@@ -108,10 +105,10 @@ func TestEndToEndDeliverCancel(t *testing.T) {
 	fx.wantState(t, "delivered")
 }
 
-// TestEndToEndStaleLockRecovery proves the documented crash path: SIGKILL
-// orphans the lock and the check children; the dead-holder lock is reclaimed
-// automatically and the stuck item re-verifies.
-func TestEndToEndStaleLockRecovery(t *testing.T) {
+// TestEndToEndKillRecovery proves the hard-crash path: SIGKILL orphans the
+// check children and strands the item in verifying, but the flock dies with
+// the process — the next mutating command proceeds with no manual cleanup.
+func TestEndToEndKillRecovery(t *testing.T) {
 	fx := newE2EFixture(t)
 	pgidFile := filepath.Join(t.TempDir(), "pgid")
 	fx.factory(t, "intake", "--id", "WI-900", "--title", "kill", "--acceptance", "a",
@@ -129,12 +126,8 @@ func TestEndToEndStaleLockRecovery(t *testing.T) {
 	}
 	_ = cmd.Wait()
 
-	// SIGKILL leaves the lock, the verifying state, and the orphaned check
-	// group behind — clean only this test's group once it's confirmed.
-	lockPath := filepath.Join(fx.root, ".factory", "lock")
-	if _, err := os.Stat(lockPath); err != nil {
-		t.Fatal("expected orphaned lock after SIGKILL")
-	}
+	// SIGKILL strands the item in verifying and orphans the check group;
+	// clean only this test's group once it's confirmed orphaned.
 	fx.wantState(t, "verifying")
 	defer func() {
 		if n, err := strconv.Atoi(pgid); err == nil {
@@ -142,12 +135,53 @@ func TestEndToEndStaleLockRecovery(t *testing.T) {
 		}
 	}()
 
-	// The dead holder's lock is auto-reclaimed: the next mutating command
-	// proceeds without manual cleanup, and the stuck item re-verifies.
+	// The kernel released the lock with the process: verify re-runs and the
+	// item recovers without anyone touching .factory/lock.
 	editChecks(t, filepath.Join(fx.root, ".factory", "backlog", "WI-900.json"), []string{"true"})
 	fx.factory(t, "verify", "WI-900")
 	fx.factory(t, "deliver", "WI-900")
 	fx.wantState(t, "delivered")
+}
+
+// TestEndToEndLockContention proves the process-level guarantee: while one
+// factory process holds the lock, a separate process refuses to mutate but
+// still reads — and once the holder dies the lock is free.
+func TestEndToEndLockContention(t *testing.T) {
+	fx := newE2EFixture(t)
+	pgidFile := filepath.Join(t.TempDir(), "pgid")
+	fx.factory(t, "intake", "--id", "WI-900", "--title", "lock", "--acceptance", "a",
+		"--check", "echo $$ > "+pgidFile+" && exec sleep 93")
+	fx.factory(t, "claim", "WI-900")
+
+	// A real verify process holds the lock while its check runs.
+	cmd := exec.Command(fx.bin, "--root", fx.root, "verify", "WI-900")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	fx.waitState(t, "verifying")
+	pgid := waitPgid(t, pgidFile)
+	defer func() {
+		if n, err := strconv.Atoi(pgid); err == nil {
+			_ = syscall.Kill(-n, syscall.SIGKILL)
+		}
+	}()
+
+	if out, err := fx.run("claim", "WI-900"); err == nil || !strings.Contains(out, "another factory command holds") {
+		t.Fatalf("claim under held lock: %q err=%v", out, err)
+	}
+	if out, err := fx.run("list"); err != nil || !strings.Contains(out, "WI-900") {
+		t.Fatalf("list under held lock: %q err=%v", out, err)
+	}
+	if out, err := fx.run("evidence", "WI-900", "--note", "probe", "--dry-run"); err != nil || !strings.Contains(out, "dry-run") {
+		t.Fatalf("dry-run evidence under held lock: %q err=%v", out, err)
+	}
+
+	// Kill the holder; the kernel frees the lock so mutation resumes.
+	if err := cmd.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = cmd.Wait()
+	fx.factory(t, "evidence", "WI-900", "--note", "lock free after holder death")
 }
 
 // waitPgid polls until a check command has recorded its process group id.

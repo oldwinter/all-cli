@@ -1,0 +1,81 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-056",
+  "title": "Cancel factory checks on SIGINT/SIGTERM; kill process group",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "SIGTERM during verify kills the check's process tree, releases the lock, and lands the item in failed",
+    "execx group-kill prevents orphaned grandchildren holding output pipes",
+    "e2e covers signal-cancel and stale-lock recovery after SIGKILL"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/execx/ -count=1"
+  ],
+  "branch": "factory/wi-056-cancel-factory-checks-on-sigint-sigterm-kill-process-group",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T22:10:19Z",
+    "head": "9679c1e",
+    "fingerprint": "7e0fcb10158fca046074cfa0653e664f4cc8a8dc72d86ed8dc172afc930b54db"
+  },
+  "created_at": "2026-09-28T22:06:19Z",
+  "updated_at": "2026-09-28T22:10:24Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T22:06:19Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "9679c1e"
+    },
+    {
+      "ts": "2026-09-28T22:08:11Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/execx/ -count=1",
+      "exit_code": 1,
+      "note": "fail",
+      "head": "9679c1e",
+      "log": ".factory/run/WI-056/20260928T220803.501451000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:08:11Z",
+      "event": "verify-fail",
+      "note": "check failed (exit 1): env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/execx/ -count=1",
+      "head": "9679c1e"
+    },
+    {
+      "ts": "2026-09-28T22:10:19Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/execx/ -count=1",
+      "note": "pass",
+      "head": "9679c1e",
+      "log": ".factory/run/WI-056/20260928T221015.735142000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:10:19Z",
+      "event": "verify-pass",
+      "head": "9679c1e"
+    },
+    {
+      "ts": "2026-09-28T22:10:24Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/execx/ -count=1",
+      "note": "pass",
+      "head": "9679c1e",
+      "log": ".factory/run/WI-056/20260928T221020.000120000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:10:24Z",
+      "event": "deliver",
+      "note": "sigterm-cancel-group-kill",
+      "head": "9679c1e"
+    }
+  ]
+}

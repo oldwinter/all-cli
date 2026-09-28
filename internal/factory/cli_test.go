@@ -5,11 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1236,64 +1235,56 @@ func TestMutatingCommandsRespectLock(t *testing.T) {
 	if _, _, err := run(t, opts, "claim", "WI-033"); err != nil {
 		t.Fatalf("claim after release: %v", err)
 	}
-	// The lock file is gone after a normal run.
-	if _, err := os.Stat(filepath.Join(dir, ".factory", "lock")); !os.IsNotExist(err) {
-		t.Fatal("lock file left behind")
-	}
 }
 
-func TestStaleLockAutoReclaimed(t *testing.T) {
+// TestLeftoverLockFileDoesNotBlock: a lock file with no live holder (left
+// behind by a crash) must not block the next mutating command.
+func TestLeftoverLockFileDoesNotBlock(t *testing.T) {
 	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
 	intakeOK(t, opts, "WI-034")
 
-	// Forge a lock whose recorded pid is a dead process.
-	dead := exec.Command("true")
-	if err := dead.Run(); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".factory", "lock"),
+		[]byte("pid=1 since=2026-01-01T00:00:00Z\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	lockDir := filepath.Join(dir, ".factory")
-	if err := os.WriteFile(filepath.Join(lockDir, "lock"),
-		[]byte(fmt.Sprintf("pid=%d since=2026-01-01T00:00:00Z\n", dead.Process.Pid)), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// The next mutating command reclaims the stale lock without manual cleanup.
 	if _, _, err := run(t, opts, "claim", "WI-034"); err != nil {
-		t.Fatalf("claim with stale lock: %v", err)
+		t.Fatalf("claim with leftover lock file: %v", err)
 	}
 }
 
-func TestLiveLockStillRefuses(t *testing.T) {
-	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
-	intakeOK(t, opts, "WI-035")
-
-	// Forge a lock naming a live process (this test's own pid).
-	lockDir := filepath.Join(dir, ".factory")
-	if err := os.WriteFile(filepath.Join(lockDir, "lock"),
-		[]byte(fmt.Sprintf("pid=%d since=2026-01-01T00:00:00Z\n", os.Getpid())), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(filepath.Join(lockDir, "lock"))
-
-	if _, _, err := run(t, opts, "claim", "WI-035"); err == nil || !strings.Contains(err.Error(), "holds") {
-		t.Fatalf("claim under live lock: %v", err)
-	}
-}
-
-func TestLockHolderDead(t *testing.T) {
-	dead := exec.Command("true")
-	if err := dead.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if !lockHolderDead(fmt.Sprintf("pid=%d since=x", dead.Process.Pid)) {
-		t.Fatal("dead pid should report dead")
-	}
-	if lockHolderDead(fmt.Sprintf("pid=%d since=x", os.Getpid())) {
-		t.Fatal("live pid should report alive")
-	}
-	for _, meta := range []string{"", "garbage", "pid=abc", "pid=-1", "pid=0"} {
-		if lockHolderDead(meta) {
-			t.Fatalf("malformed lock meta %q should report alive (fail-safe)", meta)
+// TestAcquireLockContention is the coordinator's reproduced defect: dozens of
+// simultaneous acquisitions over an existing lock file must yield exactly one
+// holder, never two.
+func TestAcquireLockContention(t *testing.T) {
+	for round := 0; round < 50; round++ {
+		dir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dir, ".factory"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, ".factory", "lock"), []byte("pid=1 since=x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		start := make(chan struct{})
+		releases := make(chan func(), 64)
+		var wg sync.WaitGroup
+		for n := 0; n < 64; n++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				if release, err := acquireLock(dir); err == nil {
+					releases <- release
+				}
+			}()
+		}
+		close(start)
+		wg.Wait()
+		close(releases)
+		if winners := len(releases); winners != 1 {
+			t.Fatalf("round=%d simultaneous holders=%d; expected exactly one", round, winners)
+		}
+		for release := range releases {
+			release()
 		}
 	}
 }

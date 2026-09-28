@@ -2,7 +2,6 @@ package factory
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,29 +62,14 @@ func TestEndToEndStaleDelivery(t *testing.T) {
 	}
 }
 
-// TestEndToEndLockContention proves the process-level guarantee: while a lock
-// file exists, a separate factory process refuses to mutate but still reads.
-func TestEndToEndLockContention(t *testing.T) {
+// TestEndToEndLeftoverLockFile proves a lock file with no live holder (e.g.
+// written by an editor or left by an old format) does not block the pipeline.
+func TestEndToEndLeftoverLockFile(t *testing.T) {
 	fx := newE2EFixture(t)
 	fx.factory(t, "intake", "--id", "WI-900", "--title", "lock", "--acceptance", "a", "--check", "true")
 
-	// A lock whose holder is alive still blocks other mutators — the test's
-	// own pid stands in for a concurrent factory process.
 	lockPath := filepath.Join(fx.root, ".factory", "lock")
-	live := fmt.Sprintf("pid=%d since=2099-01-01T00:00:00Z\n", os.Getpid())
-	if err := os.WriteFile(lockPath, []byte(live), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if out, err := fx.run("claim", "WI-900"); err == nil || !strings.Contains(out, "another factory command holds") {
-		t.Fatalf("claim under held lock: %q err=%v", out, err)
-	}
-	if out, err := fx.run("list"); err != nil || !strings.Contains(out, "WI-900") {
-		t.Fatalf("list under held lock: %q err=%v", out, err)
-	}
-	if out, err := fx.run("claim", "WI-900", "--dry-run"); err != nil || !strings.Contains(out, "dry-run") {
-		t.Fatalf("dry-run claim under held lock: %q err=%v", out, err)
-	}
-	if err := os.Remove(lockPath); err != nil {
+	if err := os.WriteFile(lockPath, []byte("pid=1 since=2099-01-01T00:00:00Z\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	fx.factory(t, "claim", "WI-900")
