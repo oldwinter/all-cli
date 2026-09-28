@@ -34,7 +34,9 @@ queued -> in_progress -> verifying -> verified -> delivered
   delivering. Delivery itself re-runs the item's checks (logged as
   `deliver-check` evidence under `.factory/run/<ID>/`); a re-check failure is
   treated the same way, so unchanged check definitions cannot deliver a
-  changed source.
+  changed source. The `verified` block exists only in `verified` and
+  `delivered` states (delivered keeps it as provenance); any other transition
+  clears it and `factory validate` flags strays.
 - `failed` records `last_error` and the failing command; `factory retry`
   re-enters `in_progress`.
 - `blocked` parks an item with a `--reason`; `factory unblock` returns it to
@@ -74,6 +76,9 @@ spaces do not survive `just factory ...`. Use space-free values there, or run
 - `cat .factory/backlog/WI-007.json` — criteria, state, attempts,
   `last_error`, and the `evidence[]` trail (who/what/when/HEAD/log path).
 - `.factory/run/<ID>/*-check-N.log` — exact command, exit code, stdout, stderr.
+  Log names carry nanosecond stamps plus a `-N` suffix when a rerun lands on
+  the same timestamp, so a re-check never overwrites a log earlier evidence
+  points at.
 
 ## Recover
 
