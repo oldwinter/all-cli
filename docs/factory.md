@@ -59,6 +59,7 @@ just factory claim WI-007         # queued -> in_progress (attempts++);
 # ... implement the bounded change ...
 just factory verify WI-007        # runs checks, -> verified or failed
 just factory deliver WI-007 --note "commit abc1234"
+just factory evidence WI-007 --note "reviewed by ops"   # manual evidence entry
 just factory status               # counts by state
 just factory-validate             # schema-check every backlog file
 ```

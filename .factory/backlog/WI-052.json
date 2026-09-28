@@ -1,0 +1,64 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-052",
+  "title": "Document evidence command in operator guide",
+  "kind": "docs",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "docs/factory.md shows factory evidence usage"
+  ],
+  "checks": [
+    "grep -q 'factory evidence' docs/factory.md"
+  ],
+  "branch": "factory/wi-052-document-evidence-command-in-operator-guide",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:38:41Z",
+    "head": "980ee8b",
+    "fingerprint": "17a9c9da325550a4f443107783f85dbd16bc62117223a971e7889b7d1acb36e3"
+  },
+  "created_at": "2026-09-28T21:38:40Z",
+  "updated_at": "2026-09-28T21:38:41Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:38:40Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "980ee8b"
+    },
+    {
+      "ts": "2026-09-28T21:38:41Z",
+      "event": "check",
+      "command": "grep -q 'factory evidence' docs/factory.md",
+      "note": "pass",
+      "head": "980ee8b",
+      "log": ".factory/run/WI-052/20260928T213841.187928000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:38:41Z",
+      "event": "verify-pass",
+      "head": "980ee8b"
+    },
+    {
+      "ts": "2026-09-28T21:38:41Z",
+      "event": "deliver-check",
+      "command": "grep -q 'factory evidence' docs/factory.md",
+      "note": "pass",
+      "head": "980ee8b",
+      "log": ".factory/run/WI-052/20260928T213841.599370000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:38:41Z",
+      "event": "deliver",
+      "note": "document-evidence-cmd",
+      "head": "980ee8b"
+    }
+  ]
+}
