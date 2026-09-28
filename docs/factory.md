@@ -50,7 +50,9 @@ just factory list                 # all items with state
 just factory next                 # next queued item with criteria
 just factory intake --id WI-007 --title "..." --kind bug \
   --acceptance "observable criterion" --check "go test ./internal/x"
-just factory claim WI-007         # -> in_progress (attempts++)
+just factory claim WI-007         # queued -> in_progress (attempts++);
+                                  # refuses verified items (verify/deliver instead)
+                                  # and failed items (use retry)
 # ... implement the bounded change ...
 just factory verify WI-007        # runs checks, -> verified or failed
 just factory deliver WI-007 --note "commit abc1234"
@@ -69,7 +71,8 @@ spaces do not survive `just factory ...`. Use space-free values there, or run
 
 ## Inspect
 
-- `just factory list [--state failed]` — the queue itself. A verified item
+- `just factory list [--state failed]` — the queue itself; unknown `--state`
+  values are rejected with the allowed list. A verified item
   whose acceptance/checks changed since its pass, or whose recorded HEAD is
   behind the current commit, shows `verified(stale)`; `factory status` adds a
   `stale=N` count when any exist.
@@ -94,6 +97,10 @@ spaces do not survive `just factory ...`. Use space-free values there, or run
 
 The factory has no daemon — each command is one shot. To pause work, leave
 items `queued` or mark them `blocked`; nothing runs in the background.
+
+Backlog files have no cross-process locking: run one `factory` command at a
+time per repo root, and do not hand-edit an item while `verify`/`deliver` is
+running on it (the in-flight write wins and drops your edit).
 
 ## Manual approvals stay manual
 
