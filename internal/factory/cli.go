@@ -175,6 +175,18 @@ func newListCommand(opts *options) *cobra.Command {
 		Short: "List backlog items by state",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if state != "" {
+				valid := false
+				for _, s := range States() {
+					if string(s) == state {
+						valid = true
+						break
+					}
+				}
+				if !valid {
+					return fmt.Errorf("invalid --state value %q (allowed: %s)", state, strings.Join(stateNames(), "|"))
+				}
+			}
 			items, err := opts.store().List()
 			if err != nil {
 				return err
@@ -678,4 +690,14 @@ func newStatusCommand(opts *options) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// stateNames returns all state strings for error messages.
+func stateNames() []string {
+	states := States()
+	names := make([]string, len(states))
+	for i, s := range states {
+		names[i] = string(s)
+	}
+	return names
 }

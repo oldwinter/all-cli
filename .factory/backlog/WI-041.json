@@ -1,0 +1,60 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-041",
+  "title": "Reject unknown --state values in factory list",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 41,
+  "source": {},
+  "acceptance": [
+    "factory list --state bogus errors naming the allowed values",
+    "known states still filter"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-041-reject-unknown-state-values-in-factory-list",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:10:51Z",
+    "head": "953cbfd",
+    "fingerprint": "2d665a758ee7c381d0f63cc8304aa0ac9e08efeba9201ef0223f7ac0f0a1f279"
+  },
+  "created_at": "2026-09-28T21:10:12Z",
+  "updated_at": "2026-09-28T21:10:52Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:10:12Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "953cbfd"
+    },
+    {
+      "ts": "2026-09-28T21:10:51Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "953cbfd",
+      "log": ".factory/run/WI-041/20260928T211051.235381000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:10:51Z",
+      "event": "verify-pass",
+      "head": "953cbfd"
+    },
+    {
+      "ts": "2026-09-28T21:10:52Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "953cbfd",
+      "log": ".factory/run/WI-041/20260928T211052.374628000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:10:52Z",
+      "event": "deliver",
+      "note": "state-flag-validation",
+      "head": "953cbfd"
+    }
+  ]
+}

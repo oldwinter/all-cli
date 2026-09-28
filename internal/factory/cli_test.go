@@ -1148,3 +1148,16 @@ func TestClaimVerifiedItemRefused(t *testing.T) {
 		t.Fatalf("claim queued: %v", err)
 	}
 }
+
+func TestListRejectsUnknownState(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-041")
+	_, _, err := run(t, opts, "list", "--state", "bogus")
+	if err == nil || !strings.Contains(err.Error(), "invalid --state") {
+		t.Fatalf("list --state bogus err = %v", err)
+	}
+	stdout, _, err := run(t, opts, "list", "--state", "queued")
+	if err != nil || !strings.Contains(stdout, "WI-041") {
+		t.Fatalf("list --state queued = %q, %v", stdout, err)
+	}
+}
