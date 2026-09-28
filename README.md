@@ -194,9 +194,11 @@ all-cli options --json
 ```bash
 all-cli status
 all-cli status --json
+all-cli status --ids
 all-cli status --tools kubectl,docker
 all-cli status --categories ai,cloud
 all-cli status --categories ai --missing-only
+all-cli status --missing-only --ids
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
@@ -204,6 +206,10 @@ all-cli status --timeout 10s
 all-cli status --no-progress
 all-cli status --quiet
 ```
+
+Use `--ids` to print one checked tool ID per line after applying the status filters and
+sort order. This mode suppresses the progress spinner, so stdout contains only IDs. If
+you also pass `--json`, the full JSON report takes precedence.
 
 Use the global `--no-progress` flag to suppress progress indicators in human-readable
 commands. `status --quiet` also suppresses the status spinner while showing only tools
