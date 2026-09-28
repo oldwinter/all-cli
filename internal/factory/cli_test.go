@@ -879,7 +879,8 @@ func TestExecuteNilContext(t *testing.T) {
 	var out, errOut bytes.Buffer
 	// nil ctx falls back to context.Background(); status on an empty root
 	// still runs and reports zero items.
-	if err := Execute(nil, []string{"--root", dir, "status"}, &out, &errOut); err != nil {
+	var nilCtx context.Context
+	if err := Execute(nilCtx, []string{"--root", dir, "status"}, &out, &errOut); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "items=0") {

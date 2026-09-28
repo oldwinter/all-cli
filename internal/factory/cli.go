@@ -108,6 +108,43 @@ func (o *options) save(item *WorkItem) error {
 	return o.store().Save(item)
 }
 
+// failVerifyRun lands a verification infrastructure failure (the run itself
+// could not complete) in failed, so the item is not parked in the transient
+// verifying state, then propagates the original error.
+func (o *options) failVerifyRun(item *WorkItem, err error) error {
+	errMsg := fmt.Sprintf("verification could not complete: %v", err)
+	item.LastError = errMsg
+	if terr := item.Transition(StateFailed, o.now()); terr != nil {
+		return terr
+	}
+	item.Record(Evidence{Event: "verify-fail", Note: errMsg, Head: o.headFunc()()}, o.now())
+	if serr := o.save(item); serr != nil {
+		return serr
+	}
+	return err
+}
+
+// recordCheckEvidence appends an evidence entry for one executed check result
+// and returns the first failing result seen so far.
+func recordCheckEvidence(event string, item *WorkItem, res *CheckResult, head string, now func() time.Time, firstFail *CheckResult) *CheckResult {
+	note := "pass"
+	if !res.OK() {
+		note = "fail"
+	}
+	item.Record(Evidence{
+		Event:    event,
+		Command:  res.Command,
+		ExitCode: res.ExitCode,
+		Note:     note,
+		Head:     head,
+		Log:      res.Log,
+	}, now())
+	if !res.OK() && firstFail == nil {
+		return res
+	}
+	return firstFail
+}
+
 // rejectStale records that verification evidence no longer applies, rolls the
 // item back to in_progress so a fresh verify is required, and returns the
 // delivery-blocking error. Dry-run previews skip the persisted write.
@@ -387,37 +424,12 @@ logs under .factory/run/ record exactly what ran.`,
 			}
 			results, err := runner.RunChecks(cmd.Context(), item)
 			if err != nil {
-				// The run itself failed (e.g. log dir unwritable): do not leave
-				// the item parked in the transient verifying state.
-				errMsg := fmt.Sprintf("verification could not complete: %v", err)
-				item.LastError = errMsg
-				if terr := item.Transition(StateFailed, opts.now()); terr != nil {
-					return terr
-				}
-				item.Record(Evidence{Event: "verify-fail", Note: errMsg, Head: opts.headFunc()()}, opts.now())
-				if serr := opts.save(item); serr != nil {
-					return serr
-				}
-				return err
+				return opts.failVerifyRun(item, err)
 			}
+			head := opts.headFunc()()
 			var firstFail *CheckResult
 			for i := range results {
-				res := results[i]
-				note := "pass"
-				if !res.OK() {
-					note = "fail"
-				}
-				item.Record(Evidence{
-					Event:    "check",
-					Command:  res.Command,
-					ExitCode: res.ExitCode,
-					Note:     note,
-					Head:     opts.headFunc()(),
-					Log:      res.Log,
-				}, opts.now())
-				if !res.OK() && firstFail == nil {
-					firstFail = &results[i]
-				}
+				firstFail = recordCheckEvidence("check", item, &results[i], head, opts.now, firstFail)
 			}
 			if firstFail == nil {
 				if err := item.Transition(StateVerified, opts.now()); err != nil {
@@ -504,24 +516,10 @@ func newDeliverCommand(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			head := opts.headFunc()()
 			var firstFail *CheckResult
 			for i := range results {
-				res := results[i]
-				note := "pass"
-				if !res.OK() {
-					note = "fail"
-				}
-				item.Record(Evidence{
-					Event:    "deliver-check",
-					Command:  res.Command,
-					ExitCode: res.ExitCode,
-					Note:     note,
-					Head:     opts.headFunc()(),
-					Log:      res.Log,
-				}, opts.now())
-				if !res.OK() && firstFail == nil {
-					firstFail = &results[i]
-				}
+				firstFail = recordCheckEvidence("deliver-check", item, &results[i], head, opts.now, firstFail)
 			}
 			if firstFail != nil {
 				return opts.rejectStale(item, fmt.Sprintf(

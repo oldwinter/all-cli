@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -162,6 +163,7 @@ func TestNewPosthogSinkInstallationIDErrorPropagates(t *testing.T) {
 }
 
 func TestPosthogCaptureNilContextDoesNotPanic(t *testing.T) {
+	var nilCtx context.Context
 	sink := &posthogSink{
 		apiKey:         "k",
 		endpoint:       "http://127.0.0.1:1/capture/",
@@ -169,7 +171,7 @@ func TestPosthogCaptureNilContextDoesNotPanic(t *testing.T) {
 		installationID: "id",
 		client:         &http.Client{Timeout: 100 * time.Millisecond},
 	}
-	sink.capture(nil, "status", "success")
+	sink.capture(nilCtx, "status", "success")
 }
 
 func TestLoadOrCreateInstallationIDCreateTempFails(t *testing.T) {

@@ -189,11 +189,12 @@ func TestRecorderStartNilContextAndTraceID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, span := r.Start(nil)
+	var nilCtx context.Context
+	ctx, span := r.Start(nilCtx)
 	if span.TraceID == "" || TraceID(ctx) != span.TraceID {
 		t.Fatalf("span=%+v ctx trace=%q", span, TraceID(ctx))
 	}
-	if TraceID(nil) != "" {
+	if TraceID(nilCtx) != "" {
 		t.Fatal("TraceID(nil) must be empty")
 	}
 	if got := TraceID(context.Background()); got != "" {
