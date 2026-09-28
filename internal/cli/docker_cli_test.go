@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	diag "github.com/oldwinter/all-cli/internal/diagnose"
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/tools"
+	"github.com/spf13/cobra"
 )
 
 func TestDockerStatusJSON(t *testing.T) {
@@ -655,6 +657,29 @@ func TestDockerUpdateReportsDockerErrors(t *testing.T) {
 	}
 	if len(got.Errors) != 2 || got.Errors[0] != "daemon unavailable" {
 		t.Fatalf("unexpected result: %#v", got)
+	}
+}
+
+func TestBuildDockerDiagnosticReportScopesToDocker(t *testing.T) {
+	summary := model.ToolSummary{
+		ID:              "docker",
+		Installed:       true,
+		ConfiguredState: model.ConfiguredYes,
+		Configured:      true,
+	}
+	stubDockerStatusEvaluation(t, summary)
+
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	report, err := buildDockerDiagnosticReport(cmd, cliFakeRunner{}, time.Second)
+	if err != nil {
+		t.Fatalf("buildDockerDiagnosticReport: %v", err)
+	}
+	if len(report.Tools) != 1 || report.Tools[0].ID != "docker" {
+		t.Fatalf("expected docker-only report, got %#v", report.Tools)
+	}
+	if report.Profile != diag.ProfileAgent {
+		t.Fatalf("profile = %q, want agent", report.Profile)
 	}
 }
 

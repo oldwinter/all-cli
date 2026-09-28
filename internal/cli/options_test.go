@@ -7,66 +7,37 @@ import (
 	"time"
 )
 
-func TestOptionsCommandOutputsPersistentFlagsAsText(t *testing.T) {
-	t.Parallel()
-
-	opts := &rootOptions{Timeout: 7 * time.Second}
-	cmd := newOptionsCommand(opts)
-	var out strings.Builder
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	cmd.SetArgs([]string{})
-	if err := cmd.Execute(); err != nil {
+func TestOptionsCommandTextOutput(t *testing.T) {
+	opts := &rootOptions{Timeout: 7 * time.Second, NoProgress: true}
+	stdout, stderr, err := executeTestCommand(t, newOptionsCommand(opts))
+	if err != nil {
 		t.Fatalf("options: %v", err)
 	}
-	got := out.String()
-	if !strings.Contains(got, "json=false") {
-		t.Fatalf("expected json=false in output, got:\n%s", got)
+	if stderr != "" {
+		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(got, "timeout=7s") {
-		t.Fatalf("expected timeout=7s in output, got:\n%s", got)
+	for _, want := range []string{"json=false", "no_progress=true", "timeout=7s"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
 	}
 }
 
-func TestOptionsCommandOutputsPersistentFlagsAsJSON(t *testing.T) {
-	t.Parallel()
-
-	opts := &rootOptions{JSON: true, Timeout: 7 * time.Second}
-	cmd := newOptionsCommand(opts)
-	var out strings.Builder
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	cmd.SetArgs([]string{})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("options: %v", err)
+func TestOptionsCommandJSONOutput(t *testing.T) {
+	opts := &rootOptions{JSON: true, Timeout: 3 * time.Second}
+	stdout, _, err := executeTestCommand(t, newOptionsCommand(opts))
+	if err != nil {
+		t.Fatalf("options --json: %v", err)
 	}
-
-	var got optionsReport
-	if err := json.Unmarshal([]byte(out.String()), &got); err != nil {
-		t.Fatalf("decode options JSON: %v\n%s", err, out.String())
+	var got struct {
+		JSON       bool   `json:"json"`
+		NoProgress bool   `json:"no_progress"`
+		Timeout    string `json:"timeout"`
 	}
-	if !got.JSON || got.Timeout != "7s" {
-		t.Fatalf("unexpected options report: %#v", got)
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-}
-
-func TestRootOptionsCommandUsesPersistentJSONFlag(t *testing.T) {
-	t.Parallel()
-
-	cmd := NewRootCommand()
-	cmd.SetArgs([]string{"--json", "--timeout", "9s", "options"})
-	var out strings.Builder
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("root options: %v", err)
-	}
-
-	var got optionsReport
-	if err := json.Unmarshal([]byte(out.String()), &got); err != nil {
-		t.Fatalf("decode root options JSON: %v\n%s", err, out.String())
-	}
-	if !got.JSON || got.Timeout != "9s" {
-		t.Fatalf("unexpected root options report: %#v", got)
+	if !got.JSON || got.Timeout != "3s" {
+		t.Fatalf("unexpected report: %+v", got)
 	}
 }

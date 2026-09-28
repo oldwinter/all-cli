@@ -1,0 +1,52 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-023",
+  "title": "Cover catalog args, options, and docker report paths",
+  "kind": "test",
+  "state": "delivered",
+  "order": 120,
+  "source": {},
+  "acceptance": [
+    "validateCatalogArgs boundaries, options text output, and buildDockerDiagnosticReport are exercised",
+    "go test ./internal/cli passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/..."
+  ],
+  "branch": "factory/wi-023-cover-catalog-args-options-and-docker-report-paths",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:34:17Z",
+    "head": "653c37d",
+    "fingerprint": "3e6ac676fc872016b4058fd53f272db2bb865ea2288be1eb1624c643a8c38f71"
+  },
+  "created_at": "2026-09-28T19:09:07Z",
+  "updated_at": "2026-09-28T19:34:20Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:09:07Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "653c37d"
+    },
+    {
+      "ts": "2026-09-28T19:34:17Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/...",
+      "note": "pass",
+      "head": "653c37d",
+      "log": ".factory/run/WI-023/20260928T193415Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:34:17Z",
+      "event": "verify-pass",
+      "head": "653c37d"
+    },
+    {
+      "ts": "2026-09-28T19:34:20Z",
+      "event": "deliver",
+      "note": "catalog-args+options+docker-report coverage",
+      "head": "653c37d"
+    }
+  ]
+}
