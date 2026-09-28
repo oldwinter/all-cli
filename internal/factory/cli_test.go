@@ -1204,3 +1204,38 @@ func TestListEmptyPrintsMessage(t *testing.T) {
 		t.Fatalf("filtered list = %q err=%v", stdout, err)
 	}
 }
+
+func TestMutatingCommandsRespectLock(t *testing.T) {
+	exec := &fakeExec{def: execx.CmdResult{}}
+	opts, dir := testOptions(t, exec)
+	intakeOK(t, opts, "WI-033")
+
+	release, err := acquireLock(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+
+	// A held lock refuses mutating commands but not reads or dry-runs.
+	if _, _, err := run(t, opts, "claim", "WI-033"); err == nil || !strings.Contains(err.Error(), "holds") {
+		t.Fatalf("claim under lock: %v", err)
+	}
+	if _, _, err := run(t, opts, "evidence", "WI-033", "--note", "n"); err == nil {
+		t.Fatal("evidence under lock should fail")
+	}
+	if _, _, err := run(t, opts, "claim", "WI-033", "--dry-run"); err != nil {
+		t.Fatalf("dry-run claim under lock: %v", err)
+	}
+	if _, _, err := run(t, opts, "list"); err != nil {
+		t.Fatalf("list under lock: %v", err)
+	}
+
+	release()
+	if _, _, err := run(t, opts, "claim", "WI-033"); err != nil {
+		t.Fatalf("claim after release: %v", err)
+	}
+	// The lock file is gone after a normal run.
+	if _, err := os.Stat(filepath.Join(dir, ".factory", "lock")); !os.IsNotExist(err) {
+		t.Fatal("lock file left behind")
+	}
+}

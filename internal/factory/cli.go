@@ -90,6 +90,15 @@ func (o *options) runner() Runner {
 	return r
 }
 
+// acquire takes the backlog lock for mutating commands; dry-run runs never
+// write, so they skip it. The returned func releases the lock.
+func (o *options) acquire() (func(), error) {
+	if o.dry {
+		return func() {}, nil
+	}
+	return acquireLock(o.root)
+}
+
 func (o *options) headFunc() func() string {
 	if o.head != nil {
 		return o.head
@@ -276,6 +285,11 @@ func newIntakeCommand(opts *options) *cobra.Command {
 		Short: "Create a queued work item",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			release, err := opts.acquire()
+			if err != nil {
+				return err
+			}
+			defer release()
 			if branch == "" {
 				branch = "factory/" + strings.ToLower(id) + "-" + slugify(title)
 			}
@@ -325,6 +339,11 @@ func newIntakeCommand(opts *options) *cobra.Command {
 }
 
 func claimItem(opts *options, id string, w io.Writer, retry bool) error {
+	release, err := opts.acquire()
+	if err != nil {
+		return err
+	}
+	defer release()
 	item, err := opts.load(id)
 	if err != nil {
 		return err
@@ -407,6 +426,11 @@ failed (first failing check wins; non-zero exit). Evidence entries and per-check
 logs under .factory/run/ record exactly what ran.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			release, err := opts.acquire()
+			if err != nil {
+				return err
+			}
+			defer release()
 			item, err := opts.load(args[0])
 			if err != nil {
 				return err
@@ -496,6 +520,11 @@ func newDeliverCommand(opts *options) *cobra.Command {
 		Short: "Mark a verified item delivered",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			release, err := opts.acquire()
+			if err != nil {
+				return err
+			}
+			defer release()
 			item, err := opts.load(args[0])
 			if err != nil {
 				return err
@@ -572,6 +601,11 @@ func newBlockCommand(opts *options) *cobra.Command {
 			if strings.TrimSpace(reason) == "" {
 				return fmt.Errorf("--reason is required")
 			}
+			release, err := opts.acquire()
+			if err != nil {
+				return err
+			}
+			defer release()
 			item, err := opts.load(args[0])
 			if err != nil {
 				return err
@@ -607,6 +641,11 @@ func newUnblockCommand(opts *options) *cobra.Command {
 		Short: "Return a blocked item to the queue",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			release, err := opts.acquire()
+			if err != nil {
+				return err
+			}
+			defer release()
 			item, err := opts.load(args[0])
 			if err != nil {
 				return err
@@ -644,6 +683,11 @@ func newEvidenceCommand(opts *options) *cobra.Command {
 			if strings.TrimSpace(note) == "" {
 				return fmt.Errorf("--note is required")
 			}
+			release, err := opts.acquire()
+			if err != nil {
+				return err
+			}
+			defer release()
 			item, err := opts.load(args[0])
 			if err != nil {
 				return err

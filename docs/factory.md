@@ -106,9 +106,13 @@ land. `claim` echoes the label so the intended target stays visible.
 The factory has no daemon — each command is one shot. To pause work, leave
 items `queued` or mark them `blocked`; nothing runs in the background.
 
-Backlog files have no cross-process locking: run one `factory` command at a
-time per repo root, and do not hand-edit an item while `verify`/`deliver` is
-running on it (the in-flight write wins and drops your edit).
+Mutating commands hold `.factory/lock` (created `O_EXCL`, removed on exit) so
+two factory processes cannot interleave backlog writes; read-only commands
+never lock. If a command dies mid-run the lock file is stale — it records the
+holder's pid and start time, and is safe to delete once that process is gone.
+Still do not hand-edit an item while `verify`/`deliver` is running on it: the
+lock serializes factory commands, not your editor, and the in-flight write
+wins.
 
 ## Manual approvals stay manual
 

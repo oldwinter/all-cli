@@ -41,3 +41,4 @@ all-cli.prom
 # Devin factory runtime evidence (task task_7f803d1f8cb1)
 .codex/
 .factory/run/
+.factory/lock
