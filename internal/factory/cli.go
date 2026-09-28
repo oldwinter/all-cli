@@ -387,6 +387,17 @@ logs under .factory/run/ record exactly what ran.`,
 			}
 			results, err := runner.RunChecks(cmd.Context(), item)
 			if err != nil {
+				// The run itself failed (e.g. log dir unwritable): do not leave
+				// the item parked in the transient verifying state.
+				errMsg := fmt.Sprintf("verification could not complete: %v", err)
+				item.LastError = errMsg
+				if terr := item.Transition(StateFailed, opts.now()); terr != nil {
+					return terr
+				}
+				item.Record(Evidence{Event: "verify-fail", Note: errMsg, Head: opts.headFunc()()}, opts.now())
+				if serr := opts.save(item); serr != nil {
+					return serr
+				}
 				return err
 			}
 			var firstFail *CheckResult

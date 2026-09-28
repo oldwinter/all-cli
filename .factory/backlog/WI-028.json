@@ -1,0 +1,60 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-028",
+  "title": "Verify infra error lands in failed, not stuck verifying",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 28,
+  "source": {},
+  "acceptance": [
+    "RunChecks error transitions verifying-\u003efailed with last_error and verify-fail evidence",
+    "regression test covers uncreatable run dir"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-028-verify-infra-error-lands-in-failed-not-stuck-verifying",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:59:19Z",
+    "head": "480289a",
+    "fingerprint": "df2330e45147ccae16be09e5a3b980d0b7c177828050ce40817560eec7ecfaeb"
+  },
+  "created_at": "2026-09-28T19:59:01Z",
+  "updated_at": "2026-09-28T19:59:20Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:59:01Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "480289a"
+    },
+    {
+      "ts": "2026-09-28T19:59:19Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "480289a",
+      "log": ".factory/run/WI-028/20260928T195918Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:59:19Z",
+      "event": "verify-pass",
+      "head": "480289a"
+    },
+    {
+      "ts": "2026-09-28T19:59:20Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "480289a",
+      "log": ".factory/run/WI-028/20260928T195919Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:59:20Z",
+      "event": "deliver",
+      "note": "verify-infra-error-to-failed",
+      "head": "480289a"
+    }
+  ]
+}

@@ -806,3 +806,43 @@ func TestListAndStatusSurfaceMovedHead(t *testing.T) {
 		t.Fatalf("status should count moved-head staleness: %q", stdout)
 	}
 }
+
+// TestVerifyInfraErrorLandsInFailed pins WI-028: when the check run itself
+// cannot complete (here the run dir cannot be created), the item must not be
+// left parked in the transient verifying state.
+func TestVerifyInfraErrorLandsInFailed(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	blocker := filepath.Join(dir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	opts.exec.RunDir = blocker
+
+	intakeOK(t, opts, "WI-028")
+	if _, _, err := run(t, opts, "claim", "WI-028"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-028"); err == nil {
+		t.Fatal("verify should propagate the infrastructure error")
+	}
+	item, _ := opts.store().Load("WI-028")
+	if item.State != StateFailed {
+		t.Fatalf("state = %s, want failed after infra error", item.State)
+	}
+	if !strings.Contains(item.LastError, "verification could not complete") {
+		t.Fatalf("last_error = %q", item.LastError)
+	}
+	var sawFail bool
+	for _, ev := range item.Evidence {
+		if ev.Event == "verify-fail" {
+			sawFail = true
+		}
+	}
+	if !sawFail {
+		t.Fatal("verify-fail evidence not recorded")
+	}
+	// Recovery path stays the standard retry -> verify.
+	if _, _, err := run(t, opts, "retry", "WI-028"); err != nil {
+		t.Fatalf("retry: %v", err)
+	}
+}
