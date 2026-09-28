@@ -153,3 +153,13 @@ func TestTerminalState(t *testing.T) {
 		t.Fatal("non-delivered states must not be terminal")
 	}
 }
+
+func TestValidateRejectsBlankAcceptance(t *testing.T) {
+	for _, acc := range [][]string{{""}, {"  "}, {"ok", ""}} {
+		item := validItem()
+		item.Acceptance = acc
+		if err := item.Validate(); err == nil {
+			t.Fatalf("expected rejection for acceptance=%q", acc)
+		}
+	}
+}

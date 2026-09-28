@@ -1,0 +1,82 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-048",
+  "title": "Reject blank acceptance criteria at validation",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "intake and validate reject empty/whitespace acceptance criteria",
+    "existing backlog still validates"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+    "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory intake --id WI-999 --title x --acceptance '' --check true --root /tmp/fx-root 2\u003e\u00261 | grep -q 'empty'"
+  ],
+  "branch": "factory/wi-048-reject-blank-acceptance-criteria-at-validation",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:31:24Z",
+    "head": "1246b96",
+    "fingerprint": "9acdd9a51d328f533aa9b37430e679191d61615c921cf56d7e221146cb433b1b"
+  },
+  "created_at": "2026-09-28T21:31:00Z",
+  "updated_at": "2026-09-28T21:31:25Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:31:00Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "1246b96"
+    },
+    {
+      "ts": "2026-09-28T21:31:24Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "1246b96",
+      "log": ".factory/run/WI-048/20260928T213122.811855000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:31:24Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory intake --id WI-999 --title x --acceptance '' --check true --root /tmp/fx-root 2\u003e\u00261 | grep -q 'empty'",
+      "note": "pass",
+      "head": "1246b96",
+      "log": ".factory/run/WI-048/20260928T213122.811855000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:31:24Z",
+      "event": "verify-pass",
+      "head": "1246b96"
+    },
+    {
+      "ts": "2026-09-28T21:31:25Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "1246b96",
+      "log": ".factory/run/WI-048/20260928T213124.258639000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:31:25Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory intake --id WI-999 --title x --acceptance '' --check true --root /tmp/fx-root 2\u003e\u00261 | grep -q 'empty'",
+      "note": "pass",
+      "head": "1246b96",
+      "log": ".factory/run/WI-048/20260928T213124.258639000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:31:25Z",
+      "event": "deliver",
+      "note": "blank-acceptance-validation",
+      "head": "1246b96"
+    }
+  ]
+}

@@ -147,6 +147,11 @@ func (it *WorkItem) Validate() error {
 	if len(it.Acceptance) == 0 {
 		return fmt.Errorf("item %s: at least one acceptance criterion is required", it.ID)
 	}
+	for i, a := range it.Acceptance {
+		if strings.TrimSpace(a) == "" {
+			return fmt.Errorf("item %s: acceptance %d is empty", it.ID, i)
+		}
+	}
 	if len(it.Checks) == 0 {
 		return fmt.Errorf("item %s: at least one verification check is required", it.ID)
 	}
