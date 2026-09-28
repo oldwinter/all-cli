@@ -1,0 +1,52 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-021",
+  "title": "Cover repopolicy audit edge paths",
+  "kind": "test",
+  "state": "delivered",
+  "order": 110,
+  "source": {},
+  "acceptance": [
+    "repopolicy Audit, CheckAgentGuide, excludedPath, and lineCount cover error and boundary branches",
+    "go test ./internal/repopolicy passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/..."
+  ],
+  "branch": "factory/wi-021-cover-repopolicy-audit-edge-paths",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:08:23Z",
+    "head": "c4b4949",
+    "fingerprint": "ea4092d8aceb666970d2490fe87ee4e3a3a53bf2614fc1749975c0fa6c771843"
+  },
+  "created_at": "2026-09-28T19:07:50Z",
+  "updated_at": "2026-09-28T19:08:28Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:07:51Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "c4b4949"
+    },
+    {
+      "ts": "2026-09-28T19:08:23Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/...",
+      "note": "pass",
+      "head": "c4b4949",
+      "log": ".factory/run/WI-021/20260928T190822Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:08:23Z",
+      "event": "verify-pass",
+      "head": "c4b4949"
+    },
+    {
+      "ts": "2026-09-28T19:08:28Z",
+      "event": "deliver",
+      "note": "repopolicy-edges-covered",
+      "head": "c4b4949"
+    }
+  ]
+}
