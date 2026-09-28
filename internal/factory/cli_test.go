@@ -1189,3 +1189,18 @@ func TestUnblockAndEvidenceDryRun(t *testing.T) {
 		t.Fatalf("dry-run mutated item: state=%s evidence=%d", after.State, len(after.Evidence))
 	}
 }
+
+func TestListEmptyPrintsMessage(t *testing.T) {
+	exec := &fakeExec{def: execx.CmdResult{}}
+	opts, _ := testOptions(t, exec)
+	stdout, _, err := run(t, opts, "list")
+	if err != nil || !strings.Contains(stdout, "no items") {
+		t.Fatalf("empty list = %q err=%v", stdout, err)
+	}
+	// Same for a state filter that matches nothing.
+	intakeOK(t, opts, "WI-032")
+	stdout, _, err = run(t, opts, "list", "--state", "failed")
+	if err != nil || !strings.Contains(stdout, "no items") {
+		t.Fatalf("filtered list = %q err=%v", stdout, err)
+	}
+}

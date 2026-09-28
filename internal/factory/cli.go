@@ -200,6 +200,10 @@ func newListCommand(opts *options) *cobra.Command {
 			if opts.json {
 				return printJSON(cmd.OutOrStdout(), filtered)
 			}
+			if len(filtered) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "no items")
+				return nil
+			}
 			head := opts.headFunc()()
 			for _, it := range filtered {
 				fmt.Fprintf(cmd.OutOrStdout(), "%-8s %-16s ord=%-3d attempts=%d %s\n",
