@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-069",
+  "title": "Cover adapter scanner errors, runner-error fallback, no-candidates warning, prometheus read/label edges",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "docker ps blank-line skip, oversized-line scanner error, stderr-empty Err fallback, no-candidates warning; mise oversized line; prometheus malformed-label rejection, ENOTDIR open error, record propagation"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/docker/ ./internal/tools/mise/ ./internal/telemetry/ -count=1"
+  ],
+  "branch": "factory/wi-069-cover-adapter-scanner-errors-runner-error-fallback-no-candidates-warning-prometheus-read-label-edges",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T23:38:01Z",
+    "head": "26d51c9",
+    "fingerprint": "4f1dc47efa5c87d6a6d6c8680221be309bf1837697b79226afcb66c82619f6a4"
+  },
+  "created_at": "2026-09-28T23:38:00Z",
+  "updated_at": "2026-09-28T23:38:05Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T23:38:00Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "26d51c9"
+    },
+    {
+      "ts": "2026-09-28T23:38:01Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/docker/ ./internal/tools/mise/ ./internal/telemetry/ -count=1",
+      "note": "pass",
+      "head": "26d51c9",
+      "log": ".factory/run/WI-069/20260928T233800.332060000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T23:38:01Z",
+      "event": "verify-pass",
+      "head": "26d51c9"
+    },
+    {
+      "ts": "2026-09-28T23:38:05Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/docker/ ./internal/tools/mise/ ./internal/telemetry/ -count=1",
+      "note": "pass",
+      "head": "26d51c9",
+      "log": ".factory/run/WI-069/20260928T233804.576055000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T23:38:05Z",
+      "event": "deliver",
+      "head": "26d51c9"
+    }
+  ]
+}

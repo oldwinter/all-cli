@@ -136,3 +136,15 @@ func TestParseMiseCurrentWarnsOnShortLine(t *testing.T) {
 		t.Fatalf("empty stdout: cur=%#v warnings=%#v errs=%v err=%v", cur, warnings, errs, err)
 	}
 }
+
+func TestParseMiseCurrentScannerError(t *testing.T) {
+	// A line longer than bufio's 64KiB token limit fails the scan.
+	stdout := "go " + strings.Repeat("x", 80*1024) + "\n"
+	out, _, errs, err := parseMiseCurrent(stdout)
+	if err == nil || len(errs) == 0 {
+		t.Fatal("expected scanner error on oversized line")
+	}
+	if len(out) != 0 {
+		t.Fatalf("oversized line must not yield tools: %#v", out)
+	}
+}
