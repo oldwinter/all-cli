@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"os/exec"
-	"syscall"
 	"time"
 )
 
@@ -29,18 +28,7 @@ type Runner interface {
 type DefaultRunner struct{}
 
 func (DefaultRunner) Run(ctx context.Context, name string, args ...string) CmdResult {
-	cmd := exec.CommandContext(ctx, name, args...)
-	// Runs are shell-wrapped (sh -c), so cancel must kill the whole process
-	// group — killing only the direct child would orphan grandchildren that
-	// still hold the output pipes, blocking Wait until they exit.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		if cmd.Process == nil {
-			return nil
-		}
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
-	cmd.WaitDelay = 5 * time.Second
+	cmd := newCmd(ctx, name, args...)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

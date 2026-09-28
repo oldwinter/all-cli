@@ -2,7 +2,9 @@ package execx
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -47,15 +49,18 @@ func TestDefaultRunnerContextCancellation(t *testing.T) {
 }
 
 // TestDefaultRunnerCancelsProcessGroup proves a cancelled run kills the whole
-// process group — a shell's grandchildren must not outlive the command.
+// process group — a shell's grandchildren must not outlive the command. The
+// assertion is scoped to the run's own process group id so unrelated
+// processes on a shared machine cannot collide.
 func TestDefaultRunnerCancelsProcessGroup(t *testing.T) {
+	pgidFile := filepath.Join(t.TempDir(), "pgid")
 	ctx, cancel := context.WithCancel(context.Background())
 	r := DefaultRunner{}
 	done := make(chan CmdResult, 1)
-	go func() { done <- r.Run(ctx, "sh", "-c", "sleep 93") }()
+	// $$ is the shell's pid; Setpgid makes it the process-group leader.
+	go func() { done <- r.Run(ctx, "sh", "-c", "echo $$ > "+pgidFile+"; exec sleep 93") }()
 
-	// Give the grandchild a moment to spawn, then cancel.
-	time.Sleep(300 * time.Millisecond)
+	pgid := waitPgid(t, pgidFile)
 	cancel()
 
 	select {
@@ -66,15 +71,34 @@ func TestDefaultRunnerCancelsProcessGroup(t *testing.T) {
 	case <-time.After(15 * time.Second):
 		t.Fatal("cancelled run did not return")
 	}
+	assertGroupDead(t, pgid)
+}
 
-	// The bracket keeps the pgrep wrapper's own command line from matching.
-	out, err := exec.Command("sh", "-c", "pgrep -f 'sleep 9[3]' || true").Output()
-	if err != nil {
-		t.Fatal(err)
+// waitPgid polls until a check command has recorded its process group id.
+func waitPgid(t *testing.T, path string) string {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if data, err := os.ReadFile(path); err == nil {
+			if pgid := strings.TrimSpace(string(data)); pgid != "" {
+				return pgid
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("no pgid written to %s", path)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
-	if len(strings.TrimSpace(string(out))) != 0 {
-		t.Fatalf("orphaned grandchild processes: %s", out)
+}
+
+// assertGroupDead fails unless no process remains in the given group.
+func assertGroupDead(t *testing.T, pgid string) {
+	t.Helper()
+	out, err := exec.Command("pgrep", "-g", pgid).Output()
+	if err != nil && len(out) == 0 {
+		return // pgrep exits 1 when nothing matches
 	}
+	t.Fatalf("process group %s still alive: %s", pgid, out)
 }
 
 func TestTimeoutRunnerNilRunner(t *testing.T) {

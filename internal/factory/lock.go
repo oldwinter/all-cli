@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -51,14 +50,13 @@ func createLock(lockPath string) (func(), error) {
 	return func() { _ = os.Remove(lockPath) }, nil
 }
 
-// lockHolderDead reports whether the lock's recorded pid no longer exists.
-// Signal 0 probes liveness: ESRCH means the process is gone; EPERM or nil
-// means something still owns it (pid reuse fails safe — we keep refusing).
+// lockHolderDead reports whether the lock's recorded pid no longer exists,
+// using the platform's liveness probe (processAlive in process_*.go).
 func lockHolderDead(meta string) bool {
 	for _, field := range strings.Fields(meta) {
 		if pid, ok := strings.CutPrefix(field, "pid="); ok {
 			if n, err := strconv.Atoi(pid); err == nil && n > 0 {
-				return syscall.Kill(n, 0) == syscall.ESRCH
+				return !processAlive(n)
 			}
 		}
 	}
