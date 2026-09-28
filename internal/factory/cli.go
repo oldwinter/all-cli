@@ -153,7 +153,6 @@ func (o *options) rejectStale(item *WorkItem, errMsg string) error {
 		return err
 	}
 	item.LastError = errMsg
-	item.Verified = nil
 	item.Record(Evidence{Event: "stale-verify", Note: errMsg, Head: o.headFunc()()}, o.now())
 	if !o.dry {
 		if err := o.save(item); err != nil {

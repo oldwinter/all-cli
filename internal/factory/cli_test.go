@@ -1000,3 +1000,48 @@ func TestListFailsOnUnreadableBacklog(t *testing.T) {
 		t.Fatal("list should fail when backlog dir is unreadable")
 	}
 }
+
+// TestVerifiedMetadataClearedWhenLeavingState pins WI-033: verified metadata is
+// provenance of the verified/delivered states only; any other move drops it.
+func TestVerifiedMetadataClearedWhenLeavingState(t *testing.T) {
+	exec := &fakeExec{def: execx.CmdResult{}}
+	opts, _ := testOptions(t, exec)
+	intakeOK(t, opts, "WI-033")
+	for _, args := range [][]string{{"claim", "WI-033"}, {"verify", "WI-033"}} {
+		if _, _, err := run(t, opts, args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	if item, _ := opts.store().Load("WI-033"); item.Verified == nil {
+		t.Fatal("expected verified metadata after pass")
+	}
+
+	// Blocking a verified item clears the metadata.
+	if _, _, err := run(t, opts, "block", "WI-033", "--reason", "park"); err != nil {
+		t.Fatal(err)
+	}
+	if item, _ := opts.store().Load("WI-033"); item.Verified != nil {
+		t.Fatalf("verified metadata left on state=%s", item.State)
+	}
+}
+
+// TestReverifyFailureDropsVerifiedMetadata covers verify -> re-verify -> fail:
+// the old verified block must not survive on the failed item.
+func TestReverifyFailureDropsVerifiedMetadata(t *testing.T) {
+	exec := &fakeExec{def: execx.CmdResult{}}
+	opts, _ := testOptions(t, exec)
+	intakeOK(t, opts, "WI-033")
+	for _, args := range [][]string{{"claim", "WI-033"}, {"verify", "WI-033"}} {
+		if _, _, err := run(t, opts, args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	exec.def = execx.CmdResult{ExitCode: 1, Stderr: "boom"}
+	if _, _, err := run(t, opts, "verify", "WI-033"); err == nil {
+		t.Fatal("re-verify should fail")
+	}
+	item, _ := opts.store().Load("WI-033")
+	if item.State != StateFailed || item.Verified != nil {
+		t.Fatalf("state=%s verified=%+v, want failed without verified metadata", item.State, item.Verified)
+	}
+}

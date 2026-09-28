@@ -224,3 +224,21 @@ func TestValidateBacklogUncompilableSchema(t *testing.T) {
 		t.Fatal("expected compile failure for dangling $ref schema")
 	}
 }
+
+func TestValidateBacklogStrayVerifiedMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	store := NewStore(filepath.Join(root, ".factory", "backlog"))
+	item := validItem()
+	item.State = StateFailed
+	item.Verified = &Verified{At: "2026-09-28T12:00:00Z", Fingerprint: item.AcceptanceFingerprint()}
+	item.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	item.UpdatedAt = item.CreatedAt
+	if err := store.Save(item); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "verified metadata on state=failed") {
+		t.Fatalf("ValidateBacklog = %v, want stray-metadata failure", err)
+	}
+}

@@ -186,12 +186,17 @@ func (it *WorkItem) StaleVerificationForHead(head string) bool {
 }
 
 // Transition moves the item to a new state when allowed and stamps UpdatedAt.
+// Verified metadata only applies to the verified state (and stays as provenance
+// on delivered items), so it is cleared on any other move away from verified.
 func (it *WorkItem) Transition(to State, now time.Time) error {
 	if it.State == to {
 		return nil
 	}
 	if !CanTransition(it.State, to) {
 		return fmt.Errorf("item %s: cannot move %s -> %s", it.ID, it.State, to)
+	}
+	if it.State == StateVerified && to != StateDelivered {
+		it.Verified = nil
 	}
 	it.State = to
 	it.UpdatedAt = now.UTC().Format(time.RFC3339)
