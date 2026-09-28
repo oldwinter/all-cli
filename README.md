@@ -138,6 +138,8 @@ High-frequency recipes:
 - `just policy`: check source size, issue-linked debt markers, and AGENTS.md freshness
 - `just lint`: enforce cyclomatic-complexity and duplicate-code thresholds
 - `just pre-commit`: run every configured commit hook against all files
+- `just factory`: repo-local work-item pipeline (intake → claim → verify →
+  deliver); see [docs/factory.md](docs/factory.md) for the operator guide
 - `just fmt` / `just fmt-check`: format code or enforce formatting
 - `just test-cover`: run coverage and print per-package function coverage
 - `just coverage-html`: write `coverage.html` for detailed coverage browsing
