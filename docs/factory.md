@@ -120,7 +120,9 @@ SIGINT/SIGTERM cancel cleanly: the running check's whole process group is
 killed, the item lands in `failed` (retriable with `factory verify`), and the
 lock is released. SIGKILL can't run cleanup — it orphans check children and
 leaves the item in `verifying`, but the lock dies with the process, so just
-re-run `verify` to recover.
+re-run `verify` to recover. A claimant dying outside `verify` leaves the item
+`in_progress`; `verify` re-enters it directly (re-`claim` is a no-op), or
+`evidence` + `block` to hand it off.
 
 ## Manual approvals stay manual
 
