@@ -178,6 +178,7 @@ human-readable table that diff cannot parse.`,
 }
 
 func newDiffCommand(opts *rootOptions) *cobra.Command {
+	var details bool
 	var exitCode bool
 	var toolsFilter string
 
@@ -188,8 +189,11 @@ func newDiffCommand(opts *rootOptions) *cobra.Command {
 standard input, which makes it possible to compare a saved snapshot with a live pipeline.
 Standard input snapshots are limited to 1 MiB. Add --exit-code to return status 1 when
 the snapshots differ while still printing the complete report. Use --tools to compare
-only selected tracked tools; the summary and exit code then reflect only those tools.`,
+only selected tracked tools; the summary and exit code then reflect only those tools.
+Add --details to show before/after values for changed fields in text output.
+JSON always includes full before/after tool summaries and ignores --details.`,
 		Example: `  all-cli diff before.json after.json
+  all-cli diff before.json after.json --details
   all-cli diff before.json after.json --exit-code
   all-cli diff before.json after.json --tools kubectl,docker --exit-code
   all-cli snapshot --json | all-cli diff before.json - --json`,
@@ -226,8 +230,8 @@ only selected tracked tools; the summary and exit code then reflect only those t
 				if err := output.PrintJSON(cmd.OutOrStdout(), report); err != nil {
 					return err
 				}
-			} else {
-				printSnapshotDiff(cmd.OutOrStdout(), report)
+			} else if err := printSnapshotDiff(cmd.OutOrStdout(), report, details); err != nil {
+				return err
 			}
 			if exitCode && len(report.Changes) > 0 {
 				cmd.Root().SilenceErrors = true
@@ -237,6 +241,7 @@ only selected tracked tools; the summary and exit code then reflect only those t
 		},
 	}
 
+	cmd.Flags().BoolVar(&details, "details", false, "Show before/after values for changed fields (ignored with --json)")
 	cmd.Flags().BoolVar(&exitCode, "exit-code", false, "Return status 1 when snapshots differ")
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tracked tool IDs to compare (e.g. kubectl,docker)")
 	return cmd
@@ -372,17 +377,17 @@ func readStatusSnapshot(path string, stdin io.Reader) (model.StatusReport, error
 	return report, nil
 }
 
-func printSnapshotDiff(w interface {
-	Write([]byte) (int, error)
-}, report model.SnapshotDiffReport) {
-	fmt.Fprintf(w, "Snapshot diff: added=%d removed=%d changed=%d\n",
+func printSnapshotDiff(w io.Writer, report model.SnapshotDiffReport, details bool) error {
+	if _, err := fmt.Fprintf(w, "Snapshot diff: added=%d removed=%d changed=%d\n",
 		report.Summary.Added,
 		report.Summary.Removed,
 		report.Summary.Changed,
-	)
+	); err != nil {
+		return err
+	}
 	if len(report.Changes) == 0 {
-		fmt.Fprintln(w, "No changes.")
-		return
+		_, err := fmt.Fprintln(w, "No changes.")
+		return err
 	}
 	changes := append([]model.SnapshotToolChange(nil), report.Changes...)
 	sort.SliceStable(changes, func(i, j int) bool {
@@ -393,6 +398,14 @@ func printSnapshotDiff(w interface {
 		if len(change.Fields) > 0 {
 			fields = " fields=" + strings.Join(change.Fields, ",")
 		}
-		fmt.Fprintf(w, "- %s %s%s\n", change.ToolID, change.ChangeType, fields)
+		if _, err := fmt.Fprintf(w, "- %s %s%s\n", change.ToolID, change.ChangeType, fields); err != nil {
+			return err
+		}
+		if details {
+			if err := printSnapshotChangeDetails(w, change); err != nil {
+				return err
+			}
+		}
 	}
+	return nil
 }

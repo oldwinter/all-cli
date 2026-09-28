@@ -289,6 +289,24 @@ all-cli snapshot --json > after.json
 all-cli diff before.json after.json --json
 ```
 
+Add `--details` to see the old and new values of each changed field directly in
+text output, without opening the snapshot files or parsing JSON:
+
+```bash
+all-cli diff before.json after.json --details
+```
+
+```text
+Snapshot diff: added=0 removed=0 changed=1
+- kubectl changed fields=current
+    current: {"context":"dev"} -> {"context":"staging"}
+```
+
+Values use compact JSON so spaces, quotes, and newlines remain unambiguous;
+`null` means the field was absent. Added and removed tools keep their summary
+lines. This flag works with `--tools`, standard input, and `--exit-code`.
+`--json` keeps its existing full before/after summaries and ignores `--details`.
+
 Add `--exit-code` when a script or CI job should return status 1 if any tool was
 added, removed, or changed. The complete text or JSON report is still printed:
 
