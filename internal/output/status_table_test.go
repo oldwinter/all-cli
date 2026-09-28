@@ -8,6 +8,49 @@ import (
 	"github.com/oldwinter/all-cli/internal/model"
 )
 
+func TestPrintStatusTable_DefaultsFlatSortedByTool(t *testing.T) {
+	report := model.StatusReport{
+		Tools: []model.ToolSummary{
+			{ID: "gh", Category: "code", Installed: true, ConfiguredState: model.ConfiguredYes},
+			{ID: "aws", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintStatusTable(&buf, report)
+
+	got := buf.String()
+	if !strings.Contains(got, "TOOL") || !strings.Contains(got, "CONFIGURED") {
+		t.Fatalf("expected flat table header, got:\n%s", got)
+	}
+	if strings.Contains(got, "Category: ") {
+		t.Fatalf("expected no group headings in default output, got:\n%s", got)
+	}
+	if strings.Index(got, "aws") > strings.Index(got, "gh") {
+		t.Fatalf("expected default tool-name sort (aws before gh), got:\n%s", got)
+	}
+}
+
+func TestPrintStatusTableWithOptions_FlatSortToolDesc(t *testing.T) {
+	report := model.StatusReport{
+		Tools: []model.ToolSummary{
+			{ID: "aws", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes},
+			{ID: "gh", Category: "code", Installed: true, ConfiguredState: model.ConfiguredYes},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintStatusTableWithOptions(&buf, report, StatusTableOptions{
+		GroupBy: StatusTableGroupByNone,
+		SortBy:  StatusTableSortToolDesc,
+	})
+
+	got := buf.String()
+	if strings.Index(got, "gh") > strings.Index(got, "aws") {
+		t.Fatalf("expected tool-desc order (gh before aws), got:\n%s", got)
+	}
+}
+
 func TestPrintStatusTableWithOptions_GroupByCategory(t *testing.T) {
 	report := model.StatusReport{
 		Tools: []model.ToolSummary{
