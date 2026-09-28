@@ -133,6 +133,16 @@ func (o *options) failVerifyRun(item *WorkItem, err error) error {
 	return err
 }
 
+// checkFailMsg describes the first failing check. When the run errored —
+// timeout, cancellation, spawn failure — the reason is included so "timed
+// out" is distinguishable from a plain non-zero exit.
+func checkFailMsg(prefix string, res *CheckResult) string {
+	if res.Err != nil {
+		return fmt.Sprintf("%s (exit %d): %s: %v", prefix, res.ExitCode, res.Command, res.Err)
+	}
+	return fmt.Sprintf("%s (exit %d): %s", prefix, res.ExitCode, res.Command)
+}
+
 // recordCheckEvidence appends an evidence entry for one executed check result
 // and returns the first failing result seen so far.
 func recordCheckEvidence(event string, item *WorkItem, res *CheckResult, head string, now func() time.Time, firstFail *CheckResult) *CheckResult {
@@ -492,7 +502,7 @@ logs under .factory/run/ record exactly what ran.`,
 				fmt.Fprintf(cmd.OutOrStdout(), "%s verified: %d/%d checks passed\n", item.ID, len(results), len(item.Checks))
 				return nil
 			}
-			errMsg := fmt.Sprintf("check failed (exit %d): %s", firstFail.ExitCode, firstFail.Command)
+			errMsg := checkFailMsg("check failed", firstFail)
 			item.LastError = errMsg
 			if terr := item.Transition(StateFailed, opts.now()); terr != nil {
 				return terr
@@ -572,8 +582,8 @@ func newDeliverCommand(opts *options) *cobra.Command {
 			}
 			if firstFail != nil {
 				return opts.rejectStale(item, fmt.Sprintf(
-					"delivery re-check failed (exit %d): %s; run 'factory verify %s' again",
-					firstFail.ExitCode, firstFail.Command, item.ID))
+					"%s; run 'factory verify %s' again",
+					checkFailMsg("delivery re-check failed", firstFail), item.ID))
 			}
 			if err := item.Transition(StateDelivered, opts.now()); err != nil {
 				return err

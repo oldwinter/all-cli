@@ -183,6 +183,43 @@ func TestVerifyRecordsEvidence(t *testing.T) {
 	}
 }
 
+// TestVerifyCheckTimeoutLandsRetryableFailure exercises the real timeout path
+// end to end: a check outliving the exec deadline must fail the verify run,
+// record the deadline (not just "exit 1"), and stay retryable — never wedge
+// in verifying.
+func TestVerifyCheckTimeoutLandsRetryableFailure(t *testing.T) {
+	opts, _ := testOptions(t, execx.TimeoutRunner{
+		Runner:  execx.DefaultRunner{},
+		Timeout: 100 * time.Millisecond,
+	})
+	stdout, _, err := run(t, opts, "intake",
+		"--id", "WI-001",
+		"--title", "timeout item",
+		"--acceptance", "it finishes",
+		"--check", "sleep 30")
+	if err != nil || !strings.Contains(stdout, "queued WI-001") {
+		t.Fatalf("intake: out=%q err=%v", stdout, err)
+	}
+	if _, _, err := run(t, opts, "claim", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = run(t, opts, "verify", "WI-001")
+	if err == nil || !errors.Is(err, errChecksFailed) {
+		t.Fatalf("verify err = %v, want errChecksFailed", err)
+	}
+	item, _ := opts.store().Load("WI-001")
+	if item.State != StateFailed {
+		t.Fatalf("state = %s, want failed", item.State)
+	}
+	if !strings.Contains(item.LastError, "deadline") && !strings.Contains(item.LastError, "timeout") {
+		t.Fatalf("last_error dropped the deadline reason: %q", item.LastError)
+	}
+	if _, _, err := run(t, opts, "retry", "WI-001"); err != nil {
+		t.Fatalf("timed-out item must stay retryable: %v", err)
+	}
+}
+
 func TestDeliverAndTerminalNoOps(t *testing.T) {
 	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
 	intakeOK(t, opts, "WI-001")
