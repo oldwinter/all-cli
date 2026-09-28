@@ -169,6 +169,12 @@ func (it *WorkItem) AcceptanceFingerprint() string {
 	return hex.EncodeToString(sum[:])
 }
 
+// StaleVerification reports whether the recorded verification no longer
+// matches the item's current acceptance criteria and checks.
+func (it *WorkItem) StaleVerification() bool {
+	return it.Verified == nil || it.Verified.Fingerprint != it.AcceptanceFingerprint()
+}
+
 // Transition moves the item to a new state when allowed and stamps UpdatedAt.
 func (it *WorkItem) Transition(to State, now time.Time) error {
 	if it.State == to {

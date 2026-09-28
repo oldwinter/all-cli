@@ -259,6 +259,37 @@ func TestDeliverRejectsStaleVerification(t *testing.T) {
 	}
 }
 
+func TestListAndStatusSurfaceStaleVerification(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	if _, _, err := run(t, opts, "claim", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	item, _ := opts.store().Load("WI-001")
+	item.Checks = []string{"different"}
+	if err := opts.store().Save(item); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, _, err := run(t, opts, "list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, "verified(stale)") {
+		t.Fatalf("list should flag stale verification: %q", stdout)
+	}
+	stdout, _, err = run(t, opts, "status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, "stale=1") {
+		t.Fatalf("status should count stale verification: %q", stdout)
+	}
+}
+
 func TestDeliverRejectsTamperedAcceptance(t *testing.T) {
 	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
 	intakeOK(t, opts, "WI-001")

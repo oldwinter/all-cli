@@ -138,8 +138,8 @@ func newListCommand(opts *options) *cobra.Command {
 				return printJSON(cmd.OutOrStdout(), filtered)
 			}
 			for _, it := range filtered {
-				fmt.Fprintf(cmd.OutOrStdout(), "%-8s %-12s ord=%-3d attempts=%d %s\n",
-					it.ID, it.State, it.Order, it.Attempts, it.Title)
+				fmt.Fprintf(cmd.OutOrStdout(), "%-8s %-16s ord=%-3d attempts=%d %s\n",
+					it.ID, displayState(it), it.Order, it.Attempts, it.Title)
 			}
 			return nil
 		},
@@ -175,6 +175,15 @@ func newNextCommand(opts *options) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// displayState renders the item state, flagging verified items whose
+// verification no longer matches their acceptance/checks.
+func displayState(it *WorkItem) string {
+	if it.State == StateVerified && it.StaleVerification() {
+		return "verified(stale)"
+	}
+	return string(it.State)
 }
 
 func slugify(s string) string {
@@ -439,7 +448,7 @@ func newDeliverCommand(opts *options) *cobra.Command {
 			if item.State != StateVerified {
 				return fmt.Errorf("item %s: deliver requires verified state (state=%s); run 'factory verify %s' first", item.ID, item.State, item.ID)
 			}
-			if item.Verified == nil || item.Verified.Fingerprint != item.AcceptanceFingerprint() {
+			if item.StaleVerification() {
 				errMsg := "acceptance criteria or checks changed after verification; run 'factory verify " + item.ID + "' again"
 				if terr := item.Transition(StateInProgress, opts.now()); terr != nil {
 					return terr
@@ -577,13 +586,18 @@ func newStatusCommand(opts *options) *cobra.Command {
 				return err
 			}
 			counts := map[State]int{}
+			stale := 0
 			for _, it := range items {
 				counts[it.State]++
+				if it.State == StateVerified && it.StaleVerification() {
+					stale++
+				}
 			}
 			if opts.json {
 				return printJSON(cmd.OutOrStdout(), map[string]any{
 					"total":  len(items),
 					"counts": counts,
+					"stale":  stale,
 					"items":  items,
 				})
 			}
@@ -592,6 +606,9 @@ func newStatusCommand(opts *options) *cobra.Command {
 				if counts[s] > 0 {
 					fmt.Fprintf(cmd.OutOrStdout(), " %s=%d", s, counts[s])
 				}
+			}
+			if stale > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), " stale=%d", stale)
 			}
 			fmt.Fprintln(cmd.OutOrStdout())
 			return nil

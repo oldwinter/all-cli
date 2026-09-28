@@ -1,0 +1,52 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-020",
+  "title": "Surface stale verification in list and status",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 60,
+  "source": {},
+  "acceptance": [
+    "factory list renders verified(stale) when the fingerprint no longer matches",
+    "factory status counts stale verified items"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-020-surface-stale-verification-in-list-and-status",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:07:06Z",
+    "head": "4d0deae",
+    "fingerprint": "f2b52632f9dacba79b542d66528f93759c2d52928be056141d223df19227527c"
+  },
+  "created_at": "2026-09-28T19:07:03Z",
+  "updated_at": "2026-09-28T19:07:10Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:07:04Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "4d0deae"
+    },
+    {
+      "ts": "2026-09-28T19:07:06Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "4d0deae",
+      "log": ".factory/run/WI-020/20260928T190705Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:07:06Z",
+      "event": "verify-pass",
+      "head": "4d0deae"
+    },
+    {
+      "ts": "2026-09-28T19:07:10Z",
+      "event": "deliver",
+      "note": "stale-visible-in-list-status",
+      "head": "4d0deae"
+    }
+  ]
+}
