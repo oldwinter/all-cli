@@ -69,9 +69,11 @@ without writing. `verify --dry-run` lists the exact commands it would run.
 `--json` is supported on `list`, `next`, and `status`. `--root DIR` selects a
 different repo root (used by tests).
 
-`just` re-splits `*args` recipes on whitespace, so flag values containing
-spaces do not survive `just factory ...`. Use space-free values there, or run
-`go run ./cmd/factory <args>` directly when a note or title needs spaces.
+The `factory` recipe passes arguments through `"$@"` (just's
+`[positional-arguments]`), so quoted flag values survive verbatim:
+`just factory intake --title "multi word" --check "test -f README.md"`.
+It uses an `sh` shebang recipe, which requires `sh` on `PATH` (Git Bash on
+Windows). `go run ./cmd/factory <args>` remains a direct equivalent.
 
 `--branch` on intake records the *intended* review branch as provenance — the
 factory never creates or switches branches; the operator chooses where commits

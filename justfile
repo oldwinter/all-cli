@@ -131,8 +131,12 @@ smoke: build
     {{bin_path}} status --group-by none
 
 ## Run the repository work-item factory (example: just factory next)
+## [positional-arguments] keeps argv boundaries: quoted flag values survive
+## (e.g. --title "multi word" --check "test -f README.md").
+[positional-arguments]
 factory *args:
-    {{go_cmd}} run ./cmd/factory {{args}}
+    #!/usr/bin/env sh
+    exec {{go_cmd}} run ./cmd/factory "$@"
 
 ## Validate factory backlog items against the item schema
 factory-validate:

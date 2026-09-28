@@ -76,6 +76,69 @@ func TestEndToEndLeftoverLockFile(t *testing.T) {
 	fx.wantState(t, "in_progress")
 }
 
+// TestJustFactoryPreservesArgvBoundaries pins the documented operator path:
+// `just factory intake --title "multi word" --check "test -f README.md"` must
+// deliver each flag value intact (the recipe uses positional-arguments so
+// "$@" preserves argv), and checks must be data until verify runs them.
+func TestJustFactoryPreservesArgvBoundaries(t *testing.T) {
+	justPath, err := exec.LookPath("just")
+	if err != nil {
+		t.Skip("just not on PATH")
+	}
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh not on PATH (shebang recipe)")
+	}
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	justfile := filepath.Join(repoRoot, "justfile")
+	scratch := t.TempDir()
+	marker := filepath.Join(scratch, "marker")
+
+	just := func(t *testing.T, args ...string) (string, error) {
+		t.Helper()
+		cmd := exec.Command(justPath, append([]string{"--justfile", justfile, "factory"}, args...)...)
+		cmd.Dir = repoRoot
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+
+	// Exact bytes survive intake — including the shell flag inside the check.
+	out, err := just(t, "intake", "--root", scratch,
+		"--id", "WI-990", "--title", "Root cold start probe",
+		"--acceptance", "README stays available",
+		"--check", "touch marker")
+	if err != nil {
+		t.Fatalf("just factory intake: %v\n%s", err, out)
+	}
+	data, err := os.ReadFile(filepath.Join(scratch, ".factory", "backlog", "WI-990.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var item WorkItem
+	if err := json.Unmarshal(data, &item); err != nil {
+		t.Fatal(err)
+	}
+	if item.Title != "Root cold start probe" || item.Checks[0] != "touch marker" {
+		t.Fatalf("argv mangled: title=%q checks=%v", item.Title, item.Checks)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatal("check must be data at intake; marker must not exist")
+	}
+
+	// The check only executes on verify.
+	if out, err := just(t, "claim", "--root", scratch, "WI-990"); err != nil {
+		t.Fatalf("just factory claim: %v\n%s", err, out)
+	}
+	if out, err := just(t, "verify", "--root", scratch, "WI-990"); err != nil {
+		t.Fatalf("just factory verify: %v\n%s", err, out)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("verify must run the check: %v", err)
+	}
+}
+
 // e2eFixture is an isolated git repo with a backlog driven by the real binary.
 type e2eFixture struct {
 	bin  string
