@@ -331,7 +331,12 @@ tool needs to validate these reports offline:
 all-cli schema status > status.schema.json
 all-cli schema diagnostic > diagnostic.schema.json
 all-cli schema doctor-fix > doctor-fix.schema.json
+all-cli schema snapshot-diff > snapshot-diff.schema.json
+all-cli schema fix-plan > fix-plan.schema.json
 ```
+
+`all-cli diff <a> <b> --json` emits [snapshot-diff-report-v0.1](schemas/snapshot-diff-report-v0.1.json) (`schema_version` `snapshot-diff-v0.1`).
+`all-cli fix --dry-run --json` and `all-cli docker fix --dry-run --json` emit [fix-plan-report-v0.1](schemas/fix-plan-report-v0.1.json) (`schema_version` `fix-plan-v0.1`).
 
 Use `-` for either diff input to compare a saved snapshot with a live pipeline
 without creating another file. Standard input snapshots are limited to 1 MiB:

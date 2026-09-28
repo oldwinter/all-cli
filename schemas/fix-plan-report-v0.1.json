@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oldwinter/all-cli/schemas/fix-plan-report-v0.1.json",
+  "title": "all-cli fix plan report",
+  "description": "Object emitted by `all-cli fix --dry-run --json` and `all-cli docker fix --dry-run --json` (internal/model.FixPlan).",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "dry_run", "summary", "items"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "fix-plan-v0.1",
+      "description": "JSON output schema version; matches model.FixPlanSchemaVersionV01."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the plan was built."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "Always true in this release; fix plans never mutate configuration."
+    },
+    "summary": { "$ref": "#/$defs/fix_plan_summary" },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fix_plan_item" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "fix_plan_summary": {
+      "type": "object",
+      "required": ["total", "supported", "blocked"],
+      "properties": {
+        "total": { "type": "integer" },
+        "supported": { "type": "integer" },
+        "blocked": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "fix_plan_item": {
+      "type": "object",
+      "required": ["diagnostic_id", "action", "supported", "will_run", "mutates"],
+      "properties": {
+        "diagnostic_id": { "type": "string" },
+        "related_tool": { "type": "string" },
+        "action": { "$ref": "status-report-v0.1.json#/$defs/suggested_action" },
+        "supported": { "type": "boolean" },
+        "will_run": { "type": "boolean" },
+        "mutates": { "type": "boolean" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}
