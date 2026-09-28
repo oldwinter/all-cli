@@ -183,3 +183,29 @@ func TestLoadOrCreateInstallationIDCreateTempFails(t *testing.T) {
 		t.Fatal("expected create-temp error in read-only dir")
 	}
 }
+
+func TestLoadOrCreateInstallationIDMkdirAndReadFailures(t *testing.T) {
+	// Read failure that is not IsNotExist: the ID path sits under a file.
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadOrCreateInstallationID(filepath.Join(blocker, "id")); err == nil {
+		t.Fatal("expected read failure when ID dir is a file")
+	}
+
+	// MkdirAll failure: the parent dir is searchable but not writable, so the
+	// read reports NotExist and only the directory create can fail.
+	ro := filepath.Join(dir, "readonly")
+	if err := os.MkdirAll(ro, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(ro, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(ro, 0o755) })
+	if _, err := loadOrCreateInstallationID(filepath.Join(ro, "sub", "id")); err == nil {
+		t.Fatal("expected mkdir failure under read-only parent")
+	}
+}

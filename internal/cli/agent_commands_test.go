@@ -382,3 +382,23 @@ func TestSnapshotCommandPlainTableAndFilterError(t *testing.T) {
 		t.Fatal("snapshot --tools bogus should fail")
 	}
 }
+
+func TestFixCommandPlainOutputAndFlagErrors(t *testing.T) {
+	stubAgentStatusEvaluation(t)
+
+	opts := &rootOptions{Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newFixCommand(opts, cliFakeRunner{}), "--dry-run")
+	if err != nil {
+		t.Fatalf("fix --dry-run: %v", err)
+	}
+	if strings.HasPrefix(strings.TrimSpace(stdout), "{") || !strings.Contains(stdout, "Fix") {
+		t.Fatalf("expected human fix plan, got:\n%s", stdout)
+	}
+
+	if _, _, err = executeTestCommand(t, newFixCommand(opts, cliFakeRunner{}), "--dry-run", "--tools", "bogus"); err == nil {
+		t.Fatal("fix --tools bogus should fail")
+	}
+	if _, _, err = executeTestCommand(t, newFixCommand(opts, cliFakeRunner{}), "--dry-run", "--profile", "bogus"); err == nil {
+		t.Fatal("fix --profile bogus should fail")
+	}
+}

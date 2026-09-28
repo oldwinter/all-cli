@@ -41,3 +41,14 @@ func TestOptionsCommandJSONOutput(t *testing.T) {
 		t.Fatalf("unexpected report: %+v", got)
 	}
 }
+
+func TestOptionsCommandWriteFailures(t *testing.T) {
+	for writes := 0; writes < 2; writes++ {
+		w := &diffDetailsFailingWriter{remaining: writes}
+		cmd := newOptionsCommand(&rootOptions{Timeout: time.Second})
+		cmd.SetOut(w)
+		if err := cmd.Execute(); err == nil {
+			t.Fatalf("options with %d successful writes should fail", writes)
+		}
+	}
+}
