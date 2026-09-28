@@ -1,0 +1,20 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-017",
+  "title": "Cover factory store and runner edge paths",
+  "kind": "test",
+  "state": "queued",
+  "order": 98,
+  "source": {},
+  "acceptance": [
+    "Store.Save, SortItems, Runner defaults, and headFunc edge cases are exercised",
+    "go test ./internal/factory passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-017-cover-factory-store-and-runner-edge-paths",
+  "attempts": 0,
+  "created_at": "2026-09-28T19:00:34Z",
+  "updated_at": "2026-09-28T19:00:34Z"
+}

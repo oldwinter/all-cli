@@ -74,6 +74,15 @@ func ValidateBacklog(root string) error {
 		}
 		if err := item.Validate(); err != nil {
 			failures = append(failures, fmt.Sprintf("%s: %v", name, err))
+			continue
+		}
+		if item.State == StateVerified {
+			switch {
+			case item.Verified == nil:
+				failures = append(failures, fmt.Sprintf("%s: state=verified without verified metadata", name))
+			case item.Verified.Fingerprint != item.AcceptanceFingerprint():
+				failures = append(failures, fmt.Sprintf("%s: verified fingerprint does not match current acceptance/checks", name))
+			}
 		}
 	}
 	if len(failures) > 0 {

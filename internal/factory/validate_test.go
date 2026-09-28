@@ -79,6 +79,64 @@ func TestValidateBacklogReportsBadFiles(t *testing.T) {
 	}
 }
 
+func TestValidateBacklogVerifiedFingerprintConsistency(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	store := NewStore(filepath.Join(root, ".factory", "backlog"))
+	save := func(item *WorkItem) {
+		t.Helper()
+		item.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+		item.UpdatedAt = item.CreatedAt
+		if err := store.Save(item); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	missingMeta := validItem()
+	missingMeta.ID = "WI-400"
+	missingMeta.State = StateVerified
+	save(missingMeta)
+
+	staleMeta := validItem()
+	staleMeta.ID = "WI-401"
+	staleMeta.State = StateVerified
+	staleMeta.Verified = &Verified{At: missingMeta.CreatedAt, Fingerprint: strings.Repeat("0", 64)}
+	save(staleMeta)
+
+	legacyDelivered := validItem()
+	legacyDelivered.ID = "WI-402"
+	legacyDelivered.State = StateDelivered
+	save(legacyDelivered)
+
+	err := ValidateBacklog(root)
+	if err == nil {
+		t.Fatal("expected consistency failures")
+	}
+	if !strings.Contains(err.Error(), "WI-400") || !strings.Contains(err.Error(), "WI-401") {
+		t.Fatalf("expected WI-400 and WI-401 failures: %v", err)
+	}
+	if strings.Contains(err.Error(), "WI-402") {
+		t.Fatalf("delivered legacy item must stay valid: %v", err)
+	}
+}
+
+func TestValidateBacklogVerifiedFingerprintMatch(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	store := NewStore(filepath.Join(root, ".factory", "backlog"))
+	item := validItem()
+	item.State = StateVerified
+	item.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	item.UpdatedAt = item.CreatedAt
+	item.Verified = &Verified{At: item.CreatedAt, Fingerprint: item.AcceptanceFingerprint()}
+	if err := store.Save(item); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBacklog(root); err != nil {
+		t.Fatalf("matching fingerprint must validate: %v", err)
+	}
+}
+
 func TestValidateBacklogMissingSchema(t *testing.T) {
 	if err := ValidateBacklog(t.TempDir()); err == nil {
 		t.Fatal("expected missing-schema error")
