@@ -25,6 +25,67 @@ func (f fakeRunner) Run(_ context.Context, name string, args ...string) execx.Cm
 	return execx.CmdResult{ExitCode: 1, Err: errors.New("unexpected command")}
 }
 
+func TestConfigured(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				Stdout: `{"loggedIn":true,"accounts":[{"id":"3ba1294bcdfb7a6f8c113ebc120411df"}]}`,
+			},
+		},
+	})
+
+	ok, warnings, errs, err := a.Configured(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected configured=true when logged in")
+	}
+	if len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v %#v", warnings, errs)
+	}
+}
+
+func TestConfigured_NotLoggedIn(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				Stdout: `{"loggedIn":false,"accounts":[]}`,
+			},
+		},
+	})
+
+	ok, _, _, err := a.Configured(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ok {
+		t.Fatal("expected configured=false when logged out")
+	}
+}
+
+func TestConfigured_PropagatesWhoamiError(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"wrangler whoami --json": {
+				ExitCode: 1,
+				Err:      exec.ErrNotFound,
+			},
+		},
+	})
+
+	_, _, _, err := a.Configured(context.Background())
+	if err == nil {
+		t.Fatal("expected fatal whoami error to propagate")
+	}
+}
+
 func TestWhoamiParsesJSONOutput(t *testing.T) {
 	t.Parallel()
 

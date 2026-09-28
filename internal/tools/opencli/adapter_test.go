@@ -24,6 +24,20 @@ func (f fakeRunner) Run(_ context.Context, name string, args ...string) execx.Cm
 	return execx.CmdResult{ExitCode: 1, Err: errors.New("unexpected command"), Stderr: "unexpected command"}
 }
 
+func TestStdoutOrStderr(t *testing.T) {
+	t.Parallel()
+
+	if got := stdoutOrStderr(execx.CmdResult{Stdout: " out ", Stderr: "err"}); got != " out " {
+		t.Fatalf("expected stdout preferred, got %q", got)
+	}
+	if got := stdoutOrStderr(execx.CmdResult{Stdout: "  ", Stderr: "err"}); got != "err" {
+		t.Fatalf("expected stderr fallback on blank stdout, got %q", got)
+	}
+	if got := stdoutOrStderr(execx.CmdResult{}); got != "" {
+		t.Fatalf("expected empty result, got %q", got)
+	}
+}
+
 func TestCurrentParsesDoctorSummary(t *testing.T) {
 	t.Parallel()
 

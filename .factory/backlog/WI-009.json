@@ -3,7 +3,7 @@
   "id": "WI-009",
   "title": "Cover zero-percent adapter paths",
   "kind": "test",
-  "state": "queued",
+  "state": "delivered",
   "order": 80,
   "source": {},
   "acceptance": [
@@ -14,7 +14,34 @@
     "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/aliyun ./internal/tools/aws ./internal/tools/wrangler ./internal/tools/gh ./internal/tools/opencli"
   ],
   "branch": "factory/wi-009-cover-zero-percent-adapter-paths",
-  "attempts": 0,
+  "attempts": 1,
   "created_at": "2026-09-28T18:50:38Z",
-  "updated_at": "2026-09-28T18:50:38Z"
+  "updated_at": "2026-09-28T18:54:43Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T18:53:28Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "93b42f0"
+    },
+    {
+      "ts": "2026-09-28T18:54:34Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/aliyun ./internal/tools/aws ./internal/tools/wrangler ./internal/tools/gh ./internal/tools/opencli",
+      "note": "pass",
+      "head": "93b42f0",
+      "log": ".factory/run/WI-009/20260928T185433Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T18:54:34Z",
+      "event": "verify-pass",
+      "head": "93b42f0"
+    },
+    {
+      "ts": "2026-09-28T18:54:43Z",
+      "event": "deliver",
+      "note": "adapter-zero-percent-covered",
+      "head": "93b42f0"
+    }
+  ]
 }

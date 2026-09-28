@@ -142,6 +142,58 @@ func TestAdapterListProfiles_Success(t *testing.T) {
 	}
 }
 
+func TestAdapterConfigured(t *testing.T) {
+	tests := []struct {
+		name     string
+		results  map[string]execx.CmdResult
+		wantOK   bool
+		wantErr  bool
+		wantErrs int
+	}{
+		{
+			name: "profiles present",
+			results: map[string]execx.CmdResult{
+				"aws configure list-profiles": {Stdout: "default\n"},
+			},
+			wantOK: true,
+		},
+		{
+			name: "no profiles",
+			results: map[string]execx.CmdResult{
+				"aws configure list-profiles": {Stdout: "\n"},
+			},
+			wantOK: false,
+		},
+		{
+			name: "list fails",
+			results: map[string]execx.CmdResult{
+				"aws configure list-profiles": {
+					ExitCode: 1,
+					Err:      errors.New("exit status 1"),
+					Stderr:   "broken config",
+				},
+			},
+			wantErr:  true,
+			wantErrs: 1,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			a := New(fakeRunner{results: tc.results})
+			ok, _, errs, err := a.Configured(context.Background())
+			if tc.wantErr != (err != nil) {
+				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
+			}
+			if ok != tc.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tc.wantOK)
+			}
+			if len(errs) != tc.wantErrs {
+				t.Fatalf("errs = %#v", errs)
+			}
+		})
+	}
+}
+
 func TestAdapterListProfiles_Failure(t *testing.T) {
 	a := New(fakeRunner{
 		results: map[string]execx.CmdResult{

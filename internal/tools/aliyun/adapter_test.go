@@ -83,6 +83,53 @@ dev       | AK:***123          | Invalid | us-east-1   | en
 	}
 }
 
+func TestAdapterConfigured(t *testing.T) {
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"aliyun configure list": {
+				Stdout: `Profile   | Credential         | Valid   | Region      | Language
+--------- | ------------------ | ------- | ----------- | --------
+default * | AK:***6ps          | Valid   | cn-hangzhou | zh
+`,
+			},
+		},
+	})
+
+	ok, warnings, errs, err := a.Configured(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected configured=true with profiles present")
+	}
+	if len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v %#v", warnings, errs)
+	}
+}
+
+func TestAdapterConfigured_Failure(t *testing.T) {
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"aliyun configure list": {
+				ExitCode: 1,
+				Err:      errors.New("exit status 1"),
+				Stderr:   "broken",
+			},
+		},
+	})
+
+	ok, _, errs, err := a.Configured(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if ok {
+		t.Fatal("expected configured=false on failure")
+	}
+	if len(errs) != 1 || errs[0] != "broken" {
+		t.Fatalf("unexpected errs: %#v", errs)
+	}
+}
+
 func TestParseConfigureList_WarnsOnShortRows(t *testing.T) {
 	stdout := `Profile   | Credential         | Valid
 --------- | ------------------ | -------

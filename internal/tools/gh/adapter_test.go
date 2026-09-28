@@ -332,6 +332,51 @@ ghe.example.com
 	}
 }
 
+func TestUseAccount(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"gh auth switch --hostname github.com --user alice": {},
+		},
+	})
+	if err := a.UseAccount(context.Background(), "github.com", "alice"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUseAccount_RequiresArgs(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{})
+	for _, tc := range [][2]string{{"", "alice"}, {"github.com", ""}, {"  ", "  "}} {
+		if err := a.UseAccount(context.Background(), tc[0], tc[1]); err == nil {
+			t.Fatalf("expected error for hostname=%q user=%q", tc[0], tc[1])
+		}
+	}
+}
+
+func TestUseAccount_PropagatesSwitchFailure(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"gh auth switch --hostname github.com --user alice": {
+				ExitCode: 1,
+				Err:      errors.New("exit status 1"),
+				Stderr:   "no such user",
+			},
+		},
+	})
+	err := a.UseAccount(context.Background(), "github.com", "alice")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "gh auth switch failed (exit=1): no such user") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestSanitizeGHAuthErrorStripsUsage(t *testing.T) {
 	t.Parallel()
 	got := sanitizeGHAuthError(unknownJSONUsage)
