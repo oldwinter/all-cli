@@ -346,7 +346,10 @@ func TestRcloneConfiguredFindsStandardConfigPath(t *testing.T) {
 func TestDefaultRegistryAdaptersDispatchThroughRunner(t *testing.T) {
 	runner := registryRunnerStub{}
 
-	for _, id := range []string{"aws", "aliyun", "vercel", "railway", "netlify", "opencli"} {
+	for _, id := range []string{
+		"aws", "aliyun", "vercel", "railway", "netlify", "opencli",
+		"kubectl", "k9s", "docker", "gh", "glab", "kargo", "argocd",
+	} {
 		def, ok := FindByID(id)
 		if !ok {
 			t.Fatalf("%s missing from registry", id)
