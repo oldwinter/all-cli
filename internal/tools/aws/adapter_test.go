@@ -274,3 +274,19 @@ func TestConfigureGetOptional(t *testing.T) {
 		})
 	}
 }
+
+func TestCurrentProfileDefaultsAndPrefersAWSProfile(t *testing.T) {
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_DEFAULT_PROFILE", "")
+	if got := currentProfile(); got != "default" {
+		t.Fatalf("currentProfile = %q, want default", got)
+	}
+	t.Setenv("AWS_DEFAULT_PROFILE", "from-default")
+	if got := currentProfile(); got != "from-default" {
+		t.Fatalf("currentProfile = %q, want from-default", got)
+	}
+	t.Setenv("AWS_PROFILE", "primary")
+	if got := currentProfile(); got != "primary" {
+		t.Fatalf("currentProfile = %q, want primary", got)
+	}
+}

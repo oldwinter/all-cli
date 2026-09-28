@@ -363,3 +363,22 @@ func writeStatusReportFixture(t *testing.T, dir, name string, report model.Statu
 	}
 	return path
 }
+
+func TestSnapshotCommandPlainTableAndFilterError(t *testing.T) {
+	stubAgentStatusEvaluation(t)
+
+	// Non-JSON output renders the status table instead of the machine format.
+	opts := &rootOptions{Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newSnapshotCommand(opts, cliFakeRunner{}), "--tools", "kubectl")
+	if err != nil {
+		t.Fatalf("snapshot plain: %v", err)
+	}
+	if !strings.Contains(stdout, "kubectl") || strings.HasPrefix(strings.TrimSpace(stdout), "{") {
+		t.Fatalf("expected table output, got:\n%s", stdout)
+	}
+
+	// An unknown tool id fails before evaluation.
+	if _, _, err = executeTestCommand(t, newSnapshotCommand(opts, cliFakeRunner{}), "--tools", "bogus"); err == nil {
+		t.Fatal("snapshot --tools bogus should fail")
+	}
+}

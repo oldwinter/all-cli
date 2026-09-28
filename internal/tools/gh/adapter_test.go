@@ -520,3 +520,17 @@ func TestStatusFromTextContextErrorPropagates(t *testing.T) {
 		t.Fatalf("errs = %#v", errs)
 	}
 }
+
+func TestIsHostHeaderRejectsMarkers(t *testing.T) {
+	for _, line := range []string{"✓ github.com", "X github.com", "x github.com", "- github.com", "* github.com"} {
+		if isHostHeader(line, strings.TrimSpace(line)) {
+			t.Fatalf("isHostHeader(%q) = true, want false", line)
+		}
+	}
+}
+
+func TestExtractAfterMissingNeedle(t *testing.T) {
+	if got := extractAfter("no marker here", "Token scopes:"); got != "" {
+		t.Fatalf("extractAfter = %q, want empty", got)
+	}
+}

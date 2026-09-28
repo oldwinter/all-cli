@@ -255,3 +255,22 @@ func TestDoctorWithoutFixKeepsDiagnosticReport(t *testing.T) {
 		t.Fatalf("expected read-only diagnostic report, got schema=%q calls=%q", got.SchemaVersion, runner.calls)
 	}
 }
+
+func TestPrintDoctorFixesEmptyAndCommandDetail(t *testing.T) {
+	var buf strings.Builder
+	printDoctorFixes(&buf, model.DoctorFixRun{Installer: "auto"})
+	if !strings.Contains(buf.String(), "No missing tools to install.") {
+		t.Fatalf("empty fixes output:\n%s", buf.String())
+	}
+
+	buf.Reset()
+	printDoctorFixes(&buf, model.DoctorFixRun{
+		Installer: "brew",
+		Items: []model.DoctorFixItem{
+			{ToolID: "gh", Status: model.DoctorFixInstalled, Command: []string{"brew", "install", "gh"}, Reason: "forced"},
+		},
+	})
+	if !strings.Contains(buf.String(), "brew install gh (forced)") {
+		t.Fatalf("command+reason detail missing:\n%s", buf.String())
+	}
+}
