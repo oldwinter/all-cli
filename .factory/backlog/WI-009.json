@@ -1,0 +1,20 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-009",
+  "title": "Cover zero-percent adapter paths",
+  "kind": "test",
+  "state": "queued",
+  "order": 80,
+  "source": {},
+  "acceptance": [
+    "aliyun/aws/wrangler Configured, gh UseAccount, and opencli stdoutOrStderr are exercised by unit tests",
+    "no real CLIs run; fake runners and injected lookPath only"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/aliyun ./internal/tools/aws ./internal/tools/wrangler ./internal/tools/gh ./internal/tools/opencli"
+  ],
+  "branch": "factory/wi-009-cover-zero-percent-adapter-paths",
+  "attempts": 0,
+  "created_at": "2026-09-28T18:50:38Z",
+  "updated_at": "2026-09-28T18:50:38Z"
+}

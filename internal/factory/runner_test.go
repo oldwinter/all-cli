@@ -57,6 +57,35 @@ func TestRunChecksWritesLogsAndPasses(t *testing.T) {
 	}
 }
 
+func TestRunChecksReportsProgress(t *testing.T) {
+	exec := &fakeExec{
+		results: map[string]execx.CmdResult{"b": {ExitCode: 1}},
+		def:     execx.CmdResult{},
+	}
+	runner, _ := testRunner(t, exec)
+	var seen []CheckResult
+	runner.OnResult = func(res CheckResult) { seen = append(seen, res) }
+	item := validItem()
+	item.Checks = []string{"a", "b", "c"}
+
+	results, err := runner.RunChecks(context.Background(), item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != len(results) {
+		t.Fatalf("callback count = %d, results = %d", len(seen), len(results))
+	}
+	if len(seen) != 2 {
+		t.Fatalf("should stop at first failure: %d results", len(seen))
+	}
+	if seen[0].Index != 0 || seen[0].Total != 3 || seen[0].Command != "a" || !seen[0].OK() {
+		t.Fatalf("first result = %+v", seen[0])
+	}
+	if seen[1].Index != 1 || seen[1].Command != "b" || seen[1].ExitCode != 1 {
+		t.Fatalf("second result = %+v", seen[1])
+	}
+}
+
 func TestRunChecksStopsOnFailure(t *testing.T) {
 	exec := &fakeExec{
 		results: map[string]execx.CmdResult{"first": {ExitCode: 2, Err: errors.New("exit status 2")}},

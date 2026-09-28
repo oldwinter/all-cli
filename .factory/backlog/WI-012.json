@@ -1,0 +1,20 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-012",
+  "title": "Cover diagnose helper edge cases",
+  "kind": "test",
+  "state": "queued",
+  "order": 95,
+  "source": {},
+  "acceptance": [
+    "errorsLookLikeUnsupportedGHJSON, normalizeProfile, displayName, and firstAction cover edge inputs",
+    "go test ./internal/diagnose passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/diagnose/..."
+  ],
+  "branch": "factory/wi-012-cover-diagnose-helper-edge-cases",
+  "attempts": 0,
+  "created_at": "2026-09-28T18:50:42Z",
+  "updated_at": "2026-09-28T18:50:42Z"
+}

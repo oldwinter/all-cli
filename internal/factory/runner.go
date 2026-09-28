@@ -13,6 +13,8 @@ import (
 
 // CheckResult records one executed verification check.
 type CheckResult struct {
+	Index    int
+	Total    int
 	Command  string
 	ExitCode int
 	Err      error
@@ -25,12 +27,13 @@ func (r CheckResult) OK() bool { return r.Err == nil && r.ExitCode == 0 }
 // Runner executes item checks through internal/execx with a per-check timeout
 // and writes combined output into .factory/run/<id>/.
 type Runner struct {
-	Exec    execx.Runner
-	Root    string
-	RunDir  string
-	Timeout time.Duration
-	Now     func() time.Time
-	Head    func() string
+	Exec     execx.Runner
+	Root     string
+	RunDir   string
+	Timeout  time.Duration
+	Now      func() time.Time
+	Head     func() string
+	OnResult func(CheckResult)
 }
 
 // NewRunner returns a Runner with production defaults for the repo at root.
@@ -85,6 +88,11 @@ func (r Runner) RunChecks(ctx context.Context, item *WorkItem) ([]CheckResult, e
 			result.Log = filepath.ToSlash(rel)
 		} else {
 			result.Log = logPath
+		}
+		result.Index = i
+		result.Total = len(item.Checks)
+		if r.OnResult != nil {
+			r.OnResult(result)
 		}
 		results = append(results, result)
 		if !result.OK() {

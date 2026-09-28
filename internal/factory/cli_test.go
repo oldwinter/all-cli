@@ -146,12 +146,17 @@ func TestVerifyRecordsEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stdout, _, err := run(t, opts, "verify", "WI-001")
+	stdout, stderr, err := run(t, opts, "verify", "WI-001")
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
 	if !strings.Contains(stdout, "verified: 2/2") {
 		t.Fatalf("verify output = %q", stdout)
+	}
+	for _, want := range []string{"check 1/2 pass: check-one", "check 2/2 pass: check-two"} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("progress output missing %q: %q", want, stderr)
+		}
 	}
 	item, _ := opts.store().Load("WI-001")
 	if item.State != StateVerified {

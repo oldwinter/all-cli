@@ -22,6 +22,9 @@ queued -> in_progress -> verifying -> verified -> delivered
 - `queued` waits to be picked. `factory next` prints the lowest-order one.
 - `in_progress` means an implementer (human or agent) is changing the tree.
 - `verifying` is transient while `factory verify` executes the item's `checks`.
+  Each completed check prints one progress line to stderr
+  (`check 1/3 pass: <command>` or `FAIL exit=N`) so operators can follow long
+  verifications.
 - `verified` means every check exited 0. `failed` records `last_error` and the
   failing command; `factory retry` re-enters `in_progress`.
 - `blocked` parks an item with a `--reason`; `factory unblock` returns it to

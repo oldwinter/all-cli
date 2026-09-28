@@ -1,0 +1,47 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-011",
+  "title": "Stream per-check progress during verify",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 55,
+  "source": {},
+  "acceptance": [
+    "factory verify prints each check command and its exit status as it completes",
+    "operator can tell which check is running during long verification"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-011-stream-per-check-progress-during-verify",
+  "attempts": 1,
+  "created_at": "2026-09-28T18:50:42Z",
+  "updated_at": "2026-09-28T18:51:27Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T18:50:52Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "eb9e9a9"
+    },
+    {
+      "ts": "2026-09-28T18:51:17Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "eb9e9a9",
+      "log": ".factory/run/WI-011/20260928T185116Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T18:51:17Z",
+      "event": "verify-pass",
+      "head": "eb9e9a9"
+    },
+    {
+      "ts": "2026-09-28T18:51:27Z",
+      "event": "deliver",
+      "note": "per-check-progress-stream",
+      "head": "eb9e9a9"
+    }
+  ]
+}

@@ -351,7 +351,16 @@ logs under .factory/run/ record exactly what ran.`,
 			if err := opts.save(item); err != nil {
 				return err
 			}
-			results, err := opts.runner().RunChecks(cmd.Context(), item)
+			runner := opts.runner()
+			errOut := cmd.ErrOrStderr()
+			runner.OnResult = func(res CheckResult) {
+				status := "pass"
+				if !res.OK() {
+					status = fmt.Sprintf("FAIL exit=%d", res.ExitCode)
+				}
+				fmt.Fprintf(errOut, "check %d/%d %s: %s\n", res.Index+1, res.Total, status, res.Command)
+			}
+			results, err := runner.RunChecks(cmd.Context(), item)
 			if err != nil {
 				return err
 			}
