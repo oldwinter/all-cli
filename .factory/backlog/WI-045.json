@@ -1,0 +1,82 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-045",
+  "title": "Clarify item.branch is provenance label not auto-checkout",
+  "kind": "docs",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "docs/factory.md states branch is recorded metadata; factory never switches branches",
+    "intake --branch help text says recorded label"
+  ],
+  "checks": [
+    "grep -q 'never creates or switches branches' docs/factory.md",
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-045-clarify-item-branch-is-provenance-label-not-auto-checkout",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:25:13Z",
+    "head": "ccf861d",
+    "fingerprint": "f2a580a71ddfee5890d75db0f30271d00f7452ec7221754bbc74ce0e845e0cb7"
+  },
+  "created_at": "2026-09-28T21:24:53Z",
+  "updated_at": "2026-09-28T21:25:15Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:24:54Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "ccf861d"
+    },
+    {
+      "ts": "2026-09-28T21:25:13Z",
+      "event": "check",
+      "command": "grep -q 'never creates or switches branches' docs/factory.md",
+      "note": "pass",
+      "head": "ccf861d",
+      "log": ".factory/run/WI-045/20260928T212512.359470000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:25:13Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "ccf861d",
+      "log": ".factory/run/WI-045/20260928T212512.359470000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:25:13Z",
+      "event": "verify-pass",
+      "head": "ccf861d"
+    },
+    {
+      "ts": "2026-09-28T21:25:15Z",
+      "event": "deliver-check",
+      "command": "grep -q 'never creates or switches branches' docs/factory.md",
+      "note": "pass",
+      "head": "ccf861d",
+      "log": ".factory/run/WI-045/20260928T212514.012361000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:25:15Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "ccf861d",
+      "log": ".factory/run/WI-045/20260928T212514.012361000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:25:15Z",
+      "event": "deliver",
+      "note": "branch-field-semantics",
+      "head": "ccf861d"
+    }
+  ]
+}

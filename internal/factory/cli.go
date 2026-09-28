@@ -313,7 +313,7 @@ func newIntakeCommand(opts *options) *cobra.Command {
 	cmd.Flags().IntVar(&order, "order", 100, "Queue order (lower runs first)")
 	cmd.Flags().IntVar(&issue, "issue", 0, "Linked GitHub issue number, if any")
 	cmd.Flags().IntSliceVar(&avoidPRs, "avoid-pr", nil, "Open PR numbers this item must not duplicate")
-	cmd.Flags().StringVar(&branch, "branch", "", "Delivery branch name (default factory/<id>-<slug>)")
+	cmd.Flags().StringVar(&branch, "branch", "", "Recorded delivery-branch label (default factory/<id>-<slug>); factory never checks out branches")
 	cmd.Flags().StringArrayVar(&acceptance, "acceptance", nil, "Acceptance criterion (repeatable)")
 	cmd.Flags().StringArrayVar(&checks, "check", nil, "Verification command run from repo root (repeatable)")
 	cmd.Flags().BoolVar(&opts.dry, "dry-run", false, "Show what would happen without writing")

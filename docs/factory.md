@@ -69,6 +69,10 @@ different repo root (used by tests).
 spaces do not survive `just factory ...`. Use space-free values there, or run
 `go run ./cmd/factory <args>` directly when a note or title needs spaces.
 
+`--branch` on intake records the *intended* review branch as provenance — the
+factory never creates or switches branches; the operator chooses where commits
+land. `claim` echoes the label so the intended target stays visible.
+
 ## Inspect
 
 - `just factory list [--state failed]` — the queue itself; unknown `--state`
