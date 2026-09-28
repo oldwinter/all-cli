@@ -61,6 +61,32 @@ func TestEndToEndStaleDelivery(t *testing.T) {
 	}
 }
 
+// TestEndToEndLockContention proves the process-level guarantee: while a lock
+// file exists, a separate factory process refuses to mutate but still reads.
+func TestEndToEndLockContention(t *testing.T) {
+	fx := newE2EFixture(t)
+	fx.factory(t, "intake", "--id", "WI-900", "--title", "lock", "--acceptance", "a", "--check", "true")
+
+	lockPath := filepath.Join(fx.root, ".factory", "lock")
+	if err := os.WriteFile(lockPath, []byte("pid=99999 since=2099-01-01T00:00:00Z\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := fx.run("claim", "WI-900"); err == nil || !strings.Contains(out, "another factory command holds") {
+		t.Fatalf("claim under held lock: %q err=%v", out, err)
+	}
+	if out, err := fx.run("list"); err != nil || !strings.Contains(out, "WI-900") {
+		t.Fatalf("list under held lock: %q err=%v", out, err)
+	}
+	if out, err := fx.run("claim", "WI-900", "--dry-run"); err != nil || !strings.Contains(out, "dry-run") {
+		t.Fatalf("dry-run claim under held lock: %q err=%v", out, err)
+	}
+	if err := os.Remove(lockPath); err != nil {
+		t.Fatal(err)
+	}
+	fx.factory(t, "claim", "WI-900")
+	fx.wantState(t, "in_progress")
+}
+
 // e2eFixture is an isolated git repo with a backlog driven by the real binary.
 type e2eFixture struct {
 	bin  string
