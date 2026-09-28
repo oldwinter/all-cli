@@ -76,19 +76,7 @@ func ValidateBacklog(root string) error {
 			failures = append(failures, fmt.Sprintf("%s: %v", name, err))
 			continue
 		}
-		switch {
-		case item.State == StateVerified:
-			switch {
-			case item.Verified == nil:
-				failures = append(failures, fmt.Sprintf("%s: state=verified without verified metadata", name))
-			case item.Verified.Fingerprint != item.AcceptanceFingerprint():
-				failures = append(failures, fmt.Sprintf("%s: verified fingerprint does not match current acceptance/checks", name))
-			}
-		case item.State != StateDelivered && item.Verified != nil:
-			// delivered keeps its Verified block as provenance; every other
-			// state must not carry one.
-			failures = append(failures, fmt.Sprintf("%s: verified metadata on state=%s", name, item.State))
-		}
+		failures = append(failures, verifiedConsistencyFailures(name, &item)...)
 	}
 	if len(failures) > 0 {
 		sort.Strings(failures)
@@ -110,4 +98,23 @@ func newValidateCommand(opts *options) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// verifiedConsistencyFailures enforces the verified-metadata lifecycle: a
+// verified item must carry matching verification evidence, delivered keeps
+// its record as provenance, and no other state may carry one.
+func verifiedConsistencyFailures(name string, item *WorkItem) []string {
+	if item.State == StateVerified {
+		switch {
+		case item.Verified == nil:
+			return []string{fmt.Sprintf("%s: state=verified without verified metadata", name)}
+		case item.Verified.Fingerprint != item.AcceptanceFingerprint():
+			return []string{fmt.Sprintf("%s: verified fingerprint does not match current acceptance/checks", name)}
+		}
+		return nil
+	}
+	if item.State != StateDelivered && item.Verified != nil {
+		return []string{fmt.Sprintf("%s: verified metadata on state=%s", name, item.State)}
+	}
+	return nil
 }
