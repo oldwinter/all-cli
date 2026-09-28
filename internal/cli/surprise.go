@@ -64,6 +64,12 @@ func rainbowLine(s string) string {
 	if !terminalAnsiEnabled(os.Stdout) {
 		return s
 	}
+	return rainbowLineANSI(s)
+}
+
+// rainbowLineANSI paints each non-space rune in cycling ANSI colors; split out
+// so the coloring loop is testable without a TTY.
+func rainbowLineANSI(s string) string {
 	const reset = "\033[0m"
 	attrs := []string{"\033[38;5;204m", "\033[38;5;209m", "\033[38;5;214m", "\033[38;5;220m", "\033[38;5;154m", "\033[38;5;80m", "\033[38;5;45m", "\033[38;5;63m"}
 	var b strings.Builder

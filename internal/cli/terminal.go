@@ -49,14 +49,17 @@ func allCliNoProgressEnvSet() bool {
 // statusSpinnerEnabled controls the status command progress line on stderr.
 // Disabled when not a TTY, when ANSI is opted out, in CI, or when ALL_CLI_NO_PROGRESS is set.
 func statusSpinnerEnabled() bool {
-	if !terminalAnsiEnabled(os.Stderr) {
+	return spinnerEnabled(terminalAnsiEnabled(os.Stderr), ciEnvSet(), allCliNoProgressEnvSet())
+}
+
+// spinnerEnabled is the pure spinner decision, split from the TTY probe so the
+// truth table is directly testable.
+func spinnerEnabled(ansi, ci, noProgress bool) bool {
+	if !ansi {
 		return false
 	}
-	if ciEnvSet() {
+	if ci {
 		return false
 	}
-	if allCliNoProgressEnvSet() {
-		return false
-	}
-	return true
+	return !noProgress
 }

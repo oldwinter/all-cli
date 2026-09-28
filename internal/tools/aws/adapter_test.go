@@ -219,3 +219,58 @@ func TestAdapterListProfiles_Failure(t *testing.T) {
 		t.Fatalf("unexpected errs: %#v", errs)
 	}
 }
+
+func TestConfigureGetOptional(t *testing.T) {
+	cases := []struct {
+		name       string
+		res        execx.CmdResult
+		want       string
+		wantErrs   int
+		wantErrSub string
+	}{
+		{
+			name: "unset optional value returns empty without error",
+			res:  execx.CmdResult{ExitCode: 1, Err: errors.New("exit status 1")},
+		},
+		{
+			name:       "stderr error propagates",
+			res:        execx.CmdResult{ExitCode: 1, Err: errors.New("exit status 1"), Stderr: "profile missing"},
+			wantErrs:   1,
+			wantErrSub: "aws configure get",
+		},
+		{
+			name:       "non-1 exit with empty stderr uses runner error",
+			res:        execx.CmdResult{ExitCode: 2, Err: errors.New("exec boom")},
+			wantErrs:   1,
+			wantErrSub: "aws configure get",
+		},
+		{
+			name: "success trims stdout",
+			res:  execx.CmdResult{ExitCode: 0, Stdout: "  json\n"},
+			want: "json",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := New(fakeRunner{results: map[string]execx.CmdResult{
+				"aws configure get output --profile prod": tc.res,
+			}})
+			got, warnings, errs, err := a.configureGetOptional(context.Background(), "prod", "output")
+			if tc.wantErrSub == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			} else {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErrSub) {
+					t.Fatalf("err = %v, want %q", err, tc.wantErrSub)
+				}
+			}
+			if got != tc.want {
+				t.Fatalf("value = %q, want %q", got, tc.want)
+			}
+			if len(warnings) != 0 || len(errs) != tc.wantErrs {
+				t.Fatalf("warnings=%v errs=%v", warnings, errs)
+			}
+		})
+	}
+}

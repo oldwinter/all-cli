@@ -93,3 +93,24 @@ func restoreEnv(t *testing.T, key, value string) {
 		t.Fatal(err)
 	}
 }
+
+func TestSpinnerEnabledTruthTable(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		ansi, ci, noProgress, want bool
+	}{
+		{false, false, false, false},
+		{false, false, true, false},
+		{false, true, false, false},
+		{false, true, true, false},
+		{true, false, false, true},
+		{true, false, true, false},
+		{true, true, false, false},
+		{true, true, true, false},
+	}
+	for _, tc := range cases {
+		if got := spinnerEnabled(tc.ansi, tc.ci, tc.noProgress); got != tc.want {
+			t.Fatalf("spinnerEnabled(%v,%v,%v)=%v want %v", tc.ansi, tc.ci, tc.noProgress, got, tc.want)
+		}
+	}
+}
