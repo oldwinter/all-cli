@@ -1274,6 +1274,76 @@ func TestMutatingCommandsRespectLock(t *testing.T) {
 	}
 }
 
+// TestMutatingCommandsFailWhenLockPathBlocked: if .factory/lock cannot be
+// opened (e.g. it is a directory) every mutating command must surface the
+// acquire error cleanly; reads still work.
+func TestMutatingCommandsFailWhenLockPathBlocked(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-050")
+	lockPath := filepath.Join(dir, ".factory", "lock")
+	if err := os.Remove(lockPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(lockPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"claim", "WI-050"},
+		{"verify", "WI-050"},
+		{"deliver", "WI-050"},
+		{"block", "WI-050", "--reason", "r"},
+		{"unblock", "WI-050"},
+		{"evidence", "WI-050", "--note", "n"},
+		{"retry", "WI-050"},
+	} {
+		if _, _, err := run(t, opts, args...); err == nil || !strings.Contains(err.Error(), "acquire") {
+			t.Fatalf("%v: err = %v, want acquire failure", args, err)
+		}
+	}
+	if _, _, err := run(t, opts, "list"); err != nil {
+		t.Fatalf("read must not lock: %v", err)
+	}
+	if _, _, err := run(t, opts, "claim", "WI-050", "--dry-run"); err != nil {
+		t.Fatalf("dry-run must not lock: %v", err)
+	}
+}
+
+// TestMutatingCommandsFailWhenFactoryDirIsFile: .factory itself as a file
+// makes the lock dir uncreatable — mutating commands must error, not panic.
+func TestMutatingCommandsFailWhenFactoryDirIsFile(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	if err := os.WriteFile(filepath.Join(dir, ".factory"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "evidence", "WI-001", "--note", "n"); err == nil || !strings.Contains(err.Error(), "create") {
+		t.Fatalf("evidence with file .factory: %v", err)
+	}
+}
+
+// TestDeliverRejectStaleSaveFailure: a stale deliver whose rollback cannot be
+// saved (backlog readable but unwritable) must surface the save error, not
+// report a clean rejection.
+func TestDeliverRejectStaleSaveFailure(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	if _, _, err := run(t, opts, "claim", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	opts.head = func() string { return "def5678" }
+	backlog := filepath.Join(dir, ".factory", "backlog")
+	if err := os.Chmod(backlog, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(backlog, 0o755) }()
+	_, _, err := run(t, opts, "deliver", "WI-001")
+	if err == nil || !strings.Contains(err.Error(), "backlog") {
+		t.Fatalf("deliver err = %v, want save failure", err)
+	}
+}
+
 // TestLeftoverLockFileDoesNotBlock: a lock file with no live holder (left
 // behind by a crash) must not block the next mutating command.
 func TestLeftoverLockFileDoesNotBlock(t *testing.T) {

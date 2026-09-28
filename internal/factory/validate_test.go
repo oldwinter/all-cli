@@ -51,6 +51,40 @@ func TestValidateBacklogMissingBacklog(t *testing.T) {
 	}
 }
 
+func TestValidateBacklogDirIsFile(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	if err := os.WriteFile(filepath.Join(root, ".factory", "backlog"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "read backlog") {
+		t.Fatalf("ValidateBacklog with file backlog = %v", err)
+	}
+}
+
+func TestValidateBacklogBadSchema(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".factory"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schemaPath := filepath.Join(root, ".factory", "work-item.schema.json")
+	if err := os.WriteFile(schemaPath, []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "parse") {
+		t.Fatalf("ValidateBacklog with bad schema = %v", err)
+	}
+	// Well-formed JSON that is not a usable schema reaches the compile error.
+	if err := os.WriteFile(schemaPath, []byte(`{"$id": 42}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBacklog(root); err == nil {
+		t.Fatal("expected compile/add error for non-schema document")
+	}
+}
+
 func TestValidateBacklogReportsBadFiles(t *testing.T) {
 	root := t.TempDir()
 	writeTestSchema(t, root)

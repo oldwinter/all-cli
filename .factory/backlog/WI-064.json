@@ -1,0 +1,59 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-064",
+  "title": "Cover storage-error branches: lock dir as file, lock path as dir, backlog as file, corrupt schema, mid-run save failures",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "filesystem-shape errors surface as clean errors (not panics) on lock acquire, validate, and mid-verify/mid-deliver saves"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-064-cover-storage-error-branches-lock-dir-as-file-lock-path-as-dir-backlog-as-file-corrupt-schema-mid-run-save-failures",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T23:04:48Z",
+    "head": "99fb225",
+    "fingerprint": "b8ee830347092f5e394eb2752902e1cdff50749d8893961ef8e61738157a40da"
+  },
+  "created_at": "2026-09-28T22:59:51Z",
+  "updated_at": "2026-09-28T23:05:18Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T22:59:51Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "99fb225"
+    },
+    {
+      "ts": "2026-09-28T23:04:48Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "99fb225",
+      "log": ".factory/run/WI-064/20260928T230432.416774000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T23:04:48Z",
+      "event": "verify-pass",
+      "head": "99fb225"
+    },
+    {
+      "ts": "2026-09-28T23:05:18Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "99fb225",
+      "log": ".factory/run/WI-064/20260928T230455.043902000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T23:05:18Z",
+      "event": "deliver",
+      "note": "lock/validate/save error branches covered: lock-path-as-dir, .factory-as-file, backlog-as-file, corrupt schema, readonly-backlog save failure",
+      "head": "99fb225"
+    }
+  ]
+}
