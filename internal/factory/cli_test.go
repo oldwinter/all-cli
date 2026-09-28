@@ -1320,6 +1320,90 @@ func TestMutatingCommandsFailWhenFactoryDirIsFile(t *testing.T) {
 	}
 }
 
+// TestDeliverDryRunPreviewsWithoutWriting: a verified item's deliver --dry-run
+// must print the preview and leave the item untouched.
+func TestDeliverDryRunPreviewsWithoutWriting(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	if _, _, err := run(t, opts, "claim", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	stdout, _, err := run(t, opts, "deliver", "WI-001", "--dry-run")
+	if err != nil || !strings.Contains(stdout, "dry-run: would re-run") {
+		t.Fatalf("dry-run deliver: out=%q err=%v", stdout, err)
+	}
+	item, _ := opts.store().Load("WI-001")
+	if item.State != StateVerified {
+		t.Fatalf("dry-run mutated state: %s", item.State)
+	}
+}
+
+// TestMutatingCommandsErrorOnMissingItem pins the load-error branch on every
+// command that reads an existing item: a bogus ID must surface 'not found',
+// not a generic failure.
+func TestMutatingCommandsErrorOnMissingItem(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	for _, args := range [][]string{
+		{"claim", "WI-999"},
+		{"verify", "WI-999"},
+		{"deliver", "WI-999"},
+		{"retry", "WI-999"},
+		{"block", "WI-999", "--reason", "r"},
+		{"unblock", "WI-999"},
+		{"evidence", "WI-999", "--note", "n"},
+	} {
+		if _, _, err := run(t, opts, args...); err == nil || !strings.Contains(err.Error(), "not found") {
+			t.Fatalf("%v: err = %v, want not-found", args, err)
+		}
+	}
+}
+
+// TestIntakeSaveFailure: intake into a readonly backlog surfaces the save
+// error rather than reporting a queued item that was never written.
+func TestIntakeSaveFailure(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	backlog := filepath.Join(dir, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(backlog, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(backlog, 0o755) }()
+	_, _, err := run(t, opts, "intake",
+		"--id", "WI-001", "--title", "t", "--acceptance", "a", "--check", "true")
+	if err == nil || !strings.Contains(err.Error(), "backlog") {
+		t.Fatalf("intake err = %v, want save failure", err)
+	}
+	if opts.store().Exists("WI-001") {
+		t.Fatal("failed intake must not leave an item file")
+	}
+}
+
+// TestDeliverSaveFailure: deliver whose post-recheck save cannot write
+// (backlog turned readonly after verify) surfaces the save error.
+func TestDeliverSaveFailure(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	if _, _, err := run(t, opts, "claim", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	backlog := filepath.Join(dir, ".factory", "backlog")
+	if err := os.Chmod(backlog, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(backlog, 0o755) }()
+	if _, _, err := run(t, opts, "deliver", "WI-001"); err == nil || !strings.Contains(err.Error(), "backlog") {
+		t.Fatalf("deliver err = %v, want save failure", err)
+	}
+}
+
 // TestDeliverRejectStaleSaveFailure: a stale deliver whose rollback cannot be
 // saved (backlog readable but unwritable) must surface the save error, not
 // report a clean rejection.

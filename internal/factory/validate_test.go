@@ -142,6 +142,34 @@ func TestValidateBacklogTypeMismatchItem(t *testing.T) {
 	}
 }
 
+// TestValidateBacklogSkipsNonItemEntries: directories, non-.json files, and
+// leftover .tmp-*.json write temps are all skipped, not validated.
+func TestValidateBacklogSkipsNonItemEntries(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	store := NewStore(backlog)
+	item := validItem()
+	item.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	item.UpdatedAt = item.CreatedAt
+	if err := store.Save(item); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"subdir", "notes.txt", ".tmp-WI-001-xyz.json"} {
+		p := filepath.Join(backlog, name)
+		if name == "subdir" {
+			if err := os.MkdirAll(p, 0o755); err != nil {
+				t.Fatal(err)
+			}
+		} else if err := os.WriteFile(p, []byte("not an item"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := ValidateBacklog(root); err != nil {
+		t.Fatalf("non-item entries must be skipped: %v", err)
+	}
+}
+
 func TestValidateBacklogReportsBadFiles(t *testing.T) {
 	root := t.TempDir()
 	writeTestSchema(t, root)
