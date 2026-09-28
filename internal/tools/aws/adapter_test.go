@@ -275,6 +275,19 @@ func TestConfigureGetOptional(t *testing.T) {
 	}
 }
 
+func TestConfigureGetEmptyStderrFallsBackToRunnerError(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"aws configure get region --profile prod": {ExitCode: 2, Err: errors.New("exec boom")},
+	}})
+	_, _, errs, err := a.configureGet(context.Background(), "prod", "region")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if len(errs) != 1 || errs[0] != "exec boom" {
+		t.Fatalf("errs = %v, want runner error surfaced", errs)
+	}
+}
+
 func TestCurrentProfileDefaultsAndPrefersAWSProfile(t *testing.T) {
 	t.Setenv("AWS_PROFILE", "")
 	t.Setenv("AWS_DEFAULT_PROFILE", "")

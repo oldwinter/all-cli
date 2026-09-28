@@ -223,6 +223,60 @@ func TestCurrentCommandRejectsUnknownCategoriesBeforeEvaluation(t *testing.T) {
 	}
 }
 
+func TestCurrentCommandRejectsUnknownToolsBeforeEvaluation(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, _ tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		t.Fatal("unexpected tool evaluation")
+		return model.ToolSummary{}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	_, _, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+		"--tools", "bogus",
+	)
+
+	// Then
+	if err == nil || !strings.Contains(err.Error(), "bogus") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCurrentCommandRunsProgressSpinner(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities,
+			Current: map[string]string{"profile": "work"}}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, true)
+
+	// When
+	stdout, _, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+	)
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "aws") {
+		t.Fatalf("expected current output, got %q", stdout)
+	}
+}
+
 func TestCurrentCommandCompletesCategoryFilters(t *testing.T) {
 	// Given
 	root := NewRootCommand()

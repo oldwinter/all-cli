@@ -286,6 +286,31 @@ func TestBuildFixPlanIsDryRunOnlyAndNonMutating(t *testing.T) {
 	}
 }
 
+func TestBuildFixPlanMarksSupportedItems(t *testing.T) {
+	report := model.DiagnosticReport{
+		Diagnostics: []model.DiagnosticItem{{
+			ID:            "tool_missing",
+			RelatedTool:   "fd",
+			SafeToAutofix: true,
+			SuggestedActions: []model.SuggestedAction{{
+				ID:      "install_fd",
+				Kind:    "install",
+				Mutates: false,
+			}},
+		}},
+	}
+	plan := BuildFixPlan(report, FixOptions{DryRun: true})
+	if len(plan.Items) != 1 || !plan.Items[0].Supported {
+		t.Fatalf("supported item expected: %#v", plan.Items)
+	}
+	if !strings.Contains(plan.Items[0].Reason, "dry-run") {
+		t.Fatalf("reason = %q", plan.Items[0].Reason)
+	}
+	if plan.Summary.Supported != 1 || plan.Summary.Blocked != 0 {
+		t.Fatalf("summary = %#v", plan.Summary)
+	}
+}
+
 func TestDiffSnapshotsReportsAddedRemovedAndChangedToolsSortedByID(t *testing.T) {
 	before := model.NewStatusReport(0)
 	before.Tools = []model.ToolSummary{
