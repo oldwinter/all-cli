@@ -18,7 +18,7 @@ help:
     just --list
 
 ## Local CI checks (same policy as GitHub CI workflow)
-ci: verify-tidy fmt-check policy vet test coverage-check lint factory-validate
+ci: verify-tidy fmt-check policy vet cross-build test coverage-check lint factory-validate
 
 ## Extended local checks (CI + race and repeated stability tests)
 check: ci test-race test-stability
@@ -90,6 +90,12 @@ pre-commit:
 ## Run go vet
 vet:
     {{go_cmd}} vet {{packages}}
+
+## Cross-compile all packages for every release target (catches OS-only code drift)
+cross-build:
+    GOOS=windows GOARCH=amd64 {{go_cmd}} build {{packages}}
+    GOOS=darwin GOARCH=arm64 {{go_cmd}} build {{packages}}
+    GOOS=linux GOARCH=amd64 {{go_cmd}} build {{packages}}
 
 ## Build local binary
 build:
