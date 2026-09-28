@@ -185,6 +185,25 @@ func TestStatusFallsBackWhenJSONStdoutIsUsage(t *testing.T) {
 	}
 }
 
+func TestStatusErrorsOnGarbageJSON(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"gh auth status --json hosts": {
+				Stdout: "{truncated",
+			},
+		},
+	})
+	_, _, errs, err := a.Status(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "parse gh auth status JSON") {
+		t.Fatalf("err = %v, want JSON parse failure", err)
+	}
+	if len(errs) == 0 {
+		t.Fatal("expected the unmarshal error in errs")
+	}
+}
+
 func TestStatusUnauthenticatedOldGH(t *testing.T) {
 	t.Parallel()
 

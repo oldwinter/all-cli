@@ -185,6 +185,25 @@ func TestShellQuote(t *testing.T) {
 	}
 }
 
+// TestRunChecksFailsWhenLogUnwritable: a run/<id> dir that exists but is not
+// writable must propagate the write error instead of recording a pass.
+func TestRunChecksFailsWhenLogUnwritable(t *testing.T) {
+	runner, dir := testRunner(t, &fakeExec{def: execx.CmdResult{}})
+	item := validItem()
+	logDir := filepath.Join(dir, ".factory", "run", item.ID)
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(logDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(logDir, 0o755) }()
+	_, err := runner.RunChecks(context.Background(), item)
+	if err == nil || !strings.Contains(err.Error(), "write check log") {
+		t.Fatalf("err = %v, want write failure", err)
+	}
+}
+
 // TestRunChecksLogPathsUniqueAcrossRuns pins WI-034: with a frozen clock two
 // runs get identical stamps; the second run must pick a suffixed name instead
 // of overwriting the log the first run's evidence recorded.

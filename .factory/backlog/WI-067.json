@@ -1,0 +1,59 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-067",
+  "title": "Cover remaining reachable error branches: log write, rename target, validate internals, parser scan errors",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "runner log-write failure, Save rename-over-directory, validate AddResource/symlink/state-mismatch paths, and parser scanner.Err/blank-line edges are covered"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/tools/... ./internal/repopolicy/ -count=1"
+  ],
+  "branch": "factory/wi-067-cover-remaining-reachable-error-branches-log-write-rename-target-validate-internals-parser-scan-errors",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T23:27:09Z",
+    "head": "65f5fff",
+    "fingerprint": "afc40fe8ed42fee445c71d1ac889bf8492f6c73259b2a6488a29a89bde1f9a1f"
+  },
+  "created_at": "2026-09-28T23:21:27Z",
+  "updated_at": "2026-09-28T23:27:44Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T23:21:27Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "65f5fff"
+    },
+    {
+      "ts": "2026-09-28T23:27:09Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/tools/... ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "65f5fff",
+      "log": ".factory/run/WI-067/20260928T232639.540955000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T23:27:09Z",
+      "event": "verify-pass",
+      "head": "65f5fff"
+    },
+    {
+      "ts": "2026-09-28T23:27:44Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/tools/... ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "65f5fff",
+      "log": ".factory/run/WI-067/20260928T232717.248760000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T23:27:44Z",
+      "event": "deliver",
+      "note": "runner log-write error, validate internals (resource/symlink/type-mismatch), docker/aliyun scanner+blank lines, gh JSON error, rclone no-HOME, repopolicy non-regular+unreadable",
+      "head": "65f5fff"
+    }
+  ]
+}

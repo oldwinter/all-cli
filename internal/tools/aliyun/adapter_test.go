@@ -83,6 +83,45 @@ dev       | AK:***123          | Invalid | us-east-1   | en
 	}
 }
 
+func TestAdapterCurrent_UsesStarMarkedProfile(t *testing.T) {
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"aliyun configure list": {
+				Stdout: `Profile   | Credential         | Valid   | Region      | Language
+--------- | ------------------ | ------- | ----------- | --------
+default   | AK:***6ps          | Valid   | cn-hangzhou | zh
+* dev     | AK:***123          | Valid   | us-east-1   | en
+`,
+			},
+		},
+	})
+	cur, warnings, errs, err := a.Current(context.Background())
+	if err != nil || len(errs) != 0 {
+		t.Fatalf("unexpected error: %v errs=%v", err, errs)
+	}
+	if cur["profile"] != "dev" || cur["region"] != "us-east-1" {
+		t.Fatalf("star-marked profile must win: %#v", cur)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("no warning expected when a profile is current: %#v", warnings)
+	}
+}
+
+func TestParseConfigureListSkipsBlankLinesAndHugeLineFails(t *testing.T) {
+	profiles, _, errs, err := parseConfigureList("\n\n* dev   | AK:***x | Valid | us-east-1 | en\n\n")
+	if err != nil || len(errs) != 0 || len(profiles) != 1 {
+		t.Fatalf("blank lines must be skipped: %v %#v %#v", profiles, errs, err)
+	}
+	if !profiles[0].IsCurrent {
+		t.Fatalf("star-marked profile not flagged: %#v", profiles[0])
+	}
+
+	_, _, errs, err = parseConfigureList(strings.Repeat("x", 80*1024) + "\n")
+	if err == nil || len(errs) == 0 {
+		t.Fatal("expected scanner error on oversized line")
+	}
+}
+
 func TestAdapterConfigured(t *testing.T) {
 	a := New(fakeRunner{
 		results: map[string]execx.CmdResult{

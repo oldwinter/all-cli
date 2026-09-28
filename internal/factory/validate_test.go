@@ -85,6 +85,63 @@ func TestValidateBacklogBadSchema(t *testing.T) {
 	}
 }
 
+// TestValidateBacklogSchemaNotAResource: a schema document that is valid JSON
+// but not a usable schema resource must surface the load/compile error.
+func TestValidateBacklogSchemaNotAResource(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".factory"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schemaPath := filepath.Join(root, ".factory", "work-item.schema.json")
+	for _, doc := range []string{`[1,2]`, `null`, `"str"`} {
+		if err := os.WriteFile(schemaPath, []byte(doc), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := ValidateBacklog(root); err == nil {
+			t.Fatalf("schema %s should fail to load/compile", doc)
+		}
+	}
+}
+
+// TestValidateBacklogUnreadableItem: a backlog entry that cannot be read
+// (dangling symlink ending in .json) must be reported, not crash.
+func TestValidateBacklogUnreadableItem(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(backlog, "WI-900.json")
+	if err := os.Symlink(filepath.Join(backlog, "missing.json"), link); err != nil {
+		t.Skipf("symlink unsupported: %v", err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-900.json") {
+		t.Fatalf("dangling symlink should be reported: %v", err)
+	}
+}
+
+// TestValidateBacklogTypeMismatchItem: a file that passes the schema (which
+// only requires field presence) but fails WorkItem decode — e.g. order as a
+// string — must be reported as a decode failure.
+func TestValidateBacklogTypeMismatchItem(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	bad := `{"schema_version":"factory-item-v0.1","id":"WI-900","title":"x","kind":"test","state":"queued","order":"nope","acceptance":["a"],"checks":["c"],"attempts":0,"created_at":"2026-09-28T00:00:00Z","updated_at":"2026-09-28T00:00:00Z"}`
+	if err := os.WriteFile(filepath.Join(backlog, "WI-900.json"), []byte(bad), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-900.json") {
+		t.Fatalf("type-mismatched item should be reported: %v", err)
+	}
+}
+
 func TestValidateBacklogReportsBadFiles(t *testing.T) {
 	root := t.TempDir()
 	writeTestSchema(t, root)

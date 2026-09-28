@@ -100,6 +100,29 @@ func TestParseContextLSJSONLinesWarnsOnItemError(t *testing.T) {
 	}
 }
 
+func TestParseContextLSJSONLinesSkipsBlankLines(t *testing.T) {
+	stdout := "\n\n{\"Current\":true,\"Name\":\"remote118\"}\n\n"
+	contexts, warnings, errs, err := parseContextLSJSONLines(stdout)
+	if err != nil || len(errs) != 0 || len(warnings) != 0 {
+		t.Fatalf("unexpected diagnostics: %v %#v %#v", err, warnings, errs)
+	}
+	if len(contexts) != 1 || contexts[0].Name != "remote118" {
+		t.Fatalf("unexpected contexts: %#v", contexts)
+	}
+}
+
+func TestParseContextLSJSONLinesScannerError(t *testing.T) {
+	// A line longer than bufio's 64KiB token limit fails the scan.
+	stdout := `{"Current":true,"Name":"` + strings.Repeat("x", 80*1024) + `"}` + "\n"
+	contexts, _, errs, err := parseContextLSJSONLines(stdout)
+	if err == nil || len(errs) == 0 {
+		t.Fatal("expected scanner error on oversized line")
+	}
+	if len(contexts) != 0 {
+		t.Fatalf("oversized line must not yield a context: %#v", contexts)
+	}
+}
+
 func TestParsePSJSONLinesWarnsOnMissingImage(t *testing.T) {
 	stdout := `{"ID":"abc","Names":"web","Status":"Up"}` + "\n"
 	containers, warnings, errs, err := parsePSJSONLines(stdout)

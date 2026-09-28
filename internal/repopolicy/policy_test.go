@@ -302,6 +302,43 @@ func TestAuditDanglingSymlinkStatError(t *testing.T) {
 	}
 }
 
+func TestAuditSkipsNonRegularTrackedPath(t *testing.T) {
+	root := newTestRepository(t, map[string]string{
+		"AGENTS.md":     "# Guide\n",
+		"justfile":      "x:\n\ttrue\n",
+		"dir/inner.txt": "content\n",
+	})
+	link := filepath.Join(root, "link-to-dir")
+	if err := os.Symlink("dir", link); err != nil {
+		t.Skip("symlinks unsupported")
+	}
+	runGit(t, root, "add", ".")
+	violations, err := Audit(root, Limits{})
+	if err != nil {
+		t.Fatalf("symlink-to-dir must be skipped, not error: %v", err)
+	}
+	for _, v := range violations {
+		if v.Path == "link-to-dir" {
+			t.Fatalf("non-regular path audited: %#v", v)
+		}
+	}
+}
+
+func TestAuditFailsOnUnreadableTrackedFile(t *testing.T) {
+	root := newTestRepository(t, map[string]string{
+		"AGENTS.md": "# Guide\n",
+		"justfile":  "x:\n\ttrue\n",
+		"secret.md": "hidden\n",
+	})
+	if err := os.Chmod(filepath.Join(root, "secret.md"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(filepath.Join(root, "secret.md"), 0o644) }()
+	if _, err := Audit(root, Limits{}); err == nil || !strings.Contains(err.Error(), "read") {
+		t.Fatalf("err = %v, want read failure", err)
+	}
+}
+
 func TestSortViolationsTieBreaks(t *testing.T) {
 	// Same path exercises the rule tie-break; same path+rule hits line order.
 	violations := []Violation{

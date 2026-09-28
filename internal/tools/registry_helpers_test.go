@@ -344,6 +344,15 @@ func TestRcloneConfiguredFindsStandardConfigPath(t *testing.T) {
 	}
 }
 
+func TestRcloneConfiguredWithoutHome(t *testing.T) {
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	configured, _, errs := rcloneConfigured()
+	if configured || len(errs) == 0 {
+		t.Fatalf("no home dir must surface an error: %v %#v", configured, errs)
+	}
+}
+
 func TestDefaultRegistryAdaptersDispatchThroughRunner(t *testing.T) {
 	runner := registryRunnerStub{}
 
