@@ -1,0 +1,65 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-051",
+  "title": "Subprocess e2e for stale-verify rejection",
+  "kind": "test",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "a real-binary test builds cmd/factory, verifies an item, mutates the check file, and asserts deliver rejects stale",
+    "test skips when git is unavailable"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-051-subprocess-e2e-for-stale-verify-rejection",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:35:14Z",
+    "head": "ce669de",
+    "fingerprint": "68d15639123018c7fdefd9ccb130b2a6e263eff9d7f4891263eff2d5d04d3a33"
+  },
+  "created_at": "2026-09-28T21:34:25Z",
+  "updated_at": "2026-09-28T21:35:18Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:34:25Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "ce669de"
+    },
+    {
+      "ts": "2026-09-28T21:35:14Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "ce669de",
+      "log": ".factory/run/WI-051/20260928T213511.811049000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:35:14Z",
+      "event": "verify-pass",
+      "head": "ce669de"
+    },
+    {
+      "ts": "2026-09-28T21:35:18Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "ce669de",
+      "log": ".factory/run/WI-051/20260928T213515.225022000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:35:18Z",
+      "event": "deliver",
+      "note": "subprocess-e2e-stale-delivery",
+      "head": "ce669de"
+    }
+  ]
+}
