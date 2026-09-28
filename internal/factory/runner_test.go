@@ -20,7 +20,6 @@ func testRunner(t *testing.T, exec execx.Runner) (Runner, string) {
 		Root:   dir,
 		RunDir: filepath.Join(dir, ".factory", "run"),
 		Now:    func() time.Time { return time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC) },
-		Head:   func() string { return "abc1234" },
 	}, dir
 }
 
@@ -105,11 +104,11 @@ func TestRunnerDefaults(t *testing.T) {
 	dir := t.TempDir()
 	o := &options{root: dir, now: func() time.Time { return time.Unix(0, 0) }}
 	r := o.runner()
-	if r.Exec == nil || r.Root != dir || r.RunDir == "" || r.Now == nil || r.Head == nil {
+	if r.Exec == nil || r.Root != dir || r.RunDir == "" || r.Now == nil {
 		t.Fatalf("runner not fully defaulted: %+v", r)
 	}
 	// headFunc falls back to real git; a temp dir is not a repo so it returns "".
-	if got := r.Head(); got != "" {
+	if got := o.headFunc()(); got != "" {
 		t.Fatalf("head in non-repo = %q, want empty", got)
 	}
 }
@@ -153,14 +152,11 @@ func TestRunChecksStopsOnFailure(t *testing.T) {
 
 func TestNewRunnerDefaults(t *testing.T) {
 	runner := NewRunner(".")
-	if runner.Exec == nil || runner.Now == nil || runner.Head == nil {
+	if runner.Exec == nil || runner.Now == nil {
 		t.Fatal("NewRunner missing defaults")
 	}
 	if !strings.HasSuffix(runner.RunDir, filepath.Join(".factory", "run")) {
 		t.Fatalf("RunDir = %q", runner.RunDir)
-	}
-	if runner.Timeout != 10*time.Minute {
-		t.Fatalf("Timeout = %v", runner.Timeout)
 	}
 }
 

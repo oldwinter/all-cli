@@ -1,0 +1,60 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-027",
+  "title": "Remove dead Runner.Head and Runner.Timeout fields",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 27,
+  "source": {},
+  "acceptance": [
+    "dead fields removed; head+timeout still enforced via headFunc and TimeoutRunner",
+    "tests updated; go test ./internal/factory green"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-027-remove-dead-runner-head-and-runner-timeout-fields",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:58:34Z",
+    "head": "b298c00",
+    "fingerprint": "a74877fa0abe05fa09b9471460229f558153b0216bbf0b07994e33cf7ce951e4"
+  },
+  "created_at": "2026-09-28T19:58:01Z",
+  "updated_at": "2026-09-28T19:58:34Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:58:01Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "b298c00"
+    },
+    {
+      "ts": "2026-09-28T19:58:34Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "b298c00",
+      "log": ".factory/run/WI-027/20260928T195833Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:58:34Z",
+      "event": "verify-pass",
+      "head": "b298c00"
+    },
+    {
+      "ts": "2026-09-28T19:58:34Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "b298c00",
+      "log": ".factory/run/WI-027/20260928T195834Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:58:34Z",
+      "event": "deliver",
+      "note": "dead-runner-fields-removed",
+      "head": "b298c00"
+    }
+  ]
+}

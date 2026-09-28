@@ -24,27 +24,24 @@ type CheckResult struct {
 // OK reports whether the check passed.
 func (r CheckResult) OK() bool { return r.Err == nil && r.ExitCode == 0 }
 
-// Runner executes item checks through internal/execx with a per-check timeout
-// and writes combined output into .factory/run/<id>/.
+// Runner executes item checks through internal/execx and writes combined
+// output into .factory/run/<id>/. Per-check timeouts live on Exec: the default
+// is a 10-minute TimeoutRunner, and injected runners carry their own.
 type Runner struct {
 	Exec     execx.Runner
 	Root     string
 	RunDir   string
-	Timeout  time.Duration
 	Now      func() time.Time
-	Head     func() string
 	OnResult func(CheckResult)
 }
 
 // NewRunner returns a Runner with production defaults for the repo at root.
 func NewRunner(root string) Runner {
 	return Runner{
-		Exec:    execx.TimeoutRunner{Runner: execx.DefaultRunner{}, Timeout: 10 * time.Minute},
-		Root:    root,
-		RunDir:  filepath.Join(root, ".factory", "run"),
-		Timeout: 10 * time.Minute,
-		Now:     time.Now,
-		Head:    gitHead(root, execx.TimeoutRunner{Runner: execx.DefaultRunner{}, Timeout: 15 * time.Second}),
+		Exec:   execx.TimeoutRunner{Runner: execx.DefaultRunner{}, Timeout: 10 * time.Minute},
+		Root:   root,
+		RunDir: filepath.Join(root, ".factory", "run"),
+		Now:    time.Now,
 	}
 }
 

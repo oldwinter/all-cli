@@ -87,9 +87,6 @@ func (o *options) runner() Runner {
 	if r.Now == nil {
 		r.Now = o.now
 	}
-	if r.Head == nil {
-		r.Head = o.headFunc()
-	}
 	return r
 }
 

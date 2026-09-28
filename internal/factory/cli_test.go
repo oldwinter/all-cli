@@ -49,7 +49,6 @@ func testOptionsWithHead(t *testing.T, exec execx.Runner, head func() string) (*
 			Root:   dir,
 			RunDir: filepath.Join(dir, ".factory", "run"),
 			Now:    now,
-			Head:   head,
 		},
 	}, dir
 }
