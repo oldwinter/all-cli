@@ -11,7 +11,7 @@ running it, emit bundled JSON Schema, and generate shell completion.
 - `discover-options` prints effective `json` and `timeout` values.
 - `discover-catalog` lists tracked tools without running them.
 - `discover-describe` explains one tracked tool without inspecting local config.
-- `discover-schema` prints a bundled status or diagnostic schema.
+- `discover-schema` prints a bundled report schema.
 - `discover-completion` emits a non-empty completion script for a supported shell.
 - `discover-invalid-timeout` rejects a non-positive `--timeout`.
 - `discover-unknown-tool` rejects an unknown catalog/describe ID.
@@ -23,7 +23,7 @@ running it, emit bundled JSON Schema, and generate shell completion.
 - Run `all-cli options` (add `--json` for a script-friendly object).
 - Run `all-cli catalog`, `all-cli catalog list`, or `all-cli catalog <search>`.
 - Run `all-cli describe <tool>`.
-- Run `all-cli schema status` or `all-cli schema diagnostic`.
+- Run `all-cli schema <status|diagnostic|doctor-fix|snapshot-diff|fix-plan>`.
 - Run `all-cli completion bash` (or `zsh`, `fish`, `powershell`).
 
 ## Driving it with control-all-cli
@@ -53,6 +53,6 @@ Preconditions:
 - `surprise` is hidden and does not appear in `--help`. Do not require it for discovery proof.
 - `catalog` does not run external tools. A missing kubectl binary must not change catalog output.
 - `describe` also does not run the named tool. Installed-vs-missing state belongs to `status`.
-- `schema` accepts only `status` or `diagnostic`. An unknown schema name is a Cobra usage error.
+- `schema` accepts only the bundled names (`status`, `diagnostic`, `doctor-fix`, `snapshot-diff`, `fix-plan`). An unknown schema name is a Cobra usage error.
 - `--json` on `catalog` takes precedence over `--ids`.
 - Root `--version` and `version` share a version string; compare them rather than hard-coding `dev`.
