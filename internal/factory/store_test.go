@@ -203,3 +203,66 @@ func TestStoreExistsAndAtomicSaveLeavesNoTemp(t *testing.T) {
 		}
 	}
 }
+
+func TestStoreLoadReadError(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	store := NewStore(filepath.Join(dir, "backlog"))
+	saveValid(t, store, validItem())
+	itemPath := filepath.Join(dir, "backlog", "WI-001.json")
+	if err := os.Chmod(itemPath, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(itemPath, 0o644) })
+	if _, err := store.Load("WI-001"); err == nil {
+		t.Fatal("expected read error for unreadable item file")
+	}
+}
+
+func TestStoreListAndNextOnFileDir(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "backlog")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore(blocker)
+	if _, err := store.List(); err == nil {
+		t.Fatal("expected List error when backlog dir is a file")
+	}
+	if _, err := store.Next(); err == nil {
+		t.Fatal("expected Next error when backlog dir is a file")
+	}
+}
+
+func TestStoreSaveRenameFailsOntoDirectory(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	store := NewStore(filepath.Join(dir, "backlog"))
+	if err := os.MkdirAll(filepath.Join(dir, "backlog", "WI-001.json", "inner"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(validItem()); err == nil {
+		t.Fatal("expected rename error when item path is a non-empty directory")
+	}
+}
+
+func TestStoreSaveCreateTempFailsReadonly(t *testing.T) {
+	t.Parallel()
+
+	dir := filepath.Join(t.TempDir(), "backlog")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	store := NewStore(dir)
+	if err := store.Save(validItem()); err == nil {
+		t.Fatal("expected create-temp error in read-only backlog dir")
+	}
+}

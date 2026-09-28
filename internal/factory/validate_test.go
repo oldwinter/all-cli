@@ -154,3 +154,73 @@ func TestValidateCommand(t *testing.T) {
 		t.Fatalf("validate output = %q", stdout)
 	}
 }
+
+func TestValidateBacklogUnreadableItemFile(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	itemPath := filepath.Join(backlog, "WI-001.json")
+	if err := os.WriteFile(itemPath, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(itemPath, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(itemPath, 0o644) })
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-001.json") {
+		t.Fatalf("ValidateBacklog = %v, want unreadable-file failure", err)
+	}
+}
+
+func TestValidateBacklogItemValidateFailure(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Passes the test schema (only schema_version+id checked) but fails
+	// item.Validate: kind is not one of the allowed values.
+	body := `{"schema_version":"factory-item-v0.1","id":"WI-500","title":"x","kind":"bogus","state":"queued","order":1,"acceptance":["a"],"checks":["c"],"attempts":0,"created_at":"2026-09-28T12:00:00Z","updated_at":"2026-09-28T12:00:00Z"}`
+	if err := os.WriteFile(filepath.Join(backlog, "WI-500.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-500") {
+		t.Fatalf("ValidateBacklog = %v, want item.Validate failure", err)
+	}
+}
+
+func TestValidateBacklogMalformedSchema(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, ".factory")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "work-item.schema.json"), []byte("not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "parse") {
+		t.Fatalf("ValidateBacklog = %v, want schema parse failure", err)
+	}
+}
+
+func TestValidateBacklogUncompilableSchema(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, ".factory")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schema := `{"$schema": "https://json-schema.org/draft/2020-12/schema", "$ref": "#/missing"}`
+	if err := os.WriteFile(filepath.Join(dir, "work-item.schema.json"), []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBacklog(root); err == nil {
+		t.Fatal("expected compile failure for dangling $ref schema")
+	}
+}

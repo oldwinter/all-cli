@@ -846,3 +846,156 @@ func TestVerifyInfraErrorLandsInFailed(t *testing.T) {
 		t.Fatalf("retry: %v", err)
 	}
 }
+
+func makeBacklogReadonly(t *testing.T, dir string) {
+	t.Helper()
+	backlog := filepath.Join(dir, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(backlog, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(backlog, 0o755) })
+}
+
+// TestRunnerFillInBranches covers options.runner defaulting empty fields on an
+// injected Runner.
+func TestRunnerFillInBranches(t *testing.T) {
+	dir := t.TempDir()
+	o := &options{
+		root: dir,
+		now:  func() time.Time { return time.Unix(0, 0) },
+		exec: Runner{Exec: &fakeExec{}},
+	}
+	r := o.runner()
+	if r.RunDir == "" || r.Root != dir || r.Now == nil {
+		t.Fatalf("runner fields not filled: %+v", r)
+	}
+}
+
+func TestExecuteNilContext(t *testing.T) {
+	dir := t.TempDir()
+	var out, errOut bytes.Buffer
+	// nil ctx falls back to context.Background(); status on an empty root
+	// still runs and reports zero items.
+	if err := Execute(nil, []string{"--root", dir, "status"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "items=0") {
+		t.Fatalf("status output = %q", out.String())
+	}
+}
+
+func TestClaimSaveErrorPropagates(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	makeBacklogReadonly(t, dir)
+	if _, _, err := run(t, opts, "claim", "WI-001"); err == nil {
+		t.Fatal("claim should fail when the item cannot be saved")
+	}
+}
+
+func TestVerifySaveErrorPropagates(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	if _, _, err := run(t, opts, "claim", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	makeBacklogReadonly(t, dir)
+	if _, _, err := run(t, opts, "verify", "WI-001"); err == nil {
+		t.Fatal("verify should fail when the item cannot be saved")
+	}
+}
+
+// TestVerifyInfraAndSaveError covers the save-failure branch inside the
+// infra-error path: the run cannot start AND the state write fails.
+func TestVerifyInfraAndSaveError(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	blocker := filepath.Join(dir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	opts.exec.RunDir = blocker
+	intakeOK(t, opts, "WI-028")
+	if _, _, err := run(t, opts, "claim", "WI-028"); err != nil {
+		t.Fatal(err)
+	}
+	makeBacklogReadonly(t, dir)
+	if _, _, err := run(t, opts, "verify", "WI-028"); err == nil {
+		t.Fatal("verify should fail")
+	}
+}
+
+// TestDeliverRunChecksInfraError covers delivery when the re-check run itself
+// cannot start; the item must stay verified for a later retry.
+func TestDeliverRunChecksInfraError(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	for _, args := range [][]string{{"claim", "WI-001"}, {"verify", "WI-001"}} {
+		if _, _, err := run(t, opts, args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	blocker := filepath.Join(dir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	opts.exec.RunDir = blocker
+	if _, _, err := run(t, opts, "deliver", "WI-001"); err == nil {
+		t.Fatal("deliver should propagate the re-check infrastructure error")
+	}
+	item, _ := opts.store().Load("WI-001")
+	if item.State != StateVerified {
+		t.Fatalf("state = %s, want still verified after infra error", item.State)
+	}
+}
+
+func TestDeliverRejectsStaleSaveError(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	for _, args := range [][]string{{"claim", "WI-001"}, {"verify", "WI-001"}} {
+		if _, _, err := run(t, opts, args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	item, _ := opts.store().Load("WI-001")
+	item.Checks = []string{"edited-after-verify"}
+	if err := opts.store().Save(item); err != nil {
+		t.Fatal(err)
+	}
+	makeBacklogReadonly(t, dir)
+	if _, _, err := run(t, opts, "deliver", "WI-001"); err == nil {
+		t.Fatal("deliver should fail when the stale rollback cannot be saved")
+	}
+}
+
+func TestClaimDryRunDoesNotMutate(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	stdout, _, err := run(t, opts, "claim", "WI-001", "--dry-run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, "dry-run") {
+		t.Fatalf("claim dry-run output = %q", stdout)
+	}
+	item, _ := opts.store().Load("WI-001")
+	if item.State != StateQueued || item.Attempts != 0 {
+		t.Fatalf("dry-run claim mutated item: state=%s attempts=%d", item.State, item.Attempts)
+	}
+}
+
+func TestListFailsOnUnreadableBacklog(t *testing.T) {
+	opts, dir := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	blocker := filepath.Join(dir, ".factory")
+	if err := os.MkdirAll(blocker, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(blocker, "backlog"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "list"); err == nil {
+		t.Fatal("list should fail when backlog dir is unreadable")
+	}
+}
