@@ -154,10 +154,9 @@ func traceIDFromParent(traceParent string) string {
 
 func randomHex(bytesCount int) string {
 	data := make([]byte, bytesCount)
-	if _, err := rand.Read(data); err != nil {
-		now := time.Now().UTC().Format(time.RFC3339Nano)
-		return hex.EncodeToString([]byte(now))[:bytesCount*2]
-	}
+	// crypto/rand.Read cannot fail on Go >= 1.24: it aborts internally on
+	// entropy failure, so there is no error branch to handle here.
+	_, _ = rand.Read(data)
 	return hex.EncodeToString(data)
 }
 
