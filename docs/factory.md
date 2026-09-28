@@ -25,8 +25,14 @@ queued -> in_progress -> verifying -> verified -> delivered
   Each completed check prints one progress line to stderr
   (`check 1/3 pass: <command>` or `FAIL exit=N`) so operators can follow long
   verifications.
-- `verified` means every check exited 0. `failed` records `last_error` and the
-  failing command; `factory retry` re-enters `in_progress`.
+- `verified` means every check exited 0. The pass is bound to the exact
+  `acceptance` and `checks` at verify time (a SHA-256 fingerprint stored under
+  `verified`); editing either afterwards makes the pass stale. `factory
+  deliver` rejects stale verification, moves the item back to `in_progress`,
+  and records a `stale-verify` evidence event — run `verify` again before
+  delivering.
+- `failed` records `last_error` and the failing command; `factory retry`
+  re-enters `in_progress`.
 - `blocked` parks an item with a `--reason`; `factory unblock` returns it to
   `queued`.
 - `delivered` is terminal and idempotent: re-delivering is a no-op.

@@ -1,0 +1,53 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-013",
+  "title": "Reject stale verification at deliver",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 10,
+  "source": {},
+  "acceptance": [
+    "deliver refuses when acceptance criteria or checks changed after verify-pass",
+    "item returns to in_progress with stale-verify evidence on mismatch",
+    "regression test reproduces coordinator scenario WI-999"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-013-reject-stale-verification-at-deliver",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T18:59:26Z",
+    "head": "3c83126",
+    "fingerprint": "7673b10a90046fdaaaebdb4d7454dacc5bb81c434b964033a4a94e33b3585cee"
+  },
+  "created_at": "2026-09-28T18:57:23Z",
+  "updated_at": "2026-09-28T18:59:27Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T18:57:23Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "3c83126"
+    },
+    {
+      "ts": "2026-09-28T18:59:26Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "3c83126",
+      "log": ".factory/run/WI-013/20260928T185925Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T18:59:26Z",
+      "event": "verify-pass",
+      "head": "3c83126"
+    },
+    {
+      "ts": "2026-09-28T18:59:27Z",
+      "event": "deliver",
+      "note": "coordinator-repro-fixed",
+      "head": "3c83126"
+    }
+  ]
+}

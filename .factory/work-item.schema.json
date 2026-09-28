@@ -86,6 +86,20 @@
       "type": "string",
       "description": "Current unresolved failure or block reason; cleared when verification passes or an item unblocks."
     },
+    "verified": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "fingerprint"],
+      "properties": {
+        "at": { "type": "string", "format": "date-time" },
+        "head": { "type": "string" },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 over the acceptance+checks verified; deliver rejects mismatches."
+        }
+      }
+    },
     "created_at": { "type": "string", "format": "date-time" },
     "updated_at": { "type": "string", "format": "date-time" },
     "evidence": {

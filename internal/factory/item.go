@@ -4,6 +4,9 @@
 package factory
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -44,7 +47,7 @@ var transitions = map[State][]State{
 	StateQueued:     {StateInProgress, StateBlocked},
 	StateInProgress: {StateVerifying, StateFailed, StateBlocked, StateQueued},
 	StateVerifying:  {StateVerified, StateFailed, StateBlocked},
-	StateVerified:   {StateDelivered, StateBlocked, StateVerifying},
+	StateVerified:   {StateDelivered, StateBlocked, StateVerifying, StateInProgress},
 	StateFailed:     {StateInProgress, StateQueued, StateBlocked, StateVerifying},
 	StateBlocked:    {StateQueued},
 	StateDelivered:  {},
@@ -80,6 +83,14 @@ type Source struct {
 	AvoidPRs []int `json:"avoid_prs,omitempty"`
 }
 
+// Verified binds a passing verification run to the exact acceptance criteria
+// and checks that ran. Delivering requires the fingerprint to still match.
+type Verified struct {
+	At          string `json:"at"`
+	Head        string `json:"head,omitempty"`
+	Fingerprint string `json:"fingerprint"`
+}
+
 // WorkItem is one unit of factory work with acceptance criteria and checks.
 type WorkItem struct {
 	SchemaVersion string     `json:"schema_version"`
@@ -94,6 +105,7 @@ type WorkItem struct {
 	Branch        string     `json:"branch,omitempty"`
 	Attempts      int        `json:"attempts"`
 	LastError     string     `json:"last_error,omitempty"`
+	Verified      *Verified  `json:"verified,omitempty"`
 	CreatedAt     string     `json:"created_at"`
 	UpdatedAt     string     `json:"updated_at"`
 	Evidence      []Evidence `json:"evidence,omitempty"`
@@ -144,6 +156,17 @@ func (it *WorkItem) Validate() error {
 		}
 	}
 	return nil
+}
+
+// AcceptanceFingerprint hashes the ordered acceptance criteria and checks.
+// Any edit to either invalidates a prior verification.
+func (it *WorkItem) AcceptanceFingerprint() string {
+	payload, _ := json.Marshal(struct {
+		Acceptance []string `json:"acceptance"`
+		Checks     []string `json:"checks"`
+	}{Acceptance: it.Acceptance, Checks: it.Checks})
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:])
 }
 
 // Transition moves the item to a new state when allowed and stamps UpdatedAt.

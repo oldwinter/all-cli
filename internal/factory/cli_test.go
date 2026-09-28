@@ -211,6 +211,100 @@ func TestDeliverAndTerminalNoOps(t *testing.T) {
 	}
 }
 
+// TestDeliverRejectsStaleVerification reproduces the coordinator's WI-999
+// report: verify passes, the item's checks are then edited on disk, and
+// deliver must refuse instead of shipping stale evidence.
+func TestDeliverRejectsStaleVerification(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-999")
+	if _, _, err := run(t, opts, "claim", "WI-999"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-999"); err != nil {
+		t.Fatal(err)
+	}
+
+	tamper := func() *WorkItem {
+		item, err := opts.store().Load("WI-999")
+		if err != nil {
+			t.Fatal(err)
+		}
+		item.Checks = []string{"exit 1"}
+		if err := opts.store().Save(item); err != nil {
+			t.Fatal(err)
+		}
+		return item
+	}
+	tamper()
+
+	_, _, err := run(t, opts, "deliver", "WI-999")
+	if err == nil || !strings.Contains(err.Error(), "changed after verification") {
+		t.Fatalf("deliver err = %v, want stale verification rejection", err)
+	}
+	item, _ := opts.store().Load("WI-999")
+	if item.State != StateInProgress {
+		t.Fatalf("state = %s, want in_progress after stale rejection", item.State)
+	}
+	if item.Verified != nil {
+		t.Fatalf("verified meta must be cleared on stale rejection: %+v", item.Verified)
+	}
+	var sawStale bool
+	for _, ev := range item.Evidence {
+		if ev.Event == "stale-verify" {
+			sawStale = true
+		}
+	}
+	if !sawStale {
+		t.Fatal("stale-verify evidence not recorded")
+	}
+}
+
+func TestDeliverRejectsTamperedAcceptance(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	if _, _, err := run(t, opts, "claim", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	item, _ := opts.store().Load("WI-001")
+	item.Acceptance = append(item.Acceptance, "added later")
+	if err := opts.store().Save(item); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "deliver", "WI-001"); err == nil {
+		t.Fatal("deliver accepted tampered acceptance criteria")
+	}
+}
+
+// TestDeliverAfterReverify shows the operator recovery path: after a stale
+// rejection, a fresh verify re-binds the fingerprint and deliver succeeds.
+func TestDeliverAfterReverify(t *testing.T) {
+	opts, _ := testOptions(t, &fakeExec{def: execx.CmdResult{}})
+	intakeOK(t, opts, "WI-001")
+	if _, _, err := run(t, opts, "claim", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	item, _ := opts.store().Load("WI-001")
+	item.Checks = []string{"check-one"}
+	if err := opts.store().Save(item); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "deliver", "WI-001"); err == nil {
+		t.Fatal("expected stale rejection")
+	}
+	if _, _, err := run(t, opts, "verify", "WI-001"); err != nil {
+		t.Fatalf("re-verify: %v", err)
+	}
+	if _, _, err := run(t, opts, "deliver", "WI-001"); err != nil {
+		t.Fatalf("deliver after fresh verify: %v", err)
+	}
+}
+
 func TestVerifyFailurePropagates(t *testing.T) {
 	exec := &fakeExec{
 		def: execx.CmdResult{Stdout: "ok"},

@@ -388,6 +388,11 @@ logs under .factory/run/ record exactly what ran.`,
 					return err
 				}
 				item.LastError = ""
+				item.Verified = &Verified{
+					At:          opts.now().UTC().Format(time.RFC3339),
+					Head:        opts.headFunc()(),
+					Fingerprint: item.AcceptanceFingerprint(),
+				}
 				item.Record(Evidence{Event: "verify-pass", Head: opts.headFunc()()}, opts.now())
 				if err := opts.save(item); err != nil {
 					return err
@@ -433,6 +438,21 @@ func newDeliverCommand(opts *options) *cobra.Command {
 			}
 			if item.State != StateVerified {
 				return fmt.Errorf("item %s: deliver requires verified state (state=%s); run 'factory verify %s' first", item.ID, item.State, item.ID)
+			}
+			if item.Verified == nil || item.Verified.Fingerprint != item.AcceptanceFingerprint() {
+				errMsg := "acceptance criteria or checks changed after verification; run 'factory verify " + item.ID + "' again"
+				if terr := item.Transition(StateInProgress, opts.now()); terr != nil {
+					return terr
+				}
+				item.LastError = errMsg
+				item.Verified = nil
+				item.Record(Evidence{Event: "stale-verify", Note: errMsg, Head: opts.headFunc()()}, opts.now())
+				if !opts.dry {
+					if serr := opts.save(item); serr != nil {
+						return serr
+					}
+				}
+				return fmt.Errorf("item %s: %s", item.ID, errMsg)
 			}
 			if err := item.Transition(StateDelivered, opts.now()); err != nil {
 				return err
