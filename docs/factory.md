@@ -27,10 +27,14 @@ queued -> in_progress -> verifying -> verified -> delivered
   verifications.
 - `verified` means every check exited 0. The pass is bound to the exact
   `acceptance` and `checks` at verify time (a SHA-256 fingerprint stored under
-  `verified`); editing either afterwards makes the pass stale. `factory
+  `verified`) and to the git HEAD observed then. Editing criteria/checks, moving
+  HEAD, or changing the tested source afterwards makes the pass stale. `factory
   deliver` rejects stale verification, moves the item back to `in_progress`,
   and records a `stale-verify` evidence event — run `verify` again before
-  delivering.
+  delivering. Delivery itself re-runs the item's checks (logged as
+  `deliver-check` evidence under `.factory/run/<ID>/`); a re-check failure is
+  treated the same way, so unchanged check definitions cannot deliver a
+  changed source.
 - `failed` records `last_error` and the failing command; `factory retry`
   re-enters `in_progress`.
 - `blocked` parks an item with a `--reason`; `factory unblock` returns it to
@@ -88,5 +92,6 @@ items `queued` or mark them `blocked`; nothing runs in the background.
 ## Manual approvals stay manual
 
 The factory never merges, pushes, tags, or opens PRs by itself, and never
-runs `fix` mutations or context switches. Delivery means: a verified item,
-a normal reviewed branch/commit, and a human-approved merge (or a draft PR).
+runs `fix` mutations or context switches. Delivery means: a verified item
+whose checks re-pass at delivery time, a normal reviewed branch/commit, and a
+human-approved merge (or a draft PR).

@@ -111,6 +111,24 @@ func (o *options) save(item *WorkItem) error {
 	return o.store().Save(item)
 }
 
+// rejectStale records that verification evidence no longer applies, rolls the
+// item back to in_progress so a fresh verify is required, and returns the
+// delivery-blocking error. Dry-run previews skip the persisted write.
+func (o *options) rejectStale(item *WorkItem, errMsg string) error {
+	if err := item.Transition(StateInProgress, o.now()); err != nil {
+		return err
+	}
+	item.LastError = errMsg
+	item.Verified = nil
+	item.Record(Evidence{Event: "stale-verify", Note: errMsg, Head: o.headFunc()()}, o.now())
+	if !o.dry {
+		if err := o.save(item); err != nil {
+			return err
+		}
+	}
+	return fmt.Errorf("item %s: %s", item.ID, errMsg)
+}
+
 func printJSON(w io.Writer, v any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -449,32 +467,66 @@ func newDeliverCommand(opts *options) *cobra.Command {
 				return fmt.Errorf("item %s: deliver requires verified state (state=%s); run 'factory verify %s' first", item.ID, item.State, item.ID)
 			}
 			if item.StaleVerification() {
-				errMsg := "acceptance criteria or checks changed after verification; run 'factory verify " + item.ID + "' again"
-				if terr := item.Transition(StateInProgress, opts.now()); terr != nil {
-					return terr
+				return opts.rejectStale(item, "acceptance criteria or checks changed after verification; run 'factory verify "+item.ID+"' again")
+			}
+			if verified := item.Verified; verified != nil && verified.Head != "" {
+				if cur := opts.headFunc()(); cur != verified.Head {
+					return opts.rejectStale(item, fmt.Sprintf(
+						"HEAD moved after verification (%s -> %s); run 'factory verify %s' again",
+						verified.Head, cur, item.ID))
 				}
-				item.LastError = errMsg
-				item.Verified = nil
-				item.Record(Evidence{Event: "stale-verify", Note: errMsg, Head: opts.headFunc()()}, opts.now())
-				if !opts.dry {
-					if serr := opts.save(item); serr != nil {
-						return serr
-					}
+			}
+			if opts.dry {
+				fmt.Fprintf(cmd.OutOrStdout(), "dry-run: would re-run %d check(s) and deliver %s\n", len(item.Checks), item.ID)
+				return nil
+			}
+			// Verification proves the checks passed once; delivery re-runs them so
+			// a changed source cannot ship on stale green evidence.
+			runner := opts.runner()
+			errOut := cmd.ErrOrStderr()
+			runner.OnResult = func(res CheckResult) {
+				status := "pass"
+				if !res.OK() {
+					status = fmt.Sprintf("FAIL exit=%d", res.ExitCode)
 				}
-				return fmt.Errorf("item %s: %s", item.ID, errMsg)
+				fmt.Fprintf(errOut, "deliver-check %d/%d %s: %s\n", res.Index+1, res.Total, status, res.Command)
+			}
+			results, err := runner.RunChecks(cmd.Context(), item)
+			if err != nil {
+				return err
+			}
+			var firstFail *CheckResult
+			for i := range results {
+				res := results[i]
+				note := "pass"
+				if !res.OK() {
+					note = "fail"
+				}
+				item.Record(Evidence{
+					Event:    "deliver-check",
+					Command:  res.Command,
+					ExitCode: res.ExitCode,
+					Note:     note,
+					Head:     opts.headFunc()(),
+					Log:      res.Log,
+				}, opts.now())
+				if !res.OK() && firstFail == nil {
+					firstFail = &results[i]
+				}
+			}
+			if firstFail != nil {
+				return opts.rejectStale(item, fmt.Sprintf(
+					"delivery re-check failed (exit %d): %s; run 'factory verify %s' again",
+					firstFail.ExitCode, firstFail.Command, item.ID))
 			}
 			if err := item.Transition(StateDelivered, opts.now()); err != nil {
 				return err
 			}
 			item.Record(Evidence{Event: "deliver", Note: note, Head: opts.headFunc()()}, opts.now())
-			if opts.dry {
-				fmt.Fprintf(cmd.OutOrStdout(), "dry-run: would deliver %s\n", item.ID)
-				return nil
-			}
 			if err := opts.save(item); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "delivered %s\n", item.ID)
+			fmt.Fprintf(cmd.OutOrStdout(), "delivered %s (%d delivery re-check(s) passed)\n", item.ID, len(results))
 			return nil
 		},
 	}

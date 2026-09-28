@@ -33,9 +33,13 @@ func (f *fakeExec) Run(_ context.Context, name string, args ...string) execx.Cmd
 
 func testOptions(t *testing.T, exec execx.Runner) (*options, string) {
 	t.Helper()
+	return testOptionsWithHead(t, exec, func() string { return "abc1234" })
+}
+
+func testOptionsWithHead(t *testing.T, exec execx.Runner, head func() string) (*options, string) {
+	t.Helper()
 	dir := t.TempDir()
 	now := func() time.Time { return time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC) }
-	head := func() string { return "abc1234" }
 	return &options{
 		root: dir,
 		now:  now,
@@ -333,6 +337,107 @@ func TestDeliverAfterReverify(t *testing.T) {
 	}
 	if _, _, err := run(t, opts, "deliver", "WI-001"); err != nil {
 		t.Fatalf("deliver after fresh verify: %v", err)
+	}
+}
+
+// TestDeliverRejectsChangedSource reproduces the coordinator's fixture report:
+// checks pass at verify, the tested source then changes (dirty, not committed),
+// and deliver must refuse instead of shipping stale green evidence.
+func TestDeliverRejectsChangedSource(t *testing.T) {
+	exec := &fakeExec{def: execx.CmdResult{}}
+	opts, _ := testOptions(t, exec)
+	intakeOK(t, opts, "WI-024")
+	if _, _, err := run(t, opts, "claim", "WI-024"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-024"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Source drifts after verification: the same check commands now fail.
+	exec.def = execx.CmdResult{ExitCode: 1, Stderr: "grep: no match"}
+	_, _, err := run(t, opts, "deliver", "WI-024")
+	if err == nil || !strings.Contains(err.Error(), "delivery re-check failed") {
+		t.Fatalf("deliver err = %v, want delivery re-check rejection", err)
+	}
+	item, _ := opts.store().Load("WI-024")
+	if item.State != StateInProgress || item.Verified != nil {
+		t.Fatalf("state=%s verified=%+v, want in_progress with cleared verification", item.State, item.Verified)
+	}
+	var sawRecheck, sawStale bool
+	for _, ev := range item.Evidence {
+		if ev.Event == "deliver-check" {
+			sawRecheck = true
+			if ev.Log == "" {
+				t.Fatalf("deliver-check evidence missing log path: %+v", ev)
+			}
+		}
+		if ev.Event == "stale-verify" {
+			sawStale = true
+		}
+	}
+	if !sawRecheck || !sawStale {
+		t.Fatalf("want deliver-check and stale-verify evidence, got %+v", item.Evidence)
+	}
+
+	// Recovery: source restored, fresh verify re-binds, deliver succeeds.
+	exec.def = execx.CmdResult{}
+	if _, _, err := run(t, opts, "verify", "WI-024"); err != nil {
+		t.Fatalf("re-verify: %v", err)
+	}
+	stdout, _, err := run(t, opts, "deliver", "WI-024")
+	if err != nil || !strings.Contains(stdout, "delivered WI-024") {
+		t.Fatalf("deliver after fresh verify: out=%q err=%v", stdout, err)
+	}
+}
+
+// TestDeliverRejectsMovedHead covers the committed variant of the fixture
+// report: the recorded HEAD no longer matches, so delivery must refuse before
+// re-running checks.
+func TestDeliverRejectsMovedHead(t *testing.T) {
+	exec := &fakeExec{def: execx.CmdResult{}}
+	head := "abc1234"
+	opts, _ := testOptionsWithHead(t, exec, func() string { return head })
+	intakeOK(t, opts, "WI-024")
+	if _, _, err := run(t, opts, "claim", "WI-024"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "verify", "WI-024"); err != nil {
+		t.Fatal(err)
+	}
+	callsAtVerify := len(exec.calls)
+
+	head = "def5678"
+	_, _, err := run(t, opts, "deliver", "WI-024")
+	if err == nil || !strings.Contains(err.Error(), "HEAD moved") {
+		t.Fatalf("deliver err = %v, want HEAD-moved rejection", err)
+	}
+	if len(exec.calls) != callsAtVerify {
+		t.Fatalf("moved-HEAD rejection must not run checks: calls %d -> %d", callsAtVerify, len(exec.calls))
+	}
+	item, _ := opts.store().Load("WI-024")
+	if item.State != StateInProgress || item.Verified != nil {
+		t.Fatalf("state=%s verified=%+v, want in_progress with cleared verification", item.State, item.Verified)
+	}
+}
+
+// TestDeliverIdempotentWithoutRecheck ensures a repeated deliver on a delivered
+// item is a pure no-op and does not re-run checks.
+func TestDeliverIdempotentWithoutRecheck(t *testing.T) {
+	exec := &fakeExec{def: execx.CmdResult{}}
+	opts, _ := testOptions(t, exec)
+	intakeOK(t, opts, "WI-001")
+	for _, args := range [][]string{{"claim", "WI-001"}, {"verify", "WI-001"}, {"deliver", "WI-001"}} {
+		if _, _, err := run(t, opts, args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	calls := len(exec.calls)
+	if _, _, err := run(t, opts, "deliver", "WI-001"); err != nil {
+		t.Fatal(err)
+	}
+	if len(exec.calls) != calls {
+		t.Fatal("idempotent deliver re-ran checks")
 	}
 }
 

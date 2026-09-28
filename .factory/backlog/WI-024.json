@@ -1,0 +1,78 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-024",
+  "title": "Bind delivery to tested source (HEAD + re-check)",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 24,
+  "source": {},
+  "acceptance": [
+    "deliver rejects when source changed after verify: dirty tree or moved HEAD",
+    "regression tests cover dirty-source, moved-HEAD, and recovery",
+    "docs/factory.md documents delivery re-check semantics"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+    "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate"
+  ],
+  "branch": "factory/wi-024-bind-delivery-to-tested-source-head-re-check",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:53:03Z",
+    "head": "510d33e",
+    "fingerprint": "f40b5d19c3b47e0094b383938590349977263e4a55e7ba1fe8f5b7a0e8d905cb"
+  },
+  "created_at": "2026-09-28T19:51:53Z",
+  "updated_at": "2026-09-28T19:53:06Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:51:53Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "510d33e"
+    },
+    {
+      "ts": "2026-09-28T19:53:03Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "510d33e",
+      "log": ".factory/run/WI-024/20260928T195302Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:53:03Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+      "note": "pass",
+      "head": "510d33e",
+      "log": ".factory/run/WI-024/20260928T195302Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T19:53:03Z",
+      "event": "verify-pass",
+      "head": "510d33e"
+    },
+    {
+      "ts": "2026-09-28T19:53:06Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "510d33e",
+      "log": ".factory/run/WI-024/20260928T195306Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:53:06Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+      "note": "pass",
+      "head": "510d33e",
+      "log": ".factory/run/WI-024/20260928T195306Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T19:53:06Z",
+      "event": "deliver",
+      "note": "HEAD-binding+deliver-recheck-510d33e+next",
+      "head": "510d33e"
+    }
+  ]
+}
