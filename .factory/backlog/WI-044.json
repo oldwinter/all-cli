@@ -1,0 +1,66 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-044",
+  "title": "Cover Save error branches and sort tie-break",
+  "kind": "test",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "Store.Save Validate/MkdirAll/CreateTemp error paths are tested",
+    "sortViolations third-level line tie-break is tested",
+    "just test passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/repopolicy/ -count=1"
+  ],
+  "branch": "factory/wi-044-cover-save-error-branches-and-sort-tie-break",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:24:15Z",
+    "head": "b7c1b1d",
+    "fingerprint": "1f5e63aacaca92771d4ff73b6886701ba594a11d7b30c4ed71a922b13c10615f"
+  },
+  "created_at": "2026-09-28T21:23:42Z",
+  "updated_at": "2026-09-28T21:24:16Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:23:42Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "b7c1b1d"
+    },
+    {
+      "ts": "2026-09-28T21:24:15Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "b7c1b1d",
+      "log": ".factory/run/WI-044/20260928T212414.005646000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:24:15Z",
+      "event": "verify-pass",
+      "head": "b7c1b1d"
+    },
+    {
+      "ts": "2026-09-28T21:24:16Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "b7c1b1d",
+      "log": ".factory/run/WI-044/20260928T212415.119279000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:24:16Z",
+      "event": "deliver",
+      "note": "save-error-and-sort-tiebreak",
+      "head": "b7c1b1d"
+    }
+  ]
+}

@@ -307,10 +307,19 @@ func TestSortViolationsTieBreaks(t *testing.T) {
 	violations := []Violation{
 		{Rule: "file-size", Path: "a.txt", Line: 9},
 		{Rule: "agent-link", Path: "a.txt", Line: 2},
+		{Rule: "file-size", Path: "a.txt", Line: 4},
 		{Rule: "debt-marker", Path: "b.md", Line: 1},
 	}
 	sortViolations(violations)
-	if violations[0].Rule != "agent-link" || violations[1].Rule != "file-size" || violations[2].Path != "b.md" {
-		t.Fatalf("order = %#v", violations)
+	want := []Violation{
+		{Rule: "agent-link", Path: "a.txt", Line: 2},
+		{Rule: "file-size", Path: "a.txt", Line: 4},
+		{Rule: "file-size", Path: "a.txt", Line: 9},
+		{Rule: "debt-marker", Path: "b.md", Line: 1},
+	}
+	for i, v := range violations {
+		if v != want[i] {
+			t.Fatalf("order = %#v", violations)
+		}
 	}
 }

@@ -266,3 +266,21 @@ func TestStoreSaveCreateTempFailsReadonly(t *testing.T) {
 		t.Fatal("expected create-temp error in read-only backlog dir")
 	}
 }
+
+func TestSaveRejectsInvalidItem(t *testing.T) {
+	s := Store{Dir: filepath.Join(t.TempDir(), "backlog")}
+	if err := s.Save(&WorkItem{}); err == nil {
+		t.Fatal("expected validation error for empty item")
+	}
+}
+
+func TestSaveMkdirAllFailure(t *testing.T) {
+	blocker := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := Store{Dir: filepath.Join(blocker, "backlog")}
+	if err := s.Save(validItem()); err == nil {
+		t.Fatal("expected mkdir failure when dir path is under a file")
+	}
+}
