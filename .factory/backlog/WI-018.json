@@ -1,0 +1,52 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-018",
+  "title": "Cover agent-path output helpers",
+  "kind": "test",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "validateAgentProfile, printDiagnosticReport, printDoctorReport, and printFixPlan edge branches are exercised",
+    "go test ./internal/cli passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/..."
+  ],
+  "branch": "factory/wi-018-cover-agent-path-output-helpers",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:05:04Z",
+    "head": "6f72f3e",
+    "fingerprint": "ea54acb0aefc152735d50f34c6c14fa04f325f3bed99290de001973a6b77bb39"
+  },
+  "created_at": "2026-09-28T19:04:38Z",
+  "updated_at": "2026-09-28T19:05:13Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:04:38Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "6f72f3e"
+    },
+    {
+      "ts": "2026-09-28T19:05:04Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/...",
+      "note": "pass",
+      "head": "6f72f3e",
+      "log": ".factory/run/WI-018/20260928T190459Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:05:04Z",
+      "event": "verify-pass",
+      "head": "6f72f3e"
+    },
+    {
+      "ts": "2026-09-28T19:05:13Z",
+      "event": "deliver",
+      "note": "agent-output-helpers-covered",
+      "head": "6f72f3e"
+    }
+  ]
+}
