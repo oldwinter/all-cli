@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oldwinter/all-cli/.factory/work-item.schema.json",
+  "title": "all-cli factory work item",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "kind",
+    "state",
+    "order",
+    "acceptance",
+    "checks",
+    "attempts",
+    "created_at",
+    "updated_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "factory-item-v0.1",
+      "description": "Work item schema version; matches factory.ItemSchemaVersion."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*-[0-9]+$",
+      "description": "Stable work item ID, also the backlog file name."
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "kind": {
+      "type": "string",
+      "enum": ["improvement", "bug", "test", "docs"]
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "in_progress",
+        "verifying",
+        "verified",
+        "delivered",
+        "failed",
+        "blocked"
+      ],
+      "description": "Ordered pipeline state; see docs/factory.md."
+    },
+    "order": {
+      "type": "integer",
+      "description": "Queue position; lower runs first."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "issue": { "type": "integer", "minimum": 0 },
+        "avoid_prs": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Human-reviewable acceptance criteria."
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Shell commands run from the repo root by 'factory verify'."
+    },
+    "branch": {
+      "type": "string",
+      "description": "Suggested delivery branch for the item's changes."
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of claim/retry cycles."
+    },
+    "last_error": {
+      "type": "string",
+      "description": "Current unresolved failure or block reason; cleared when verification passes or an item unblocks."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ts", "event"],
+        "additionalProperties": false,
+        "properties": {
+          "ts": { "type": "string", "format": "date-time" },
+          "event": { "type": "string" },
+          "command": { "type": "string" },
+          "exit_code": { "type": "integer" },
+          "note": { "type": "string" },
+          "head": { "type": "string" },
+          "log": { "type": "string" }
+        }
+      }
+    }
+  }
+}

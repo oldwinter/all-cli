@@ -18,7 +18,7 @@ help:
     just --list
 
 ## Local CI checks (same policy as GitHub CI workflow)
-ci: verify-tidy fmt-check policy vet test coverage-check lint
+ci: verify-tidy fmt-check policy vet test coverage-check lint factory-validate
 
 ## Extended local checks (CI + race and repeated stability tests)
 check: ci test-race test-stability
@@ -123,6 +123,14 @@ version-local: build
 smoke: build
     {{bin_path}} version
     {{bin_path}} status --group-by none
+
+## Run the repository work-item factory (example: just factory next)
+factory *args:
+    {{go_cmd}} run ./cmd/factory {{args}}
+
+## Validate factory backlog items against the item schema
+factory-validate:
+    {{go_cmd}} run ./cmd/factory validate
 
 ## Show Go env values relevant to toolchain mismatch debugging
 go-env:

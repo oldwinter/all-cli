@@ -1,0 +1,48 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-004",
+  "title": "Cover doctor --fix install selection logic",
+  "kind": "test",
+  "state": "delivered",
+  "order": 40,
+  "source": {},
+  "acceptance": [
+    "RunDoctorFixes, selectDoctorInstallCommand, NormalizeDoctorInstaller, and summarizeDoctorFixes are covered by unit tests",
+    "tests never run real installs (fake runner and lookPath only)",
+    "go test ./internal/diagnose passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/diagnose/..."
+  ],
+  "branch": "factory/wi-004-cover-doctor-fix-install-selection-logic",
+  "attempts": 1,
+  "created_at": "2026-09-28T18:35:48Z",
+  "updated_at": "2026-09-28T18:42:49Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T18:41:47Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "9dbcb0b"
+    },
+    {
+      "ts": "2026-09-28T18:42:49Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/diagnose/...",
+      "note": "pass",
+      "head": "9dbcb0b",
+      "log": ".factory/run/WI-004/20260928T184248Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T18:42:49Z",
+      "event": "verify-pass",
+      "head": "9dbcb0b"
+    },
+    {
+      "ts": "2026-09-28T18:42:49Z",
+      "event": "deliver",
+      "note": "doctor_fix.go core funcs 0% -\u003e 100%",
+      "head": "9dbcb0b"
+    }
+  ]
+}

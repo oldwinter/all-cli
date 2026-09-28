@@ -1,0 +1,76 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-001",
+  "title": "Build repository work-item factory",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 10,
+  "source": {},
+  "acceptance": [
+    "go build ./cmd/factory succeeds",
+    "go test ./internal/factory/... passes",
+    "factory validate approves .factory/backlog",
+    "docs/factory.md documents run/inspect/recover/stop"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go build -o /tmp/all-cli-factory-check ./cmd/factory",
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+    "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+    "test -f docs/factory.md"
+  ],
+  "branch": "factory/wi-001-build-repository-work-item-factory",
+  "attempts": 1,
+  "created_at": "2026-09-28T18:35:39Z",
+  "updated_at": "2026-09-28T18:38:00Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T18:37:07Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "9dbcb0b"
+    },
+    {
+      "ts": "2026-09-28T18:37:10Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go build ./cmd/factory",
+      "note": "pass",
+      "head": "9dbcb0b",
+      "log": ".factory/run/WI-001/20260928T183708Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T18:37:10Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "9dbcb0b",
+      "log": ".factory/run/WI-001/20260928T183708Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T18:37:10Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+      "note": "pass",
+      "head": "9dbcb0b",
+      "log": ".factory/run/WI-001/20260928T183708Z-check-2.log"
+    },
+    {
+      "ts": "2026-09-28T18:37:10Z",
+      "event": "check",
+      "command": "test -f docs/factory.md",
+      "note": "pass",
+      "head": "9dbcb0b",
+      "log": ".factory/run/WI-001/20260928T183708Z-check-3.log"
+    },
+    {
+      "ts": "2026-09-28T18:37:10Z",
+      "event": "verify-pass",
+      "head": "9dbcb0b"
+    },
+    {
+      "ts": "2026-09-28T18:38:00Z",
+      "event": "deliver",
+      "note": "scaffold commit; 87.3% package coverage",
+      "head": "9dbcb0b"
+    }
+  ]
+}

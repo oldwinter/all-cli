@@ -1,0 +1,47 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-007",
+  "title": "Clear stale last_error on verify-pass",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 45,
+  "source": {},
+  "acceptance": [
+    "verify-pass clears last_error so delivered items show no stale failure",
+    "regression test proves last_error is empty after re-verify"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-007-clear-stale-last-error-on-verify-pass",
+  "attempts": 1,
+  "created_at": "2026-09-28T18:44:46Z",
+  "updated_at": "2026-09-28T18:45:00Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T18:44:46Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "9dbcb0b"
+    },
+    {
+      "ts": "2026-09-28T18:45:00Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "9dbcb0b",
+      "log": ".factory/run/WI-007/20260928T184459Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T18:45:00Z",
+      "event": "verify-pass",
+      "head": "9dbcb0b"
+    },
+    {
+      "ts": "2026-09-28T18:45:00Z",
+      "event": "deliver",
+      "note": "last_error cleared on pass; regression test added",
+      "head": "9dbcb0b"
+    }
+  ]
+}

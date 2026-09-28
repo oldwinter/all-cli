@@ -47,6 +47,9 @@ jobs:
       - name: Repository policy
         run: go test ./internal/repopolicy -run TestRepositoryPolicy -count=1
 
+      - name: Factory backlog validation
+        run: go run ./cmd/factory validate
+
       - name: Build performance
         shell: bash
         run: |
