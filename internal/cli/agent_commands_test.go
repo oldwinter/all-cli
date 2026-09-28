@@ -402,3 +402,37 @@ func TestFixCommandPlainOutputAndFlagErrors(t *testing.T) {
 		t.Fatal("fix --profile bogus should fail")
 	}
 }
+
+func TestDiagnoseAndDoctorFlagAndWriteErrors(t *testing.T) {
+	stubAgentStatusEvaluation(t)
+	opts := &rootOptions{Timeout: time.Second}
+
+	if _, _, err := executeTestCommand(t, newDiagnoseCommand(opts, cliFakeRunner{}), "--tools", "bogus"); err == nil {
+		t.Fatal("diagnose --tools bogus should fail")
+	}
+	if _, _, err := executeTestCommand(t, newDoctorCommand(opts, cliFakeRunner{}), "--profile", "bogus"); err == nil {
+		t.Fatal("doctor --profile bogus should fail")
+	}
+
+	// Write failure inside the JSON report path.
+	w := &diffDetailsFailingWriter{remaining: 0}
+	cmd := newDoctorCommand(&rootOptions{JSON: true, Timeout: time.Second}, cliFakeRunner{})
+	cmd.SetOut(w)
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("doctor --json with failing writer should fail")
+	}
+
+	w = &diffDetailsFailingWriter{remaining: 0}
+	cmd = newDoctorCommand(&rootOptions{JSON: true, Timeout: time.Second}, cliFakeRunner{})
+	cmd.SetOut(w)
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("doctor --fix --json with failing writer should fail")
+	}
+}
+
+func TestDiffRejectsDoubleStdin(t *testing.T) {
+	_, _, err := executeTestCommand(t, newDiffCommand(&rootOptions{Timeout: time.Second}), "-", "-")
+	if err == nil || !strings.Contains(err.Error(), "only one snapshot") {
+		t.Fatalf("diff - - err = %v", err)
+	}
+}

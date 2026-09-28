@@ -277,3 +277,40 @@ func runGit(t *testing.T, root string, args ...string) {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
 	}
 }
+
+func TestCheckAgentGuideMissingJustfile(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("# Guide\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CheckAgentGuide(root); err == nil {
+		t.Fatal("expected error without justfile")
+	}
+}
+
+func TestAuditDanglingSymlinkStatError(t *testing.T) {
+	root := newTestRepository(t, map[string]string{
+		"AGENTS.md": "# Guide\n",
+		"justfile":  "x:\n\ttrue\n",
+	})
+	if err := os.Symlink("no-such-target", filepath.Join(root, "dangling.md")); err != nil {
+		t.Skip("symlinks unsupported")
+	}
+	runGit(t, root, "add", ".")
+	if _, err := Audit(root, Limits{}); err == nil || !strings.Contains(err.Error(), "stat") {
+		t.Fatalf("err = %v, want stat failure", err)
+	}
+}
+
+func TestSortViolationsTieBreaks(t *testing.T) {
+	// Same path exercises the rule tie-break; same path+rule hits line order.
+	violations := []Violation{
+		{Rule: "file-size", Path: "a.txt", Line: 9},
+		{Rule: "agent-link", Path: "a.txt", Line: 2},
+		{Rule: "debt-marker", Path: "b.md", Line: 1},
+	}
+	sortViolations(violations)
+	if violations[0].Rule != "agent-link" || violations[1].Rule != "file-size" || violations[2].Path != "b.md" {
+		t.Fatalf("order = %#v", violations)
+	}
+}

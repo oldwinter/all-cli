@@ -266,3 +266,15 @@ func TestWritePrometheusMkdirAndTempFailures(t *testing.T) {
 		t.Fatal("expected create-temp failure in read-only dir")
 	}
 }
+
+func TestWriteStructuredLogOpenFailure(t *testing.T) {
+	// LogPath is a directory -> OpenFile fails. Finish swallows the error, so
+	// this exercises writeStructuredLog directly.
+	r, err := New(Config{LogPath: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.writeStructuredLog(context.Background(), Span{}, "status", "ok", 0); err == nil {
+		t.Fatal("expected open failure when log path is a directory")
+	}
+}

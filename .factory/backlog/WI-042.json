@@ -1,0 +1,80 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-042",
+  "title": "Cover cli/telemetry/repopolicy error branches",
+  "kind": "test",
+  "state": "delivered",
+  "order": 42,
+  "source": {},
+  "acceptance": [
+    "doctor/diagnose/fix error returns, schema arg error, diff-details printer branches, completion RunE shell detect, repopolicy audit/sort stragglers, telemetry log/metric/capture error paths covered"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/... ./internal/repopolicy/..."
+  ],
+  "branch": "factory/wi-042-cover-cli-telemetry-repopolicy-error-branches",
+  "attempts": 2,
+  "verified": {
+    "at": "2026-09-28T21:17:26Z",
+    "head": "f3da087",
+    "fingerprint": "a4dff817b0ec2df41a07860d609e5b40171cc0b04ae77d8d8843a9c72e59de1f"
+  },
+  "created_at": "2026-09-28T21:13:11Z",
+  "updated_at": "2026-09-28T21:17:27Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:13:11Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "f3da087"
+    },
+    {
+      "ts": "2026-09-28T21:16:46Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/... ./internal/repopolicy/...",
+      "exit_code": 1,
+      "note": "fail",
+      "head": "f3da087",
+      "log": ".factory/run/WI-042/20260928T211644.606319000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:16:46Z",
+      "event": "verify-fail",
+      "note": "check failed (exit 1): env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/... ./internal/repopolicy/...",
+      "head": "f3da087"
+    },
+    {
+      "ts": "2026-09-28T21:17:25Z",
+      "event": "retried",
+      "note": "attempt 2",
+      "head": "f3da087"
+    },
+    {
+      "ts": "2026-09-28T21:17:26Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/... ./internal/repopolicy/...",
+      "note": "pass",
+      "head": "f3da087",
+      "log": ".factory/run/WI-042/20260928T211725.708623000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:17:26Z",
+      "event": "verify-pass",
+      "head": "f3da087"
+    },
+    {
+      "ts": "2026-09-28T21:17:27Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/... ./internal/repopolicy/...",
+      "note": "pass",
+      "head": "f3da087",
+      "log": ".factory/run/WI-042/20260928T211726.747006000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:17:27Z",
+      "event": "deliver",
+      "note": "error-branch-sweep-after-retry",
+      "head": "f3da087"
+    }
+  ]
+}

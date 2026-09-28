@@ -209,3 +209,13 @@ func TestLoadOrCreateInstallationIDMkdirAndReadFailures(t *testing.T) {
 		t.Fatal("expected mkdir failure under read-only parent")
 	}
 }
+
+func TestPosthogCaptureBadEndpoint(t *testing.T) {
+	sink := &posthogSink{
+		apiKey:         "k",
+		endpoint:       ":",
+		installationID: "id",
+		client:         &http.Client{Timeout: 100 * time.Millisecond},
+	}
+	sink.capture(context.Background(), "status", "success") // must not panic
+}
