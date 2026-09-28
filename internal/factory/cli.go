@@ -155,9 +155,10 @@ func newListCommand(opts *options) *cobra.Command {
 			if opts.json {
 				return printJSON(cmd.OutOrStdout(), filtered)
 			}
+			head := opts.headFunc()()
 			for _, it := range filtered {
 				fmt.Fprintf(cmd.OutOrStdout(), "%-8s %-16s ord=%-3d attempts=%d %s\n",
-					it.ID, displayState(it), it.Order, it.Attempts, it.Title)
+					it.ID, displayState(it, head), it.Order, it.Attempts, it.Title)
 			}
 			return nil
 		},
@@ -196,9 +197,9 @@ func newNextCommand(opts *options) *cobra.Command {
 }
 
 // displayState renders the item state, flagging verified items whose
-// verification no longer matches their acceptance/checks.
-func displayState(it *WorkItem) string {
-	if it.State == StateVerified && it.StaleVerification() {
+// verification no longer matches their acceptance/checks or the current HEAD.
+func displayState(it *WorkItem, head string) string {
+	if it.State == StateVerified && it.StaleVerificationForHead(head) {
 		return "verified(stale)"
 	}
 	return string(it.State)
@@ -639,9 +640,10 @@ func newStatusCommand(opts *options) *cobra.Command {
 			}
 			counts := map[State]int{}
 			stale := 0
+			head := opts.headFunc()()
 			for _, it := range items {
 				counts[it.State]++
-				if it.State == StateVerified && it.StaleVerification() {
+				if it.State == StateVerified && it.StaleVerificationForHead(head) {
 					stale++
 				}
 			}

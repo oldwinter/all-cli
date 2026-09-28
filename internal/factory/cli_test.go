@@ -770,3 +770,40 @@ func TestSlugify(t *testing.T) {
 		}
 	}
 }
+
+// TestListAndStatusSurfaceMovedHead pins WI-026: verification recorded at an
+// older commit renders stale before any delivery attempt.
+func TestListAndStatusSurfaceMovedHead(t *testing.T) {
+	head := "abc1234"
+	opts, _ := testOptionsWithHead(t, &fakeExec{def: execx.CmdResult{}}, func() string { return head })
+	intakeOK(t, opts, "WI-001")
+	for _, args := range [][]string{{"claim", "WI-001"}, {"verify", "WI-001"}} {
+		if _, _, err := run(t, opts, args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+
+	stdout, _, err := run(t, opts, "list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, "verified ") || strings.Contains(stdout, "stale") {
+		t.Fatalf("fresh verification should not be stale: %q", stdout)
+	}
+
+	head = "def5678"
+	stdout, _, err = run(t, opts, "list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, "verified(stale)") {
+		t.Fatalf("moved HEAD should render verified(stale): %q", stdout)
+	}
+	stdout, _, err = run(t, opts, "status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, "stale=1") {
+		t.Fatalf("status should count moved-head staleness: %q", stdout)
+	}
+}

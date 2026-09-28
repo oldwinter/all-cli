@@ -68,8 +68,9 @@ spaces do not survive `just factory ...`. Use space-free values there, or run
 ## Inspect
 
 - `just factory list [--state failed]` — the queue itself. A verified item
-  whose acceptance/checks changed since its pass shows `verified(stale)`;
-  `factory status` adds a `stale=N` count when any exist.
+  whose acceptance/checks changed since its pass, or whose recorded HEAD is
+  behind the current commit, shows `verified(stale)`; `factory status` adds a
+  `stale=N` count when any exist.
 - `cat .factory/backlog/WI-007.json` — criteria, state, attempts,
   `last_error`, and the `evidence[]` trail (who/what/when/HEAD/log path).
 - `.factory/run/<ID>/*-check-N.log` — exact command, exit code, stdout, stderr.

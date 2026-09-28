@@ -175,6 +175,16 @@ func (it *WorkItem) StaleVerification() bool {
 	return it.Verified == nil || it.Verified.Fingerprint != it.AcceptanceFingerprint()
 }
 
+// StaleVerificationForHead additionally treats verification as stale when the
+// repository HEAD moved since the pass. An empty head (or none recorded) means
+// the source revision cannot be compared, so only the fingerprint counts.
+func (it *WorkItem) StaleVerificationForHead(head string) bool {
+	if it.StaleVerification() {
+		return true
+	}
+	return it.Verified != nil && it.Verified.Head != "" && head != "" && it.Verified.Head != head
+}
+
 // Transition moves the item to a new state when allowed and stamps UpdatedAt.
 func (it *WorkItem) Transition(to State, now time.Time) error {
 	if it.State == to {
