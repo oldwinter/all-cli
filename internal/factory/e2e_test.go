@@ -2,6 +2,7 @@ package factory
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -69,8 +70,11 @@ func TestEndToEndLockContention(t *testing.T) {
 	fx := newE2EFixture(t)
 	fx.factory(t, "intake", "--id", "WI-900", "--title", "lock", "--acceptance", "a", "--check", "true")
 
+	// A lock whose holder is alive still blocks other mutators — the test's
+	// own pid stands in for a concurrent factory process.
 	lockPath := filepath.Join(fx.root, ".factory", "lock")
-	if err := os.WriteFile(lockPath, []byte("pid=99999 since=2099-01-01T00:00:00Z\n"), 0o644); err != nil {
+	live := fmt.Sprintf("pid=%d since=2099-01-01T00:00:00Z\n", os.Getpid())
+	if err := os.WriteFile(lockPath, []byte(live), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if out, err := fx.run("claim", "WI-900"); err == nil || !strings.Contains(out, "another factory command holds") {
@@ -221,15 +225,9 @@ func TestEndToEndStaleLockRecovery(t *testing.T) {
 	if _, err := os.Stat(lockPath); err != nil {
 		t.Fatal("expected orphaned lock after SIGKILL")
 	}
-	if out, err := fx.run("claim", "WI-900"); err == nil || !strings.Contains(out, "another factory command holds") {
-		t.Fatalf("claim under stale lock: %q err=%v", out, err)
-	}
 
-	// Documented recovery: remove the stale lock, re-verify the stuck item.
-	if err := os.Remove(lockPath); err != nil {
-		t.Fatal(err)
-	}
-	// Point the check at something instant for the recovery pass.
+	// The dead holder's lock is auto-reclaimed: the next mutating command
+	// proceeds without manual cleanup, and the stuck item re-verifies.
 	editChecks(t, filepath.Join(fx.root, ".factory", "backlog", "WI-900.json"), []string{"true"})
 	fx.factory(t, "verify", "WI-900")
 	fx.factory(t, "deliver", "WI-900")
