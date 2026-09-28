@@ -1,0 +1,65 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-019",
+  "title": "Cover featureflags and posthog sink construction",
+  "kind": "test",
+  "state": "delivered",
+  "order": 105,
+  "source": {},
+  "acceptance": [
+    "featureflags Parse/WithContext/Enabled edge cases and newPosthogSink host validation and ID wiring are exercised",
+    "go test ./internal/featureflags ./internal/telemetry passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/featureflags ./internal/telemetry"
+  ],
+  "branch": "factory/wi-019-cover-featureflags-and-posthog-sink-construction",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:06:15Z",
+    "head": "f5d9ed7",
+    "fingerprint": "140c58e0ce4bd08f7d67d4e83c67a96eec4e380fe306af40db3562e07da539a7"
+  },
+  "created_at": "2026-09-28T19:05:35Z",
+  "updated_at": "2026-09-28T19:06:21Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:05:35Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "f5d9ed7"
+    },
+    {
+      "ts": "2026-09-28T19:06:04Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/featureflags ./internal/telemetry",
+      "note": "pass",
+      "head": "f5d9ed7",
+      "log": ".factory/run/WI-019/20260928T190603Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:06:04Z",
+      "event": "verify-pass",
+      "head": "f5d9ed7"
+    },
+    {
+      "ts": "2026-09-28T19:06:15Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/featureflags ./internal/telemetry",
+      "note": "pass",
+      "head": "f5d9ed7",
+      "log": ".factory/run/WI-019/20260928T190614Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:06:15Z",
+      "event": "verify-pass",
+      "head": "f5d9ed7"
+    },
+    {
+      "ts": "2026-09-28T19:06:21Z",
+      "event": "deliver",
+      "note": "flags-and-sink-ctor-covered",
+      "head": "f5d9ed7"
+    }
+  ]
+}

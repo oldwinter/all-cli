@@ -66,6 +66,53 @@ func TestLoadOrCreateInstallationIDRegeneratesEmptyFile(t *testing.T) {
 	}
 }
 
+func TestNewPosthogSinkDefaultsAndEndpoint(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "installation-id")
+
+	sink, err := newPosthogSink(Config{PostHogKey: "k", Release: "1.0", InstallationIDPath: path}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sink.endpoint != "https://us.i.posthog.com/capture/" {
+		t.Fatalf("endpoint = %q", sink.endpoint)
+	}
+	if len(sink.installationID) != 32 {
+		t.Fatalf("installationID = %q", sink.installationID)
+	}
+	if sink.apiKey != "k" || sink.release != "1.0" {
+		t.Fatalf("config fields not wired: %+v", sink)
+	}
+}
+
+func TestNewPosthogSinkCustomHostTrimsSlash(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "installation-id")
+	sink, err := newPosthogSink(Config{PostHogHost: "https://eu.i.posthog.com/", InstallationIDPath: path}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sink.endpoint != "https://eu.i.posthog.com/capture/" {
+		t.Fatalf("endpoint = %q", sink.endpoint)
+	}
+}
+
+func TestNewPosthogSinkRejectsBadHost(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "installation-id")
+	for _, host := range []string{"notaurl", "ftp://", "  "} {
+		// "  " trims to empty and falls back to the default host, so only
+		// scheme-less inputs should fail.
+		_, err := newPosthogSink(Config{PostHogHost: host, InstallationIDPath: path}, nil)
+		if host == "  " {
+			if err != nil {
+				t.Fatalf("blank host should use default, got %v", err)
+			}
+			continue
+		}
+		if err == nil {
+			t.Fatalf("expected error for host %q", host)
+		}
+	}
+}
+
 func TestLoadOrCreateInstallationIDErrorsOnUnreadablePath(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := loadOrCreateInstallationID(dir); err == nil {
