@@ -174,3 +174,94 @@ func assertEventValue(t *testing.T, event map[string]any, key string, want any) 
 		t.Fatalf("event[%q] = %#v, want %#v; event=%#v", key, got, want, event)
 	}
 }
+
+func TestNewRecorderSinkConstructorErrors(t *testing.T) {
+	if _, err := New(Config{SentryDSN: "not a dsn", InstallationIDPath: filepath.Join(t.TempDir(), "id")}); err == nil {
+		t.Fatal("expected sentry sink constructor error")
+	}
+	if _, err := New(Config{PostHogKey: "k", PostHogHost: "http://["}); err == nil {
+		t.Fatal("expected posthog sink constructor error")
+	}
+}
+
+func TestRecorderStartNilContextAndTraceID(t *testing.T) {
+	r, err := New(Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, span := r.Start(nil)
+	if span.TraceID == "" || TraceID(ctx) != span.TraceID {
+		t.Fatalf("span=%+v ctx trace=%q", span, TraceID(ctx))
+	}
+	if TraceID(nil) != "" {
+		t.Fatal("TraceID(nil) must be empty")
+	}
+	if got := TraceID(context.Background()); got != "" {
+		t.Fatalf("TraceID without span = %q", got)
+	}
+}
+
+func TestRecorderFinishClampsNegativeDuration(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "logs", "commands.jsonl")
+	r, err := New(Config{LogPath: logPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, span := r.Start(context.Background())
+	span.StartedAt = time.Now().Add(time.Hour) // future start -> negative duration
+	r.Finish(ctx, span, "status", nil)
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"duration_ms":0`) {
+		t.Fatalf("expected clamped duration_ms=0, got %s", data)
+	}
+	if !strings.Contains(string(data), `"result":"success"`) {
+		t.Fatalf("expected success result, got %s", data)
+	}
+}
+
+func TestWriteStructuredLogMkdirFailure(t *testing.T) {
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := New(Config{LogPath: filepath.Join(blocker, "logs", "commands.jsonl")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.writeStructuredLog(context.Background(), Span{TraceID: "t"}, "status", "success", time.Second); err == nil {
+		t.Fatal("expected mkdir failure")
+	}
+}
+
+func TestNormalizeCommandEmptyFields(t *testing.T) {
+	if got := normalizeCommand("   "); got != "unknown" {
+		t.Fatalf("normalizeCommand(blank) = %q", got)
+	}
+	if got := normalizeCommand("status  --json"); got != "status --json" {
+		t.Fatalf("normalizeCommand = %q", got)
+	}
+}
+
+func TestWritePrometheusMkdirAndTempFailures(t *testing.T) {
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	metrics := map[metricKey]metricValue{{Command: "status", Result: "success"}: {Count: 1, DurationSum: 0.5}}
+	if err := writePrometheus(filepath.Join(blocker, "m.prom"), metrics); err == nil {
+		t.Fatal("expected mkdir failure")
+	}
+	ro := filepath.Join(dir, "ro")
+	if err := os.MkdirAll(ro, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	if err := writePrometheus(filepath.Join(ro, "m.prom"), metrics); err == nil {
+		t.Fatal("expected create-temp failure in read-only dir")
+	}
+}

@@ -1,10 +1,12 @@
 package telemetry
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"testing"
+	"time"
 )
 
 func TestLoadOrCreateInstallationIDLifecycle(t *testing.T) {
@@ -127,5 +129,55 @@ func TestLoadOrCreateInstallationIDErrorsOnUncreatableDir(t *testing.T) {
 	}
 	if _, err := loadOrCreateInstallationID(filepath.Join(blocker, "installation-id")); err == nil {
 		t.Fatal("expected error creating ID under a file")
+	}
+}
+
+func TestNewPosthogSinkUserConfigDirFallback(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", "")
+	sink, err := newPosthogSink(Config{PostHogKey: "k"}, nil)
+	if err != nil {
+		t.Fatalf("newPosthogSink: %v", err)
+	}
+	if sink.installationID == "" {
+		t.Fatal("expected generated installation ID via config dir fallback")
+	}
+}
+
+func TestNewPosthogSinkConfigDirError(t *testing.T) {
+	// With no HOME and no XDG_CONFIG_HOME, UserConfigDir must fail.
+	t.Setenv("HOME", "")
+	t.Setenv("XDG_CONFIG_HOME", "")
+	if _, err := newPosthogSink(Config{PostHogKey: "k"}, nil); err == nil {
+		t.Fatal("expected config-dir resolution error")
+	}
+}
+
+func TestNewPosthogSinkInstallationIDErrorPropagates(t *testing.T) {
+	// An existing directory as the ID path fails the read with a non-NotExist error.
+	dir := t.TempDir()
+	if _, err := newPosthogSink(Config{PostHogKey: "k", InstallationIDPath: dir}, nil); err == nil {
+		t.Fatal("expected installation-id load error")
+	}
+}
+
+func TestPosthogCaptureNilContextDoesNotPanic(t *testing.T) {
+	sink := &posthogSink{
+		apiKey:         "k",
+		endpoint:       "http://127.0.0.1:1/capture/",
+		release:        "test",
+		installationID: "id",
+		client:         &http.Client{Timeout: 100 * time.Millisecond},
+	}
+	sink.capture(nil, "status", "success")
+}
+
+func TestLoadOrCreateInstallationIDCreateTempFails(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "ro")
+	if err := os.MkdirAll(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadOrCreateInstallationID(filepath.Join(dir, "installation-id")); err == nil {
+		t.Fatal("expected create-temp error in read-only dir")
 	}
 }
