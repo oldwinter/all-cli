@@ -1161,3 +1161,31 @@ func TestListRejectsUnknownState(t *testing.T) {
 		t.Fatalf("list --state queued = %q, %v", stdout, err)
 	}
 }
+
+func TestUnblockAndEvidenceDryRun(t *testing.T) {
+	exec := &fakeExec{def: execx.CmdResult{}}
+	opts, _ := testOptions(t, exec)
+	intakeOK(t, opts, "WI-031")
+	if _, _, err := run(t, opts, "claim", "WI-031"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := run(t, opts, "block", "WI-031", "--reason", "paused"); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := opts.store().Load("WI-031")
+	evCount := len(before.Evidence)
+
+	stdout, _, err := run(t, opts, "unblock", "WI-031", "--dry-run")
+	if err != nil || !strings.Contains(stdout, "dry-run") {
+		t.Fatalf("unblock dry-run: %q err=%v", stdout, err)
+	}
+	stdout, _, err = run(t, opts, "evidence", "WI-031", "--note", "operator note", "--dry-run")
+	if err != nil || !strings.Contains(stdout, "dry-run") {
+		t.Fatalf("evidence dry-run: %q err=%v", stdout, err)
+	}
+
+	after, _ := opts.store().Load("WI-031")
+	if after.State != StateBlocked || len(after.Evidence) != evCount {
+		t.Fatalf("dry-run mutated item: state=%s evidence=%d", after.State, len(after.Evidence))
+	}
+}

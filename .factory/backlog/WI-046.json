@@ -1,0 +1,82 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-046",
+  "title": "Add --dry-run to unblock and evidence commands",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "unblock --dry-run and evidence --dry-run print the transition without writing",
+    "all mutating commands accept --dry-run consistently"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+    "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory unblock --help | grep -q dry-run"
+  ],
+  "branch": "factory/wi-046-add-dry-run-to-unblock-and-evidence-commands",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:26:23Z",
+    "head": "987f45e",
+    "fingerprint": "8e18cfb5c8cdd65511cd883a7808772b4714b3593578c2eba8304cdf7a07d93e"
+  },
+  "created_at": "2026-09-28T21:25:47Z",
+  "updated_at": "2026-09-28T21:26:24Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:25:47Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "987f45e"
+    },
+    {
+      "ts": "2026-09-28T21:26:23Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "987f45e",
+      "log": ".factory/run/WI-046/20260928T212622.072086000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:26:23Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory unblock --help | grep -q dry-run",
+      "note": "pass",
+      "head": "987f45e",
+      "log": ".factory/run/WI-046/20260928T212622.072086000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:26:23Z",
+      "event": "verify-pass",
+      "head": "987f45e"
+    },
+    {
+      "ts": "2026-09-28T21:26:24Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "987f45e",
+      "log": ".factory/run/WI-046/20260928T212623.370777000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:26:24Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory unblock --help | grep -q dry-run",
+      "note": "pass",
+      "head": "987f45e",
+      "log": ".factory/run/WI-046/20260928T212623.370777000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:26:24Z",
+      "event": "deliver",
+      "note": "dry-run-consistency",
+      "head": "987f45e"
+    }
+  ]
+}

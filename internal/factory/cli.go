@@ -598,7 +598,7 @@ func newBlockCommand(opts *options) *cobra.Command {
 }
 
 func newUnblockCommand(opts *options) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "unblock <id>",
 		Short: "Return a blocked item to the queue",
 		Args:  cobra.ExactArgs(1),
@@ -609,6 +609,10 @@ func newUnblockCommand(opts *options) *cobra.Command {
 			}
 			if item.State != StateBlocked {
 				return fmt.Errorf("item %s: unblock requires blocked state (state=%s)", item.ID, item.State)
+			}
+			if opts.dry {
+				fmt.Fprintf(cmd.OutOrStdout(), "dry-run: would unblock %s -> queued\n", item.ID)
+				return nil
 			}
 			if err := item.Transition(StateQueued, opts.now()); err != nil {
 				return err
@@ -622,6 +626,8 @@ func newUnblockCommand(opts *options) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&opts.dry, "dry-run", false, "Show transition without writing")
+	return cmd
 }
 
 func newEvidenceCommand(opts *options) *cobra.Command {
@@ -638,6 +644,10 @@ func newEvidenceCommand(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if opts.dry {
+				fmt.Fprintf(cmd.OutOrStdout(), "dry-run: would note %s\n", item.ID)
+				return nil
+			}
 			item.Record(Evidence{Event: "note", Note: note, Head: opts.headFunc()()}, opts.now())
 			if err := opts.save(item); err != nil {
 				return err
@@ -647,6 +657,7 @@ func newEvidenceCommand(opts *options) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&note, "note", "", "Evidence note to record")
+	cmd.Flags().BoolVar(&opts.dry, "dry-run", false, "Show transition without writing")
 	return cmd
 }
 
