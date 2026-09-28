@@ -116,7 +116,10 @@ breadcrumb naming the last holder's pid and start time). On Windows the lock
 is an `O_EXCL` file removed on exit; if a command dies mid-run it stays
 stale — delete it once the holder is gone. Still do not hand-edit an item
 while `verify`/`deliver` is running on it: the lock serializes factory
-commands, not your editor, and the in-flight write wins.
+commands, not your editor, and the in-flight write wins. Checks run while the
+lock is held, so a check that invokes another mutating `factory` command is
+refused with a lock-contention error — keep checks to ordinary build/test
+commands.
 
 SIGINT/SIGTERM cancel cleanly: the running check's whole process group is
 killed, the item lands in `failed` (retriable with `factory verify`), and the
