@@ -113,6 +113,30 @@ func TestDiagnosticsForToolGHSuggestsUpgrade(t *testing.T) {
 	}
 }
 
+func TestDiagnosticsForToolConfigParseErrorSuggestsInspection(t *testing.T) {
+	for _, tool := range []model.ToolSummary{
+		{
+			ID: "kubectl", Installed: true,
+			ConfiguredState: model.ConfiguredUnknown,
+			Errors:          []string{`error loading config file "/home/u/.kube/config": yaml: did not find expected ',' or ']'`},
+		},
+		{
+			ID: "gh", Installed: true,
+			ConfiguredState: model.ConfiguredUnknown,
+			Errors:          []string{"invalid config file /home/u/.config/gh/hosts.yml: invalid yaml"},
+		},
+	} {
+		items := diagnosticsForTool(tool)
+		action := firstAction(items[0])
+		if action.ID != "inspect_config_file" {
+			t.Fatalf("%s: action = %#v, want inspect_config_file", tool.ID, action)
+		}
+		if action.Mutates {
+			t.Fatalf("%s: inspect action must not mutate: %#v", tool.ID, action)
+		}
+	}
+}
+
 func TestDiagnosticsForToolGenericErrorsSuggestTimeout(t *testing.T) {
 	tool := model.ToolSummary{
 		ID: "aws", Installed: true,

@@ -31,6 +31,31 @@ func TestErrorsLookLikeUnsupportedGHJSON(t *testing.T) {
 	}
 }
 
+func TestErrorsLookLikeConfigParseFailure(t *testing.T) {
+	tests := []struct {
+		name string
+		errs []string
+		want bool
+	}{
+		{name: "empty", errs: nil, want: false},
+		{name: "unrelated error", errs: []string{"context deadline exceeded"}, want: false},
+		{name: "config file missing", errs: []string{"config file not found"}, want: false},
+		{name: "kubeconfig yaml error", errs: []string{`error loading config file "/home/u/.kube/config": yaml: did not find expected ',' or ']'`}, want: true},
+		{name: "gh invalid yaml", errs: []string{"invalid config file /home/u/.config/gh/hosts.yml: invalid yaml"}, want: true},
+		{name: "docker config json error", errs: []string{"error loading config file /home/u/.docker/config.json: invalid character '}'"}, want: true},
+		{name: "mixed case", errs: []string{"INVALID CONFIG FILE /x.yml: YAML error"}, want: true},
+		{name: "toml parse", errs: []string{"invalid config file /x/config.toml: toml: syntax error"}, want: true},
+		{name: "config file without parse signal", errs: []string{"config file permission denied"}, want: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := errorsLookLikeConfigParseFailure(tc.errs); got != tc.want {
+				t.Fatalf("errorsLookLikeConfigParseFailure(%v) = %v, want %v", tc.errs, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestNormalizeProfile(t *testing.T) {
 	tests := []struct {
 		in   string
