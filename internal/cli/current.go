@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/oldwinter/all-cli/internal/diagnose"
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/output"
@@ -11,6 +13,7 @@ import (
 func newCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
 	var categoriesFilter string
+	var ids bool
 
 	cmd := &cobra.Command{
 		Use:   "current",
@@ -19,10 +22,12 @@ func newCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 environments reported by installed tools that expose context-like state.
 
 Use --tools or --categories to evaluate only selected tools and skip unrelated
-external commands. When combined, both filters must match.`,
+external commands. When combined, both filters must match. Use --ids to print
+one matching tool ID per line for shell pipelines.`,
 		Example: `  all-cli current
   all-cli current --tools kubectl,docker
   all-cli current --categories cloud,k8s
+  all-cli current --ids | xargs -n1 all-cli describe
   all-cli current --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -65,11 +70,20 @@ external commands. When combined, both filters must match.`,
 				report.Diagnostics = diagnose.Generate(report, diagnose.Options{Profile: diagnose.ProfileAgent}).Diagnostics
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
+			if ids {
+				for _, tool := range report.Tools {
+					if _, err := fmt.Fprintln(cmd.OutOrStdout(), tool.ID); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
 			output.PrintCurrentTable(cmd.OutOrStdout(), report)
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to show (e.g. kubectl,docker)")
 	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to show (e.g. cloud,k8s)")
+	cmd.Flags().BoolVar(&ids, "ids", false, "Print only tool IDs, one per line (ignored with --json)")
 	return cmd
 }

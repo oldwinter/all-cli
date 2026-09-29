@@ -229,11 +229,13 @@ reported by every installed context-aware tool in one compact view.
 all-cli current
 all-cli current --tools kubectl,docker
 all-cli current --categories cloud,k8s
+all-cli current --ids | xargs -n1 all-cli describe
 all-cli current --json
 ```
 
 Use `--tools` or `--categories` to check only the contexts you need and avoid invoking
-unrelated CLIs. When combined, both filters must match.
+unrelated CLIs. When combined, both filters must match. `--ids` prints one matching
+tool ID per line for shell pipelines (`--json` takes precedence).
 
 Example text output:
 
