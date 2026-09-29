@@ -37,6 +37,12 @@ func (s Store) Load(id string) (*WorkItem, error) {
 	if err := item.Validate(); err != nil {
 		return nil, err
 	}
+	// A file whose embedded id differs from its name is a rename/copy mistake;
+	// honouring it would make Save overwrite the item that legitimately owns
+	// the embedded id's file.
+	if item.ID != id {
+		return nil, fmt.Errorf("%s: embedded id %q does not match file name", s.path(id), item.ID)
+	}
 	return &item, nil
 }
 

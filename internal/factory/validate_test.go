@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,6 +41,35 @@ func TestValidateBacklogValid(t *testing.T) {
 	}
 	if err := ValidateBacklog(root); err != nil {
 		t.Fatalf("ValidateBacklog: %v", err)
+	}
+}
+
+func TestValidateBacklogRejectsEmbeddedIDMismatch(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	store := NewStore(filepath.Join(root, ".factory", "backlog"))
+	legit := validItem()
+	legit.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	legit.UpdatedAt = legit.CreatedAt
+	if err := store.Save(legit); err != nil {
+		t.Fatal(err)
+	}
+	// A WI-992.json file whose embedded id is WI-001 — a rename/copy mistake —
+	// must fail validation even though the JSON is schema-clean.
+	mismatch := validItem()
+	mismatch.CreatedAt = legit.CreatedAt
+	mismatch.UpdatedAt = legit.UpdatedAt
+	data, err := json.MarshalIndent(mismatch, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(store.Dir, "WI-992.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err = ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-992.json") ||
+		!strings.Contains(err.Error(), "does not match file name") {
+		t.Fatalf("ValidateBacklog = %v, want id-mismatch failure naming WI-992.json", err)
 	}
 }
 

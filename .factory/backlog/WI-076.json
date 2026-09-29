@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-076",
+  "title": "Reject embedded-id/filename mismatch in backlog items",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 10,
+  "source": {},
+  "acceptance": [
+    "a file whose embedded id differs from its name is rejected by Load, List, claim, and ValidateBacklog; both files stay byte-identical on refusal"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-076-reject-embedded-id-filename-mismatch-in-backlog-items",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T01:08:20Z",
+    "head": "5fe2baa",
+    "fingerprint": "c419a4dc972668c362bb1df888b663c26f519a98b3cf6946a408b5f5ac5677a6"
+  },
+  "created_at": "2026-09-29T01:07:27Z",
+  "updated_at": "2026-09-29T01:08:38Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T01:07:27Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "5fe2baa"
+    },
+    {
+      "ts": "2026-09-29T01:08:20Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "5fe2baa",
+      "log": ".factory/run/WI-076/20260929T010801.903415000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T01:08:20Z",
+      "event": "verify-pass",
+      "head": "5fe2baa"
+    },
+    {
+      "ts": "2026-09-29T01:08:38Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "5fe2baa",
+      "log": ".factory/run/WI-076/20260929T010820.654866000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T01:08:38Z",
+      "event": "deliver",
+      "head": "5fe2baa"
+    }
+  ]
+}

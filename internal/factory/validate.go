@@ -76,6 +76,10 @@ func ValidateBacklog(root string) error {
 			failures = append(failures, fmt.Sprintf("%s: %v", name, err))
 			continue
 		}
+		if want := strings.TrimSuffix(name, ".json"); item.ID != want {
+			failures = append(failures, fmt.Sprintf("%s: embedded id %q does not match file name", name, item.ID))
+			continue
+		}
 		failures = append(failures, verifiedConsistencyFailures(name, &item)...)
 	}
 	if len(failures) > 0 {

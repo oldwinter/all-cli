@@ -1,8 +1,10 @@
 package factory
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -53,6 +55,40 @@ func TestStoreLoadMissingAndCorrupt(t *testing.T) {
 	}
 	if _, err := store.Load("WI-002"); err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+// TestStoreLoadRejectsMismatchedEmbeddedID pins the coordinator-reproduced
+// data-loss defect: a WI-992.json file whose embedded id is WI-991 (a
+// rename/copy mistake) must be refused, or Save would overwrite WI-991.json
+// with the wrong item.
+func TestStoreLoadRejectsMismatchedEmbeddedID(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	store := NewStore(dir)
+	legit := validItem()
+	legit.ID = "WI-991"
+	saveValid(t, store, legit)
+
+	mismatch := validItem()
+	mismatch.ID = "WI-991" // matches the real item, but the file name lies
+	mismatch.Title = "distinct second task"
+	data, err := json.Marshal(mismatch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "WI-992.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := store.Load("WI-992"); err == nil ||
+		!strings.Contains(err.Error(), "does not match file name") {
+		t.Fatalf("Load(WI-992) err = %v, want id-mismatch refusal", err)
+	}
+	// The legitimately-named item still loads.
+	if _, err := store.Load("WI-991"); err != nil {
+		t.Fatalf("Load(WI-991) control failed: %v", err)
 	}
 }
 
