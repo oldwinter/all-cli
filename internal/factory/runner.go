@@ -68,7 +68,10 @@ func (r Runner) RunChecks(ctx context.Context, item *WorkItem) ([]CheckResult, e
 	var results []CheckResult
 	for i, check := range item.Checks {
 		logName := fmt.Sprintf("%s-check-%d.log", stamp, i)
-		logPath := uniqueLogPath(logDir, logName)
+		logPath, err := uniqueLogPath(ctx, logDir, logName)
+		if err != nil {
+			return results, fmt.Errorf("allocate check log: %w", err)
+		}
 		wrapped := "cd " + shellQuote(r.Root) + " && " + check
 		res := r.Exec.Run(ctx, "sh", "-c", wrapped)
 		result := CheckResult{Command: check, ExitCode: res.ExitCode, Err: res.Err}
@@ -101,12 +104,21 @@ func (r Runner) RunChecks(ctx context.Context, item *WorkItem) ([]CheckResult, e
 
 // uniqueLogPath returns dir/name, or dir/name-N for the first free N, so two
 // runs sharing a timestamp can never overwrite an earlier log the evidence
-// already points at.
-func uniqueLogPath(dir, name string) string {
+// already points at. Stat errors other than not-exist propagate instead of
+// spinning forever (an unreadable dir denies Stat), and ctx can interrupt the
+// retry loop.
+func uniqueLogPath(ctx context.Context, dir, name string) (string, error) {
 	path := filepath.Join(dir, name)
 	for n := 1; ; n++ {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			return path
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		_, err := os.Stat(path)
+		switch {
+		case os.IsNotExist(err):
+			return path, nil
+		case err != nil:
+			return "", err
 		}
 		ext := filepath.Ext(name)
 		path = filepath.Join(dir, fmt.Sprintf("%s-%d%s", strings.TrimSuffix(name, ext), n, ext))

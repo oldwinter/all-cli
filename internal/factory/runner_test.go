@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -201,6 +202,43 @@ func TestRunChecksFailsWhenLogUnwritable(t *testing.T) {
 	_, err := runner.RunChecks(context.Background(), item)
 	if err == nil || !strings.Contains(err.Error(), "write check log") {
 		t.Fatalf("err = %v, want write failure", err)
+	}
+}
+
+// TestRunChecksFailsWhenRunDirUnreadable: a run/<id> dir that denies Stat
+// (chmod 000) must surface an allocation error instead of spinning forever in
+// uniqueLogPath — the verify hang the coordinator reproduced, where SIGINT
+// could not interrupt the retry loop.
+func TestRunChecksFailsWhenRunDirUnreadable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 000 does not deny os.Stat on Windows")
+	}
+	runner, dir := testRunner(t, &fakeExec{def: execx.CmdResult{}})
+	item := validItem()
+	logDir := filepath.Join(dir, ".factory", "run", item.ID)
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(logDir, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(logDir, 0o755) }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err := runner.RunChecks(ctx, item)
+	if err == nil || !strings.Contains(err.Error(), "allocate check log") {
+		t.Fatalf("err = %v, want log allocation failure", err)
+	}
+}
+
+// TestUniqueLogPathCtxCancel: cancellation breaks the retry loop when every
+// candidate name is taken.
+func TestUniqueLogPathCtxCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := uniqueLogPath(ctx, t.TempDir(), "x.log"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
 	}
 }
 
