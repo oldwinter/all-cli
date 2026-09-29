@@ -91,14 +91,14 @@ func (s Store) Exists(id string) bool {
 // List returns every valid item sorted by Order then ID. Files that fail to
 // parse are reported as an error naming the offending file.
 func (s Store) List() ([]*WorkItem, error) {
+	items := []*WorkItem{}
 	entries, err := os.ReadDir(s.Dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return items, nil
 		}
 		return nil, fmt.Errorf("read backlog %s: %w", s.Dir, err)
 	}
-	var items []*WorkItem
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasPrefix(name, ".tmp-") {

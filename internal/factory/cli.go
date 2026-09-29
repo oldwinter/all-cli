@@ -237,7 +237,7 @@ func newListCommand(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var filtered []*WorkItem
+			filtered := []*WorkItem{}
 			for _, it := range items {
 				if state == "" || string(it.State) == state {
 					filtered = append(filtered, it)
@@ -273,6 +273,9 @@ func newNextCommand(opts *options) *cobra.Command {
 				return err
 			}
 			if item == nil {
+				if opts.json {
+					return printJSON(cmd.OutOrStdout(), nil)
+				}
 				fmt.Fprintln(cmd.OutOrStdout(), "no queued items")
 				return nil
 			}
