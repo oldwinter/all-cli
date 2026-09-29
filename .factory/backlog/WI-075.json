@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-075",
+  "title": "Deduplicate verify/deliver check-run blocks in factory cli",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 30,
+  "source": {},
+  "acceptance": [
+    "single helper runs checks + records evidence for both verify and deliver; behavior unchanged (labels check/deliver-check preserved)"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-075-deduplicate-verify-deliver-check-run-blocks-in-factory-cli",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T01:00:42Z",
+    "head": "9e4334e",
+    "fingerprint": "cc78c4f0ad441dca3195ac6848ccf72fe7ed206d0b689f5293ea7fb3b161eb33"
+  },
+  "created_at": "2026-09-29T00:56:21Z",
+  "updated_at": "2026-09-29T01:01:00Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T00:56:21Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "9e4334e"
+    },
+    {
+      "ts": "2026-09-29T01:00:42Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "9e4334e",
+      "log": ".factory/run/WI-075/20260929T010022.413430000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T01:00:42Z",
+      "event": "verify-pass",
+      "head": "9e4334e"
+    },
+    {
+      "ts": "2026-09-29T01:01:00Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "9e4334e",
+      "log": ".factory/run/WI-075/20260929T010042.956790000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T01:01:00Z",
+      "event": "deliver",
+      "head": "9e4334e"
+    }
+  ]
+}

@@ -133,6 +133,33 @@ func (o *options) failVerifyRun(item *WorkItem, err error) error {
 	return err
 }
 
+// runItemChecks executes the item's checks with live per-check progress on
+// stderr and records evidence for each result; label distinguishes the
+// verify ("check") and deliver ("deliver-check") flows. It returns the
+// results, the first failing result (nil when all passed), and any
+// infrastructure error from the run itself.
+func (o *options) runItemChecks(cmd *cobra.Command, item *WorkItem, label string) ([]CheckResult, *CheckResult, error) {
+	runner := o.runner()
+	errOut := cmd.ErrOrStderr()
+	runner.OnResult = func(res CheckResult) {
+		status := "pass"
+		if !res.OK() {
+			status = fmt.Sprintf("FAIL exit=%d", res.ExitCode)
+		}
+		fmt.Fprintf(errOut, "%s %d/%d %s: %s\n", label, res.Index+1, res.Total, status, res.Command)
+	}
+	results, err := runner.RunChecks(cmd.Context(), item)
+	if err != nil {
+		return nil, nil, err
+	}
+	head := o.headFunc()()
+	var firstFail *CheckResult
+	for i := range results {
+		firstFail = recordCheckEvidence(label, item, &results[i], head, o.now, firstFail)
+	}
+	return results, firstFail, nil
+}
+
 // checkFailMsg describes the first failing check. When the run errored —
 // timeout, cancellation, spawn failure — the reason is included so "timed
 // out" is distinguishable from a plain non-zero exit.
@@ -467,23 +494,9 @@ logs under .factory/run/ record exactly what ran.`,
 			if err := opts.save(item); err != nil {
 				return err
 			}
-			runner := opts.runner()
-			errOut := cmd.ErrOrStderr()
-			runner.OnResult = func(res CheckResult) {
-				status := "pass"
-				if !res.OK() {
-					status = fmt.Sprintf("FAIL exit=%d", res.ExitCode)
-				}
-				fmt.Fprintf(errOut, "check %d/%d %s: %s\n", res.Index+1, res.Total, status, res.Command)
-			}
-			results, err := runner.RunChecks(cmd.Context(), item)
+			results, firstFail, err := opts.runItemChecks(cmd, item, "check")
 			if err != nil {
 				return opts.failVerifyRun(item, err)
-			}
-			head := opts.headFunc()()
-			var firstFail *CheckResult
-			for i := range results {
-				firstFail = recordCheckEvidence("check", item, &results[i], head, opts.now, firstFail)
 			}
 			if firstFail == nil {
 				if err := item.Transition(StateVerified, opts.now()); err != nil {
@@ -562,23 +575,9 @@ func newDeliverCommand(opts *options) *cobra.Command {
 			}
 			// Verification proves the checks passed once; delivery re-runs them so
 			// a changed source cannot ship on stale green evidence.
-			runner := opts.runner()
-			errOut := cmd.ErrOrStderr()
-			runner.OnResult = func(res CheckResult) {
-				status := "pass"
-				if !res.OK() {
-					status = fmt.Sprintf("FAIL exit=%d", res.ExitCode)
-				}
-				fmt.Fprintf(errOut, "deliver-check %d/%d %s: %s\n", res.Index+1, res.Total, status, res.Command)
-			}
-			results, err := runner.RunChecks(cmd.Context(), item)
+			results, firstFail, err := opts.runItemChecks(cmd, item, "deliver-check")
 			if err != nil {
 				return err
-			}
-			head := opts.headFunc()()
-			var firstFail *CheckResult
-			for i := range results {
-				firstFail = recordCheckEvidence("deliver-check", item, &results[i], head, opts.now, firstFail)
 			}
 			if firstFail != nil {
 				return opts.rejectStale(item, fmt.Sprintf(
