@@ -63,6 +63,10 @@ func (s Store) Save(item *WorkItem) error {
 		tmp.Close()
 		return fmt.Errorf("write %s: %w", item.ID, err)
 	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return fmt.Errorf("sync %s: %w", item.ID, err)
+	}
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close %s: %w", item.ID, err)
 	}
