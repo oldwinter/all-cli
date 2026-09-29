@@ -92,15 +92,15 @@ func parseConfigureList(stdout string) ([]Profile, []string, []string, error) {
 		if line == "" {
 			continue
 		}
-		if strings.HasPrefix(line, "Profile") || strings.HasPrefix(line, "-----") {
-			continue
-		}
 		if !strings.Contains(line, "|") {
 			continue
 		}
 		cols := strings.Split(line, "|")
 		for i := range cols {
 			cols[i] = strings.TrimSpace(cols[i])
+		}
+		if len(cols) > 0 && (cols[0] == "Profile" || strings.Trim(cols[0], "-") == "") {
+			continue
 		}
 		if len(cols) < 5 {
 			warnings = append(warnings, "unexpected aliyun configure list output format")
