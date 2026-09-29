@@ -31,7 +31,10 @@ queued -> in_progress -> verifying -> verified -> delivered
   HEAD, or changing the tested source afterwards makes the pass stale. When the
   root is not a git worktree no HEAD can be recorded, so only the
   acceptance/check fingerprint binds the verification — run the factory inside a
-  git repo for the full staleness guarantee. `factory
+  git repo for the full staleness guarantee. Repository-resolution environment
+  variables (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, and friends) are
+  stripped from every spawned command, so an ambient `GIT_DIR` cannot bind
+  checks or the recorded HEAD to a different repository. `factory
   deliver` rejects stale verification, moves the item back to `in_progress`,
   and records a `stale-verify` evidence event — run `verify` again before
   delivering. Delivery itself re-runs the item's checks (logged as

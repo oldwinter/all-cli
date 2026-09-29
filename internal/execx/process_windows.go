@@ -12,6 +12,7 @@ import (
 // has no POSIX process groups, so cancellation terminates the direct child.
 func newCmd(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = cleanEnv()
 	cmd.WaitDelay = 5 * time.Second
 	return cmd
 }
