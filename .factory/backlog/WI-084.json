@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-084",
+  "title": "README security claim must match implemented redaction boundary",
+  "kind": "docs",
+  "state": "delivered",
+  "order": 170,
+  "source": {},
+  "acceptance": [
+    "README states pattern-based stderr redaction (not absolute non-printing) and stdout-preserved-for-parsers boundary"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/ -count=1"
+  ],
+  "branch": "factory/wi-084-readme-security-claim-must-match-implemented-redaction-boundary",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T03:36:57Z",
+    "head": "7495787",
+    "fingerprint": "06903e1f52bff306ebff55107f0c328e34359432831cc054d32a9e3ab3a75616"
+  },
+  "created_at": "2026-09-29T03:36:25Z",
+  "updated_at": "2026-09-29T03:36:59Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T03:36:25Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "7495787"
+    },
+    {
+      "ts": "2026-09-29T03:36:57Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "7495787",
+      "log": ".factory/run/WI-084/20260929T033654.593184000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:36:57Z",
+      "event": "verify-pass",
+      "head": "7495787"
+    },
+    {
+      "ts": "2026-09-29T03:36:59Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "7495787",
+      "log": ".factory/run/WI-084/20260929T033657.687469000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:36:59Z",
+      "event": "deliver",
+      "head": "7495787"
+    }
+  ]
+}

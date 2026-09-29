@@ -559,8 +559,9 @@ all-cli kargo use --unset
 
 ## Security notes
 
-- `all-cli` does **not** print or read plaintext tokens/secrets.
-- It avoids `--show-token` flags and only uses official CLI outputs to determine “configured” state.
+- `all-cli` never invokes `--show-token`-style flags and only uses official CLI outputs to determine “configured” state.
+- Credential-shaped strings in captured subprocess **stderr** are replaced with `[redacted]` before they can reach status errors, diagnostics, or factory run logs (well-known token prefixes, JWTs, `Bearer` headers, and `key=value`/`"key":"value"` secrets, including quoted values). This is a pattern-based best effort, not a guarantee for arbitrary formats.
+- Subprocess **stdout** is kept raw because adapters parse it as data; a tool that writes secrets to stdout instead of stderr is outside the redaction boundary.
 
 ## Feature flags and observability
 
