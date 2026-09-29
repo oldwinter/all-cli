@@ -374,6 +374,17 @@ func readStatusSnapshot(path string, stdin io.Reader) (model.StatusReport, error
 	if report.SchemaVersion != model.SchemaVersionV01 {
 		return model.StatusReport{}, fmt.Errorf("parse snapshot %s: unsupported schema_version %q (expected %q)", source, report.SchemaVersion, model.SchemaVersionV01)
 	}
+	// Snapshots written before stderr redaction (or shared from elsewhere) can
+	// carry plaintext credentials in error/warning strings; scrub them on load
+	// so report/diff never re-print them.
+	for i := range report.Tools {
+		for j, e := range report.Tools[i].Errors {
+			report.Tools[i].Errors[j] = execx.RedactSecrets(e)
+		}
+		for j, w := range report.Tools[i].Warnings {
+			report.Tools[i].Warnings[j] = execx.RedactSecrets(w)
+		}
+	}
 	return report, nil
 }
 

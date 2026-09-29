@@ -436,3 +436,34 @@ func TestDiffRejectsDoubleStdin(t *testing.T) {
 		t.Fatalf("diff - - err = %v", err)
 	}
 }
+
+func TestReadStatusSnapshotRedactsStoredSecrets(t *testing.T) {
+	report := model.NewStatusReport(1)
+	report.SchemaVersion = model.SchemaVersionV01
+	report.Tools[0] = model.ToolSummary{
+		ID: "gh",
+		Errors: []string{
+			`Failed: oauth_token ` + "ghp_" + strings.Repeat("z", 24) + ` invalid`,
+			`password="STORED SECRET VAL"`,
+			"ordinary error stays",
+		},
+		Warnings: []string{`api_key:` + strings.Repeat("k", 20)},
+	}
+	path := writeStatusReportFixture(t, t.TempDir(), "legacy.json", report)
+
+	got, err := readStatusSnapshot(path, strings.NewReader(""))
+	if err != nil {
+		t.Fatalf("readStatusSnapshot: %v", err)
+	}
+	for _, e := range got.Tools[0].Errors {
+		if strings.Contains(e, "ghp_") || strings.Contains(e, "STORED SECRET") {
+			t.Fatalf("stored secret survived load: %q", e)
+		}
+	}
+	if got.Tools[0].Errors[2] != "ordinary error stays" {
+		t.Fatalf("non-secret error altered: %q", got.Tools[0].Errors[2])
+	}
+	if strings.Contains(got.Tools[0].Warnings[0], strings.Repeat("k", 20)) {
+		t.Fatalf("stored warning secret survived load: %q", got.Tools[0].Warnings[0])
+	}
+}
