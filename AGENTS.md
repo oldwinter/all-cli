@@ -15,7 +15,7 @@
 
 - `just ci` is the CI-equivalent gate (tidy, fmt, policy, vet, tests, 80% coverage floor, complexity ≤19, duplication, factory backlog validation); `just check` adds race and three-pass stability runs. Run `just check` before a PR.
 - `just factory` drives the work-item pipeline (states `queued → in_progress → verifying → verified → delivered`, with `failed`/`blocked` lateral); `just factory-validate` schema-checks the backlog. Operator guide: [docs/factory.md](docs/factory.md).
-- `just policy` also checks this file: every `just <recipe>` named here must exist in `justfile`, and every local link must resolve.
+- `just policy` also checks this file and README.md: every `just <recipe>` named there must exist in `justfile`, and every local link must resolve.
 - A `just test-stability` failure is a flaky-test defect, never retryable noise.
 - The justfile runs Go as `env -u GOROOT -u GOTOOLDIR go`; use `just go-env` for toolchain mismatches.
 
