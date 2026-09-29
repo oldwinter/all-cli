@@ -235,7 +235,8 @@ all-cli current --json
 
 Use `--tools` or `--categories` to check only the contexts you need and avoid invoking
 unrelated CLIs. When combined, both filters must match. `--ids` prints one matching
-tool ID per line for shell pipelines (`--json` takes precedence).
+installed tool ID per line for shell pipelines; it resolves via PATH lookup only and
+never invokes a tool command (`--json` takes precedence).
 
 Example text output:
 

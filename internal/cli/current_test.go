@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -318,15 +319,19 @@ func TestCurrentCommandIDsPrintsInstalledContextToolIDs(t *testing.T) {
 		{ID: "gh", Category: "code", Binary: "gh", Capabilities: model.Capability{HasContexts: true}},
 		{ID: "kubectl", Category: "k8s", Binary: "kubectl", Capabilities: model.Capability{HasContexts: true}},
 	})
+	// gh reports a context capability but its binary is not on PATH.
+	oldLookPath := toolLookPath
+	toolLookPath = func(name string) (string, error) {
+		if name == "gh" {
+			return "", errors.New("gh not found")
+		}
+		return "/fakebin/" + name, nil
+	}
+	t.Cleanup(func() { toolLookPath = oldLookPath })
 	oldEvaluate := evaluateToolSummary
 	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
-		installed := def.ID != "gh" // gh reports a context capability but is not installed
-		return model.ToolSummary{
-			ID:           def.ID,
-			Installed:    installed,
-			Capabilities: def.Capabilities,
-			Current:      map[string]string{"context": "ctx-" + def.ID},
-		}
+		t.Fatalf("unexpected tool evaluation for %q under --ids", def.ID)
+		return model.ToolSummary{}
 	}
 	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
 	stubShowStatusSpinner(t, false)
@@ -356,8 +361,13 @@ func TestCurrentCommandIDsHonorsFiltersAndJSONPrecedence(t *testing.T) {
 		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
 		{ID: "kubectl", Category: "k8s", Binary: "kubectl", Capabilities: model.Capability{HasContexts: true}},
 	})
+	oldLookPath := toolLookPath
+	toolLookPath = func(name string) (string, error) { return "/fakebin/" + name, nil }
+	t.Cleanup(func() { toolLookPath = oldLookPath })
+	var evaluated atomic.Int32
 	oldEvaluate := evaluateToolSummary
 	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		evaluated.Add(1)
 		return model.ToolSummary{
 			ID:           def.ID,
 			Installed:    true,
@@ -368,7 +378,8 @@ func TestCurrentCommandIDsHonorsFiltersAndJSONPrecedence(t *testing.T) {
 	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
 	stubShowStatusSpinner(t, false)
 
-	// --tools narrows the printed IDs
+	// --tools narrows the printed IDs without evaluating any tool
+	before := evaluated.Load()
 	stdout, _, err := executeTestCommand(
 		t,
 		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
@@ -379,6 +390,9 @@ func TestCurrentCommandIDsHonorsFiltersAndJSONPrecedence(t *testing.T) {
 	}
 	if stdout != "kubectl\n" {
 		t.Fatalf("filtered --ids output = %q, want kubectl", stdout)
+	}
+	if n := evaluated.Load() - before; n != 0 {
+		t.Fatalf("--ids evaluated %d tools, want 0 (PATH lookup only)", n)
 	}
 
 	// --json keeps the report shape and ignores --ids

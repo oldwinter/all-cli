@@ -1,0 +1,59 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-079",
+  "title": "current --ids: skip context probing (discovery-only selection)",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 135,
+  "source": {},
+  "acceptance": [
+    "current --ids selects tools by registry capabilities + PATH lookup only; no tool subcommand is invoked (a hanging probe must not delay ID listing)",
+    "tool/category filters, installed-only semantics, ID-sorted order, --json precedence, and invalid-filter errors unchanged"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1"
+  ],
+  "branch": "factory/wi-079-current-ids-skip-context-probing-discovery-only-selection",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T02:39:18Z",
+    "head": "ed885c1",
+    "fingerprint": "e2d1e451f030070c868e4ed4f578d771c60092fa553c1d888596fc11fd287d95"
+  },
+  "created_at": "2026-09-29T02:36:17Z",
+  "updated_at": "2026-09-29T02:39:20Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T02:36:17Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "ed885c1"
+    },
+    {
+      "ts": "2026-09-29T02:39:18Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1",
+      "note": "pass",
+      "head": "ed885c1",
+      "log": ".factory/run/WI-079/20260929T023916.414581000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T02:39:18Z",
+      "event": "verify-pass",
+      "head": "ed885c1"
+    },
+    {
+      "ts": "2026-09-29T02:39:20Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1",
+      "note": "pass",
+      "head": "ed885c1",
+      "log": ".factory/run/WI-079/20260929T023918.545199000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T02:39:20Z",
+      "event": "deliver",
+      "head": "ed885c1"
+    }
+  ]
+}
