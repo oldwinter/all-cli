@@ -133,6 +133,62 @@ func TestCheckAgentGuideAcceptsExistingRecipesAndLinks(t *testing.T) {
 	}
 }
 
+func TestCheckAgentGuideRejectsReadmeRecipesAndBrokenLinks(t *testing.T) {
+	root := newTestRepository(t, map[string]string{
+		"AGENTS.md": "# Agent guide\nRun `just ci`.\n",
+		"README.md": "# Readme\nRun `just phantom`.\nSee [setup](docs/nope.md).\n",
+		"justfile":  "ci:\n    go test ./...\n",
+	})
+
+	violations, err := CheckAgentGuide(root)
+	if err != nil {
+		t.Fatalf("CheckAgentGuide() error = %v", err)
+	}
+	if len(violations) != 2 {
+		t.Fatalf("CheckAgentGuide() violations = %#v, want two", violations)
+	}
+	for _, violation := range violations {
+		if violation.Path != "README.md" {
+			t.Fatalf("violation path = %q, want README.md", violation.Path)
+		}
+	}
+	if violations[0].Rule != "readme-command" || !strings.Contains(violations[0].Message, "phantom") {
+		t.Fatalf("first violation = %#v, want readme-command for phantom", violations[0])
+	}
+	if violations[1].Rule != "readme-link" || !strings.Contains(violations[1].Message, "docs/nope.md") {
+		t.Fatalf("second violation = %#v, want readme-link for docs/nope.md", violations[1])
+	}
+}
+
+func TestCheckAgentGuideAcceptsReadmeReferencesAndMissingReadme(t *testing.T) {
+	root := newTestRepository(t, map[string]string{
+		"AGENTS.md":     "# Agent guide\n",
+		"README.md":     "# Readme\nRun `just ci`.\nSee [guide](docs/guide.md) and [ext](https://example.com/x).\n",
+		"justfile":      "ci:\n    go test ./...\n",
+		"docs/guide.md": "# Guide\n",
+	})
+	violations, err := CheckAgentGuide(root)
+	if err != nil {
+		t.Fatalf("CheckAgentGuide() error = %v", err)
+	}
+	if len(violations) != 0 {
+		t.Fatalf("CheckAgentGuide() violations = %#v, want none", violations)
+	}
+
+	// A repository without README.md still passes: README is optional.
+	missingReadme := newTestRepository(t, map[string]string{
+		"AGENTS.md": "# Agent guide\n",
+		"justfile":  "ci:\n    go test ./...\n",
+	})
+	violations, err = CheckAgentGuide(missingReadme)
+	if err != nil {
+		t.Fatalf("CheckAgentGuide() error = %v", err)
+	}
+	if len(violations) != 0 {
+		t.Fatalf("CheckAgentGuide() violations = %#v, want none", violations)
+	}
+}
+
 func TestAuditFailsOutsideGitRepository(t *testing.T) {
 	if _, err := Audit(t.TempDir(), Limits{MaxBytes: 1, MaxLines: 1}); err == nil {
 		t.Fatal("expected error listing files outside a git repository")

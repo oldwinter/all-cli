@@ -84,12 +84,23 @@ func Audit(root string, limits Limits) ([]Violation, error) {
 	return violations, nil
 }
 
+// policyDoc names an operator-facing doc whose `just <recipe>` references and
+// local markdown links must resolve.
+type policyDoc struct {
+	rel         string
+	required    bool
+	commandRule string
+	linkRule    string
+}
+
+// policyDocs is the doc set CheckAgentGuide audits. AGENTS.md is required;
+// README.md is checked when present.
+var policyDocs = []policyDoc{
+	{"AGENTS.md", true, "agent-command", "agent-link"},
+	{"README.md", false, "readme-command", "readme-link"},
+}
+
 func CheckAgentGuide(root string) ([]Violation, error) {
-	guidePath := filepath.Join(root, "AGENTS.md")
-	guide, err := os.ReadFile(guidePath)
-	if err != nil {
-		return nil, fmt.Errorf("read AGENTS.md: %w", err)
-	}
 	justfile, err := os.ReadFile(filepath.Join(root, "justfile"))
 	if err != nil {
 		return nil, fmt.Errorf("read justfile: %w", err)
@@ -101,14 +112,37 @@ func CheckAgentGuide(root string) ([]Violation, error) {
 	}
 
 	var violations []Violation
+	for _, doc := range policyDocs {
+		docViolations, err := checkPolicyDoc(root, doc, recipes)
+		if err != nil {
+			return nil, err
+		}
+		violations = append(violations, docViolations...)
+	}
+
+	sortViolations(violations)
+	return violations, nil
+}
+
+func checkPolicyDoc(root string, doc policyDoc, recipes map[string]struct{}) ([]Violation, error) {
+	docPath := filepath.Join(root, filepath.FromSlash(doc.rel))
+	guide, err := os.ReadFile(docPath)
+	if err != nil {
+		if os.IsNotExist(err) && !doc.required {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read %s: %w", doc.rel, err)
+	}
+
+	var violations []Violation
 	for _, match := range justCommandPattern.FindAllSubmatchIndex(guide, -1) {
 		recipe := string(guide[match[2]:match[3]])
 		if _, ok := recipes[recipe]; ok {
 			continue
 		}
 		violations = append(violations, Violation{
-			Rule:    "agent-command",
-			Path:    "AGENTS.md",
+			Rule:    doc.commandRule,
+			Path:    doc.rel,
 			Line:    lineAt(guide, match[0]),
 			Message: fmt.Sprintf("references undefined just recipe %q", recipe),
 		})
@@ -126,20 +160,18 @@ func CheckAgentGuide(root string) ([]Violation, error) {
 		if target == "" {
 			continue
 		}
-		if _, err := os.Stat(filepath.Join(filepath.Dir(guidePath), filepath.FromSlash(target))); err == nil {
+		if _, err := os.Stat(filepath.Join(filepath.Dir(docPath), filepath.FromSlash(target))); err == nil {
 			continue
 		} else if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("check AGENTS.md link %q: %w", target, err)
+			return nil, fmt.Errorf("check %s link %q: %w", doc.rel, target, err)
 		}
 		violations = append(violations, Violation{
-			Rule:    "agent-link",
-			Path:    "AGENTS.md",
+			Rule:    doc.linkRule,
+			Path:    doc.rel,
 			Line:    lineAt(guide, match[0]),
 			Message: fmt.Sprintf("references missing local path %q", target),
 		})
 	}
-
-	sortViolations(violations)
 	return violations, nil
 }
 

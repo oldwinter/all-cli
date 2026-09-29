@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-072",
+  "title": "Extend doc policy audit to README.md commands and links",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 25,
+  "source": {},
+  "acceptance": [
+    "repopolicy checks README.md's just recipes and local links with the same rules as AGENTS.md; violations name README.md as path"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/ -count=1"
+  ],
+  "branch": "factory/wi-072-extend-doc-policy-audit-to-readme-md-commands-and-links",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T00:21:19Z",
+    "head": "a468cf6",
+    "fingerprint": "75108d20e0b5dd86129d24cf608127948bd3f783faa45144eea4e2883a535fc1"
+  },
+  "created_at": "2026-09-29T00:19:02Z",
+  "updated_at": "2026-09-29T00:21:20Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T00:19:02Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "a468cf6"
+    },
+    {
+      "ts": "2026-09-29T00:21:19Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "a468cf6",
+      "log": ".factory/run/WI-072/20260929T002117.314260000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:21:19Z",
+      "event": "verify-pass",
+      "head": "a468cf6"
+    },
+    {
+      "ts": "2026-09-29T00:21:20Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "a468cf6",
+      "log": ".factory/run/WI-072/20260929T002119.302983000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:21:20Z",
+      "event": "deliver",
+      "head": "a468cf6"
+    }
+  ]
+}
