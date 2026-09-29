@@ -189,6 +189,33 @@ func TestCheckAgentGuideAcceptsReadmeReferencesAndMissingReadme(t *testing.T) {
 	}
 }
 
+func TestCheckAgentGuideAuditsDocsTree(t *testing.T) {
+	root := newTestRepository(t, map[string]string{
+		"AGENTS.md":             "# Agent guide\n",
+		"justfile":              "ci:\n    go test ./...\n",
+		"docs/guide.md":         "Run `just notreal`.\n",
+		"docs/nested/deep.md":   "See [sibling](peer.md) and [broken](missing.md).\n",
+		"docs/nested/peer.md":   "# Peer\n",
+		"docs/nested/image.png": "not markdown\n",
+	})
+
+	violations, err := CheckAgentGuide(root)
+	if err != nil {
+		t.Fatalf("CheckAgentGuide() error = %v", err)
+	}
+	if len(violations) != 2 {
+		t.Fatalf("CheckAgentGuide() violations = %#v, want two", violations)
+	}
+	if violations[0].Rule != "docs-command" || violations[0].Path != "docs/guide.md" ||
+		!strings.Contains(violations[0].Message, "notreal") {
+		t.Fatalf("first violation = %#v, want docs-command on docs/guide.md", violations[0])
+	}
+	if violations[1].Rule != "docs-link" || violations[1].Path != "docs/nested/deep.md" ||
+		!strings.Contains(violations[1].Message, "missing.md") {
+		t.Fatalf("second violation = %#v, want docs-link on docs/nested/deep.md", violations[1])
+	}
+}
+
 func TestAuditFailsOutsideGitRepository(t *testing.T) {
 	if _, err := Audit(t.TempDir(), Limits{MaxBytes: 1, MaxLines: 1}); err == nil {
 		t.Fatal("expected error listing files outside a git repository")

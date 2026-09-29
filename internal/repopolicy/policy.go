@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -93,8 +94,9 @@ type policyDoc struct {
 	linkRule    string
 }
 
-// policyDocs is the doc set CheckAgentGuide audits. AGENTS.md is required;
-// README.md is checked when present.
+// policyDocs is the fixed doc set CheckAgentGuide audits; every markdown file
+// under docs/ is audited additionally. AGENTS.md is required; README.md is
+// checked when present.
 var policyDocs = []policyDoc{
 	{"AGENTS.md", true, "agent-command", "agent-link"},
 	{"README.md", false, "readme-command", "readme-link"},
@@ -112,7 +114,32 @@ func CheckAgentGuide(root string) ([]Violation, error) {
 	}
 
 	var violations []Violation
-	for _, doc := range policyDocs {
+	docs := append([]policyDoc{}, policyDocs...)
+	docsRoot := filepath.Join(root, "docs")
+	if info, err := os.Stat(docsRoot); err == nil && info.IsDir() {
+		err := filepath.WalkDir(docsRoot, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+				return nil
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			docs = append(docs, policyDoc{
+				rel:         filepath.ToSlash(rel),
+				commandRule: "docs-command",
+				linkRule:    "docs-link",
+			})
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("scan docs/: %w", err)
+		}
+	}
+	for _, doc := range docs {
 		docViolations, err := checkPolicyDoc(root, doc, recipes)
 		if err != nil {
 			return nil, err
