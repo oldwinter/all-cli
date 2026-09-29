@@ -52,7 +52,7 @@ func (a Adapter) ListContexts(ctx context.Context) ([]string, []string, []string
 	if res.Err != nil {
 		errMsg := strings.TrimSpace(res.Stderr)
 		if errMsg == "" {
-			errMsg = strings.TrimSpace(res.Stdout)
+			errMsg = execx.RedactSecrets(strings.TrimSpace(res.Stdout))
 		}
 		if errMsg == "" {
 			errMsg = res.Err.Error()

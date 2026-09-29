@@ -96,7 +96,7 @@ func (DefaultRunner) Run(ctx context.Context, name string, args ...string) CmdRe
 
 	return CmdResult{
 		Stdout:   stdout.String(),
-		Stderr:   stderr.String(),
+		Stderr:   RedactSecrets(stderr.String()),
 		ExitCode: exitCode,
 		Err:      err,
 	}
