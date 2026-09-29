@@ -38,6 +38,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var categoriesFilter string
 	var groupBy string
 	var sortBy string
+	var ids bool
 	var quiet bool
 	var installedOnly bool
 	var missingOnly bool
@@ -48,11 +49,13 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Long: `Evaluates each tracked tool in the built-in registry: installation path,
 configuration state, capabilities, and optional current context snapshot.
 
-When not using --json, a progress indicator may be shown on stderr while tools are checked.`,
+When not using --json or --ids, a progress indicator may be shown on stderr while tools are checked.
+Use --ids to print one checked tool ID per line. --json takes precedence over --ids.`,
 		Example: `  all-cli status
   all-cli status --tools kubectl,docker --group-by none
   all-cli status --categories ai,cloud
   all-cli status --categories ai --missing-only
+  all-cli status --missing-only --ids
   all-cli status --installed-only --quiet`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -75,7 +78,7 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 			}
 
 			var spinner *progressSpinner
-			if !opts.JSON && !opts.NoProgress && !quiet && showStatusSpinner() {
+			if !opts.JSON && !ids && !opts.NoProgress && !quiet && showStatusSpinner() {
 				spinner = newProgressSpinner(cmd.ErrOrStderr(), len(reg))
 				spinner.Start()
 			}
@@ -93,6 +96,9 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 				report.Diagnostics = diag.Generate(report, diag.Options{Profile: diag.ProfileAgent}).Diagnostics
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
+			if ids {
+				return printStatusIDs(cmd, report.Tools)
+			}
 			output.PrintStatusTableWithOptions(cmd.OutOrStdout(), report, output.StatusTableOptions{
 				GroupBy: groupByValue,
 				SortBy:  sortByValue,
@@ -105,11 +111,21 @@ When not using --json, a progress indicator may be shown on stderr while tools a
 	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to check (e.g. ai,cloud)")
 	cmd.Flags().StringVar(&groupBy, "group-by", statusGroupByCategory, "Group output: category|none")
 	cmd.Flags().StringVar(&sortBy, "sort", statusSortTool, "Sort order: tool|tool-desc|category|category-desc")
+	cmd.Flags().BoolVar(&ids, "ids", false, "Print only checked tool IDs, one per line (ignored with --json)")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Only show tools with issues (not installed, unconfigured, warnings, or errors)")
 	cmd.Flags().BoolVar(&installedOnly, "installed-only", false, "Only show installed tools")
 	cmd.Flags().BoolVar(&missingOnly, "missing-only", false, "Only show tools that are not installed")
 	cmd.MarkFlagsMutuallyExclusive("installed-only", "missing-only")
 	return cmd
+}
+
+func printStatusIDs(cmd *cobra.Command, toolsList []model.ToolSummary) error {
+	for _, tool := range toolsList {
+		if _, err := fmt.Fprintln(cmd.OutOrStdout(), tool.ID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly, quiet bool) []model.ToolSummary {
