@@ -1,6 +1,9 @@
 package execx
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // secretPatterns match credential-shaped strings that CLIs sometimes echo into
 // stderr (auth failures, verbose errors). all-cli surfaces stderr into status
@@ -17,8 +20,14 @@ var secretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}`),
 	// Authorization headers and key=value style secrets in error text.
 	regexp.MustCompile(`(?i)(bearer\s+)[A-Za-z0-9._~+/-]{8,}`),
-	regexp.MustCompile(`(?i)\b((?:oauth_?token|api[_-]?key|secret|password|access[_-]?token|token)\s*[=:]\s*)\S+`),
 }
+
+// kvSecretPattern covers key=value/key:value secrets where the value may be
+// bare, single-quoted, double-quoted (with escapes), or embedded in JSON-ish
+// output like {"api_key":"..."} where a quote sits between key and separator.
+// The unquoted alternative stops at , } ] " so neighbouring fields are not
+// consumed; \S+ is the last-resort for values starting with an unclosed quote.
+var kvSecretPattern = regexp.MustCompile(`(?i)\b((?:oauth_?token|api[_-]?key|secret|password|access[_-]?token|token)["']?\s*[=:]\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s",}\]]+|\S+)`)
 
 const redactedPlaceholder = "[redacted]"
 
@@ -32,5 +41,15 @@ func RedactSecrets(s string) string {
 			s = re.ReplaceAllString(s, redactedPlaceholder)
 		}
 	}
+	// Keep the value's quote characters when present so key="..." and
+	// "key":"..." stay structurally valid after redaction.
+	s = kvSecretPattern.ReplaceAllStringFunc(s, func(m string) string {
+		sub := kvSecretPattern.FindStringSubmatch(m)
+		prefix, val := sub[1], sub[2]
+		if q := val[:1]; (q == `"` || q == "'") && strings.HasSuffix(val, q) {
+			return prefix + q + redactedPlaceholder + q
+		}
+		return prefix + redactedPlaceholder
+	})
 	return s
 }

@@ -37,8 +37,17 @@ func TestRedactSecrets(t *testing.T) {
 		{name: "jwt", in: "token " + fakeJWT, want: "token [redacted]"},
 		{name: "bearer header", in: "Authorization: Bearer " + fakeBearer, want: "Authorization: Bearer [redacted]"},
 		{name: "kv token", in: "token=" + fakeKVSecret + " rejected", want: "token=[redacted] rejected"},
-		{name: "kv api key quoted", in: `api_key="` + fakeAPIKeyVal + `"`, want: `api_key=[redacted]`},
+		{name: "kv api key quoted", in: `api_key="` + fakeAPIKeyVal + `"`, want: `api_key="[redacted]"`},
+		{name: "quoted value with spaces", in: `password="SYNTHETIC FIRST SECOND" failed`, want: `password="[redacted]" failed`},
+		{name: "json-embedded key", in: `{"error":"unauthorized","api_key":"` + fakeAPIKeyVal + `"}`, want: `{"error":"unauthorized","api_key":"[redacted]"}`},
+		{name: "json neighbor fields preserved", in: `{"token":"` + fakeKVSecret + `","keep":"yes","n":42}`, want: `{"token":"[redacted]","keep":"yes","n":42}`},
+		{name: "single-quoted value", in: `secret='` + fakeKVSecret + `' end`, want: `secret='[redacted]' end`},
+		{name: "escaped quote in value", in: `token="a\"b\"` + fakeKVSecret + `"`, want: `token="[redacted]"`},
+		{name: "unclosed quote falls back", in: `token="` + fakeKVSecret + ` tail`, want: `token=[redacted] tail`},
+		{name: "unquoted before json neighbor", in: `{"token":` + fakeKVSecret + `,"keep":"yes"}`, want: `{"token":[redacted],"keep":"yes"}`},
 		{name: "prose token word untouched", in: "token is expired, run login", want: "token is expired, run login"},
+		{name: "unknown quoted key untouched", in: `note="` + fakeKVSecret + `"`, want: `note="` + fakeKVSecret + `"`},
+		{name: "key without value untouched", in: "password=", want: "password="},
 		{name: "multiple secrets", in: fakeAWSKey + " and " + fakeGHToken, want: "[redacted] and [redacted]"},
 	}
 	for _, tc := range tests {
