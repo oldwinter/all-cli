@@ -426,7 +426,10 @@ the full catalog; each alias can take an optional search term. Add an optional
 search term to match tool IDs, names,
 categories, binary names, and purposes; human table output shows the active
 query. Use `--categories` to browse one or more exact registry categories;
-category filters and search terms can be combined:
+category filters and search terms can be combined. Add `--match-all` to match
+every whitespace-separated word anywhere in the metadata, instead of requiring
+one contiguous phrase. Matching is case-insensitive; words may match different
+fields, and an empty query still lists the full catalog:
 
 ```bash
 all-cli catalog
@@ -436,6 +439,8 @@ all-cli catalog kubernetes
 all-cli catalog --categories ai,cloud
 all-cli catalog kubernetes --categories k8s,cloud
 all-cli catalog cloud --json
+all-cli catalog "tui kubernetes" --match-all
+all-cli catalog list "cloud account" --match-all --ids
 ```
 
 Use `--ids` to print one matching tool ID per line for a picker or a shell loop:

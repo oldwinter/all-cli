@@ -28,6 +28,7 @@ type catalogReport struct {
 func newCatalogCommand(opts *rootOptions) *cobra.Command {
 	var categoriesFilter string
 	var ids bool
+	var matchAll bool
 
 	cmd := &cobra.Command{
 		Use:   "catalog [list|ls|listing] [search]",
@@ -36,6 +37,7 @@ func newCatalogCommand(opts *rootOptions) *cobra.Command {
 search term matches tool IDs, names, categories, binary names, and purposes.
 The tokens list, ls, and listing are aliases for the full catalog and can be
 followed by an optional search term.
+Use --match-all to match every whitespace-separated search word across those fields.
 Use --categories to limit results to one or more exact registry categories.
 Use --ids to print one matching tool ID per line. --json takes precedence over --ids.`,
 		Example: `  all-cli catalog
@@ -51,7 +53,12 @@ Use --ids to print one matching tool ID per line. --json takes precedence over -
 			if err != nil {
 				return err
 			}
-			report := buildCatalogReport(query, registry)
+			var report catalogReport
+			if matchAll {
+				report = buildCatalogWordsReport(query, registry)
+			} else {
+				report = buildCatalogReport(query, registry)
+			}
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
@@ -65,6 +72,7 @@ Use --ids to print one matching tool ID per line. --json takes precedence over -
 		},
 	}
 	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to browse (e.g. ai,cloud)")
+	cmd.Flags().BoolVar(&matchAll, "match-all", false, "Match every search word across tool metadata instead of an exact phrase")
 	cmd.Flags().BoolVar(&ids, "ids", false, "Print only tool IDs, one per line (ignored with --json)")
 	return cmd
 }
