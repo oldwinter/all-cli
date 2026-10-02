@@ -443,6 +443,19 @@ all-cli catalog "tui kubernetes" --match-all
 all-cli catalog list "cloud account" --match-all --ids
 ```
 
+Use `--summary` instead to see an alphabetical category breakdown and total
+tool count without the individual rows. Search, `--match-all`, and category
+filters apply before counting. No matches produces a total of zero:
+
+```bash
+all-cli catalog --summary
+all-cli catalog "cloud account" --match-all --summary
+all-cli catalog --categories ai,cloud --summary
+```
+
+`--summary` and `--ids` are mutually exclusive. `--json` keeps the full catalog
+report unchanged and takes precedence over either text mode.
+
 Use `--ids` to print one matching tool ID per line for a picker or a shell loop:
 
 ```bash
