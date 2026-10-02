@@ -1,0 +1,81 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-049",
+  "title": "Print no-items message on empty list",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "factory list on empty backlog or no state matches prints a clear message instead of blank output"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+    "/tmp/factory --root /tmp/fx-empty list 2\u003e\u00261 | grep -qi 'no items'"
+  ],
+  "branch": "factory/wi-049-print-no-items-message-on-empty-list",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:32:08Z",
+    "head": "0fea663",
+    "fingerprint": "c1c4ca224f14140dbb1f4cd2a79db0de05bffefa36fc7b3ef0a72467d5b38277"
+  },
+  "created_at": "2026-09-28T21:31:51Z",
+  "updated_at": "2026-09-28T21:32:09Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:31:52Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "0fea663"
+    },
+    {
+      "ts": "2026-09-28T21:32:08Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "0fea663",
+      "log": ".factory/run/WI-049/20260928T213207.057319000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:32:08Z",
+      "event": "check",
+      "command": "/tmp/factory --root /tmp/fx-empty list 2\u003e\u00261 | grep -qi 'no items'",
+      "note": "pass",
+      "head": "0fea663",
+      "log": ".factory/run/WI-049/20260928T213207.057319000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:32:08Z",
+      "event": "verify-pass",
+      "head": "0fea663"
+    },
+    {
+      "ts": "2026-09-28T21:32:09Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "0fea663",
+      "log": ".factory/run/WI-049/20260928T213208.630858000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:32:09Z",
+      "event": "deliver-check",
+      "command": "/tmp/factory --root /tmp/fx-empty list 2\u003e\u00261 | grep -qi 'no items'",
+      "note": "pass",
+      "head": "0fea663",
+      "log": ".factory/run/WI-049/20260928T213208.630858000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:32:09Z",
+      "event": "deliver",
+      "note": "empty-list-message",
+      "head": "0fea663"
+    }
+  ]
+}

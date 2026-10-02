@@ -44,8 +44,16 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Cross-build
+        run: |
+          GOOS=windows GOARCH=amd64 go build ./...
+          GOOS=darwin GOARCH=arm64 go build ./...
+
       - name: Repository policy
         run: go test ./internal/repopolicy -run TestRepositoryPolicy -count=1
+
+      - name: Factory backlog validation
+        run: go run ./cmd/factory validate
 
       - name: Build performance
         shell: bash

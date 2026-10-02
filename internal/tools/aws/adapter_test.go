@@ -142,6 +142,58 @@ func TestAdapterListProfiles_Success(t *testing.T) {
 	}
 }
 
+func TestAdapterConfigured(t *testing.T) {
+	tests := []struct {
+		name     string
+		results  map[string]execx.CmdResult
+		wantOK   bool
+		wantErr  bool
+		wantErrs int
+	}{
+		{
+			name: "profiles present",
+			results: map[string]execx.CmdResult{
+				"aws configure list-profiles": {Stdout: "default\n"},
+			},
+			wantOK: true,
+		},
+		{
+			name: "no profiles",
+			results: map[string]execx.CmdResult{
+				"aws configure list-profiles": {Stdout: "\n"},
+			},
+			wantOK: false,
+		},
+		{
+			name: "list fails",
+			results: map[string]execx.CmdResult{
+				"aws configure list-profiles": {
+					ExitCode: 1,
+					Err:      errors.New("exit status 1"),
+					Stderr:   "broken config",
+				},
+			},
+			wantErr:  true,
+			wantErrs: 1,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			a := New(fakeRunner{results: tc.results})
+			ok, _, errs, err := a.Configured(context.Background())
+			if tc.wantErr != (err != nil) {
+				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
+			}
+			if ok != tc.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tc.wantOK)
+			}
+			if len(errs) != tc.wantErrs {
+				t.Fatalf("errs = %#v", errs)
+			}
+		})
+	}
+}
+
 func TestAdapterListProfiles_Failure(t *testing.T) {
 	a := New(fakeRunner{
 		results: map[string]execx.CmdResult{
@@ -165,5 +217,89 @@ func TestAdapterListProfiles_Failure(t *testing.T) {
 	}
 	if len(errs) != 1 || errs[0] != "broken config" {
 		t.Fatalf("unexpected errs: %#v", errs)
+	}
+}
+
+func TestConfigureGetOptional(t *testing.T) {
+	cases := []struct {
+		name       string
+		res        execx.CmdResult
+		want       string
+		wantErrs   int
+		wantErrSub string
+	}{
+		{
+			name: "unset optional value returns empty without error",
+			res:  execx.CmdResult{ExitCode: 1, Err: errors.New("exit status 1")},
+		},
+		{
+			name:       "stderr error propagates",
+			res:        execx.CmdResult{ExitCode: 1, Err: errors.New("exit status 1"), Stderr: "profile missing"},
+			wantErrs:   1,
+			wantErrSub: "aws configure get",
+		},
+		{
+			name:       "non-1 exit with empty stderr uses runner error",
+			res:        execx.CmdResult{ExitCode: 2, Err: errors.New("exec boom")},
+			wantErrs:   1,
+			wantErrSub: "aws configure get",
+		},
+		{
+			name: "success trims stdout",
+			res:  execx.CmdResult{ExitCode: 0, Stdout: "  json\n"},
+			want: "json",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := New(fakeRunner{results: map[string]execx.CmdResult{
+				"aws configure get output --profile prod": tc.res,
+			}})
+			got, warnings, errs, err := a.configureGetOptional(context.Background(), "prod", "output")
+			if tc.wantErrSub == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			} else {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErrSub) {
+					t.Fatalf("err = %v, want %q", err, tc.wantErrSub)
+				}
+			}
+			if got != tc.want {
+				t.Fatalf("value = %q, want %q", got, tc.want)
+			}
+			if len(warnings) != 0 || len(errs) != tc.wantErrs {
+				t.Fatalf("warnings=%v errs=%v", warnings, errs)
+			}
+		})
+	}
+}
+
+func TestConfigureGetEmptyStderrFallsBackToRunnerError(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"aws configure get region --profile prod": {ExitCode: 2, Err: errors.New("exec boom")},
+	}})
+	_, _, errs, err := a.configureGet(context.Background(), "prod", "region")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if len(errs) != 1 || errs[0] != "exec boom" {
+		t.Fatalf("errs = %v, want runner error surfaced", errs)
+	}
+}
+
+func TestCurrentProfileDefaultsAndPrefersAWSProfile(t *testing.T) {
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_DEFAULT_PROFILE", "")
+	if got := currentProfile(); got != "default" {
+		t.Fatalf("currentProfile = %q, want default", got)
+	}
+	t.Setenv("AWS_DEFAULT_PROFILE", "from-default")
+	if got := currentProfile(); got != "from-default" {
+		t.Fatalf("currentProfile = %q, want from-default", got)
+	}
+	t.Setenv("AWS_PROFILE", "primary")
+	if got := currentProfile(); got != "primary" {
+		t.Fatalf("currentProfile = %q, want primary", got)
 	}
 }

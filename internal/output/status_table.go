@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -38,16 +39,16 @@ func PrintStatusTableWithOptions(w io.Writer, report model.StatusReport, opts St
 	case StatusTableGroupByCategory:
 		printStatusTableGroupedByCategory(w, report, opts)
 	default:
-		printStatusTableFlat(w, report)
+		printStatusTableFlat(w, report, opts)
 	}
 	printStatusDiagnostics(w, report)
 }
 
-func printStatusTableFlat(w io.Writer, report model.StatusReport) {
+func printStatusTableFlat(w io.Writer, report model.StatusReport, opts StatusTableOptions) {
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(tw, "TOOL\tCATEGORY\tINSTALLED\tCONFIGURED\tCURRENT")
 
-	for _, tool := range report.Tools {
+	for _, tool := range sortToolsForTable(report.Tools, opts.SortBy) {
 		current := formatCurrentSummary(tool)
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
 			tool.ID,
@@ -62,11 +63,12 @@ func printStatusTableFlat(w io.Writer, report model.StatusReport) {
 }
 
 func printStatusTableGroupedByCategory(w io.Writer, report model.StatusReport, opts StatusTableOptions) {
+	tools := sortToolsForTable(report.Tools, opts.SortBy)
 	groups := map[string][]model.ToolSummary{}
 	seen := map[string]bool{}
-	categories := make([]string, 0, len(report.Tools))
+	categories := make([]string, 0, len(tools))
 
-	for _, tool := range report.Tools {
+	for _, tool := range tools {
 		category := strings.TrimSpace(tool.Category)
 		if category == "" {
 			category = "uncategorized"
@@ -107,6 +109,41 @@ func printStatusTableGroupedByCategory(w io.Writer, report model.StatusReport, o
 	}
 
 	_ = tw.Flush()
+}
+
+// sortToolsForTable returns a copy of tools ordered per sortBy, mirroring
+// the cli sortToolSummaries semantics: "-desc" reverses the primary key only
+// while the secondary key stays ascending. Unknown or empty values fall back
+// to tool order.
+func sortToolsForTable(tools []model.ToolSummary, sortBy string) []model.ToolSummary {
+	sorted := slices.Clone(tools)
+	less := func(i, j int) bool {
+		left, right := sorted[i], sorted[j]
+		switch strings.ToLower(strings.TrimSpace(sortBy)) {
+		case StatusTableSortToolDesc:
+			if left.ID != right.ID {
+				return left.ID > right.ID
+			}
+			return left.Category < right.Category
+		case StatusTableSortCategory:
+			if left.Category != right.Category {
+				return left.Category < right.Category
+			}
+			return left.ID < right.ID
+		case StatusTableSortCategoryDesc:
+			if left.Category != right.Category {
+				return left.Category > right.Category
+			}
+			return left.ID < right.ID
+		default:
+			if left.ID != right.ID {
+				return left.ID < right.ID
+			}
+			return left.Category < right.Category
+		}
+	}
+	sort.SliceStable(sorted, less)
+	return sorted
 }
 
 func formatCurrentSummary(tool model.ToolSummary) string {

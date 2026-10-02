@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-080",
+  "title": "factory list/status/next --json emit consistent JSON on empty backlog",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 140,
+  "source": {},
+  "acceptance": [
+    "list --json prints [] (not null) on empty backlog; status --json reports items:[] ; next --json prints null instead of text on empty queue"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-080-factory-list-status-next-json-emit-consistent-json-on-empty-backlog",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T02:49:37Z",
+    "head": "470fccc",
+    "fingerprint": "73c078a3618e528d6557161218326eb29790e61eda1bd2f1d9325c29b4ea19ba"
+  },
+  "created_at": "2026-09-29T02:47:24Z",
+  "updated_at": "2026-09-29T02:49:58Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T02:47:24Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "470fccc"
+    },
+    {
+      "ts": "2026-09-29T02:49:37Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "470fccc",
+      "log": ".factory/run/WI-080/20260929T024918.333742000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T02:49:37Z",
+      "event": "verify-pass",
+      "head": "470fccc"
+    },
+    {
+      "ts": "2026-09-29T02:49:58Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "470fccc",
+      "log": ".factory/run/WI-080/20260929T024937.829344000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T02:49:58Z",
+      "event": "deliver",
+      "head": "470fccc"
+    }
+  ]
+}

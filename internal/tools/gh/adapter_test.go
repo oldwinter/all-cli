@@ -185,6 +185,25 @@ func TestStatusFallsBackWhenJSONStdoutIsUsage(t *testing.T) {
 	}
 }
 
+func TestStatusErrorsOnGarbageJSON(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"gh auth status --json hosts": {
+				Stdout: "{truncated",
+			},
+		},
+	})
+	_, _, errs, err := a.Status(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "parse gh auth status JSON") {
+		t.Fatalf("err = %v, want JSON parse failure", err)
+	}
+	if len(errs) == 0 {
+		t.Fatal("expected the unmarshal error in errs")
+	}
+}
+
 func TestStatusUnauthenticatedOldGH(t *testing.T) {
 	t.Parallel()
 
@@ -332,6 +351,65 @@ ghe.example.com
 	}
 }
 
+func TestPickPrimaryHost(t *testing.T) {
+	t.Parallel()
+
+	if got := pickPrimaryHost(nil); got != "" {
+		t.Fatalf("empty hosts = %q, want empty", got)
+	}
+	if got := pickPrimaryHost([]Host{{Hostname: "z.example"}, {Hostname: "a.example"}}); got != "a.example" {
+		t.Fatalf("expected lexicographic first host, got %q", got)
+	}
+	if got := pickPrimaryHost([]Host{{Hostname: "z.example"}, {Hostname: "github.com"}, {Hostname: "a.example"}}); got != "github.com" {
+		t.Fatalf("expected github.com preferred, got %q", got)
+	}
+}
+
+func TestUseAccount(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"gh auth switch --hostname github.com --user alice": {},
+		},
+	})
+	if err := a.UseAccount(context.Background(), "github.com", "alice"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUseAccount_RequiresArgs(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{})
+	for _, tc := range [][2]string{{"", "alice"}, {"github.com", ""}, {"  ", "  "}} {
+		if err := a.UseAccount(context.Background(), tc[0], tc[1]); err == nil {
+			t.Fatalf("expected error for hostname=%q user=%q", tc[0], tc[1])
+		}
+	}
+}
+
+func TestUseAccount_PropagatesSwitchFailure(t *testing.T) {
+	t.Parallel()
+
+	a := New(fakeRunner{
+		results: map[string]execx.CmdResult{
+			"gh auth switch --hostname github.com --user alice": {
+				ExitCode: 1,
+				Err:      errors.New("exit status 1"),
+				Stderr:   "no such user",
+			},
+		},
+	})
+	err := a.UseAccount(context.Background(), "github.com", "alice")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "gh auth switch failed (exit=1): no such user") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestSanitizeGHAuthErrorStripsUsage(t *testing.T) {
 	t.Parallel()
 	got := sanitizeGHAuthError(unknownJSONUsage)
@@ -352,4 +430,218 @@ func containsUnknownJSON(groups ...[]string) bool {
 		}
 	}
 	return false
+}
+
+func TestStatusFromTextGenericErrorIsSanitized(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {
+			ExitCode: 1,
+			Err:      errors.New("exit status 1"),
+			Stderr:   "segmentation fault",
+		},
+	}})
+
+	_, _, errs, err := a.statusFromText(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "gh auth status failed") {
+		t.Fatalf("err = %v, want gh auth status failure", err)
+	}
+	if len(errs) != 1 || errs[0] != "segmentation fault" {
+		t.Fatalf("errs = %#v", errs)
+	}
+}
+
+func TestStatusFromTextHostsWithoutSuccess(t *testing.T) {
+	text := "github.com\n  X Failed to log in to github.com account bob (token)\n"
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {ExitCode: 1, Err: errors.New("exit status 1"), Stderr: text},
+	}})
+
+	st, warnings, errs, err := a.statusFromText(context.Background())
+	if err != nil || len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("st=%+v warnings=%v errs=%v err=%v", st, warnings, errs, err)
+	}
+	if len(st.Hosts) != 1 || st.Hosts[0].Accounts[0].State != "error" {
+		t.Fatalf("unexpected status: %#v", st)
+	}
+}
+
+func TestStatusFromTextFallthroughTreatsEmptyAsUnauthenticated(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {Stdout: "no hosts here"},
+	}})
+
+	st, warnings, errs, err := a.statusFromText(context.Background())
+	if err != nil || len(errs) != 0 {
+		t.Fatalf("err=%v errs=%v", err, errs)
+	}
+	if len(st.Hosts) != 0 || len(warnings) != 1 || !strings.Contains(warnings[0], "unauthenticated") {
+		t.Fatalf("st=%+v warnings=%v", st, warnings)
+	}
+}
+
+func TestSanitizeGHAuthError(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"unknown option: --json", unsupportedJSONMessage},
+		{"flag provided but not defined: --json", unsupportedJSONMessage},
+		{"some crash\nUsage: gh auth login", "some crash"},
+		{"  plain error  ", "plain error"},
+	}
+	for _, tc := range cases {
+		if got := sanitizeGHAuthError(tc.in); got != tc.want {
+			t.Fatalf("sanitizeGHAuthError(%q)=%q want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestFirstToken(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"", ""},
+		{"  ", ""},
+		{"bob", "bob"},
+		{"bob extra", "bob"},
+		{"bob (token)", "bob"},
+	}
+	for _, tc := range cases {
+		if got := firstToken(tc.in); got != tc.want {
+			t.Fatalf("firstToken(%q)=%q want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestStatusFromTextFallbackOnJSONUnsupported(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {
+			ExitCode: 1,
+			Err:      errors.New("exit status 1"),
+			Stderr:   "unknown flag: --json",
+		},
+	}})
+
+	_, _, errs, err := a.statusFromText(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "gh auth status failed") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(errs) != 1 || errs[0] != unsupportedJSONMessage {
+		t.Fatalf("errs = %#v, want sanitized unsupported message", errs)
+	}
+}
+
+func TestStatusFromTextContextErrorPropagates(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status": {ExitCode: -1, Err: context.DeadlineExceeded},
+	}})
+
+	_, _, errs, err := a.statusFromText(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "gh auth status failed") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(errs) != 1 || errs[0] == "" {
+		t.Fatalf("errs = %#v", errs)
+	}
+}
+
+func TestIsHostHeaderRejectsMarkers(t *testing.T) {
+	for _, line := range []string{"✓ github.com", "X github.com", "x github.com", "- github.com", "* github.com"} {
+		if isHostHeader(line, strings.TrimSpace(line)) {
+			t.Fatalf("isHostHeader(%q) = true, want false", line)
+		}
+	}
+}
+
+func TestExtractAfterMissingNeedle(t *testing.T) {
+	if got := extractAfter("no marker here", "Token scopes:"); got != "" {
+		t.Fatalf("extractAfter = %q, want empty", got)
+	}
+}
+
+func TestParseAccountLineEdgeCases(t *testing.T) {
+	// State word without a parseable host/login must not produce an account.
+	if _, _, ok := parseAccountLine("Failed to log in"); ok {
+		t.Fatal("expected no account for bare 'Failed to log in' line")
+	}
+	// Host-only form ("using token" without account/as) — reachable on the
+	// failure-state line since success lines require " account "/" as ".
+	acc, host, ok := parseAccountLine("Failed to log in to github.com using token (oauth_token)")
+	if !ok || host != "github.com" || acc.Login != "" || acc.State != "error" || acc.TokenSource != "oauth_token" {
+		t.Fatalf("host-only parse = %#v host=%q ok=%v", acc, host, ok)
+	}
+	// " as " separator form.
+	acc, host, ok = parseAccountLine("Logged in to ghe.example as bob")
+	if !ok || host != "ghe.example" || acc.Login != "bob" {
+		t.Fatalf("as-form parse = %#v host=%q ok=%v", acc, host, ok)
+	}
+}
+
+func TestParseHostAndLoginAndTokenSourceEdges(t *testing.T) {
+	if host, login := parseHostAndLogin("no marker line"); host != "" || login != "" {
+		t.Fatalf("unexpected host/login %q %q", host, login)
+	}
+	if src := parseParenTokenSource("no parens"); src != "" {
+		t.Fatalf("expected empty token source, got %q", src)
+	}
+	if src := parseParenTokenSource("reversed )then("); src != "" {
+		t.Fatalf("expected empty for reversed parens, got %q", src)
+	}
+	if src := parseParenTokenSource("token (a/b)"); src != "" {
+		t.Fatalf("expected empty for path-like source, got %q", src)
+	}
+	if src := parseParenTokenSource("token ()"); src != "" {
+		t.Fatalf("expected empty for empty parens, got %q", src)
+	}
+	if got := protocolFromLegacyLine("configured to use ssh protocol"); got != "ssh" {
+		t.Fatalf("protocol = %q", got)
+	}
+	if got := protocolFromLegacyLine("unrelated detail"); got != "" {
+		t.Fatalf("expected empty protocol, got %q", got)
+	}
+}
+
+func TestGHCurrentMultipleHostsAndErrors(t *testing.T) {
+	ctx := context.Background()
+	twoHosts := `{"hosts":{"github.com":[{"login":"u1","state":"success","active":true}],"ghe.example":[{"login":"u2","state":"success","active":true}]}}`
+
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status --json hosts": {Stdout: twoHosts},
+	}})
+	cur, warnings, _, err := a.Current(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cur["hostname"] != "github.com" || cur["user"] != "u1" {
+		t.Fatalf("current = %#v", cur)
+	}
+	if len(warnings) == 0 {
+		t.Fatal("expected multiple-hosts warning")
+	}
+
+	// Empty host set returns nil current with no error.
+	a = New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status --json hosts": {Stdout: `{"hosts":{}}`},
+	}})
+	cur, _, _, err = a.Current(ctx)
+	if err != nil || cur != nil {
+		t.Fatalf("empty hosts: cur=%#v err=%v", cur, err)
+	}
+
+	// A non-fallback status error propagates through Current and Configured.
+	failing := fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status --json hosts": {Err: errors.New("boom"), ExitCode: 1, Stderr: "crash"},
+	}}
+	a = New(failing)
+	if _, _, _, err := a.Current(ctx); err == nil {
+		t.Fatal("expected Current to propagate status error")
+	}
+	if _, _, _, err := a.Configured(ctx); err == nil {
+		t.Fatal("expected Configured to propagate status error")
+	}
+}
+
+func TestConfiguredFalseWhenNoSuccessAccount(t *testing.T) {
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"gh auth status --json hosts": {Stdout: `{"hosts":{"github.com":[{"login":"u1","state":"error","active":false}]}}`},
+	}})
+	ok, _, _, err := a.Configured(context.Background())
+	if err != nil || ok {
+		t.Fatalf("configured=%v err=%v", ok, err)
+	}
 }

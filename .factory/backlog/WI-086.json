@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-086",
+  "title": "redact stdout-carried secrets in adapter error text and doctor-fix reasons",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 190,
+  "source": {},
+  "acceptance": [
+    "vercel/railway/netlify/opencli errMsg and doctorCommandFailure stdout fallback redact credentials; parser paths keep raw stdout"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/... ./internal/diagnose/ -count=1"
+  ],
+  "branch": "factory/wi-086-redact-stdout-carried-secrets-in-adapter-error-text-and-doctor-fix-reasons",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T03:50:57Z",
+    "head": "ed4e3bb",
+    "fingerprint": "86d5cf42330a58fb52d04d8ecb957a6a660ee844275ed5609844ff022cde5b46"
+  },
+  "created_at": "2026-09-29T03:50:52Z",
+  "updated_at": "2026-09-29T03:51:00Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T03:50:53Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "ed4e3bb"
+    },
+    {
+      "ts": "2026-09-29T03:50:57Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/... ./internal/diagnose/ -count=1",
+      "note": "pass",
+      "head": "ed4e3bb",
+      "log": ".factory/run/WI-086/20260929T035053.410139000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:50:57Z",
+      "event": "verify-pass",
+      "head": "ed4e3bb"
+    },
+    {
+      "ts": "2026-09-29T03:51:00Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/... ./internal/diagnose/ -count=1",
+      "note": "pass",
+      "head": "ed4e3bb",
+      "log": ".factory/run/WI-086/20260929T035057.744448000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:51:00Z",
+      "event": "deliver",
+      "head": "ed4e3bb"
+    }
+  ]
+}

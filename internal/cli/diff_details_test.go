@@ -165,3 +165,16 @@ func TestDiffDetailsReportsWriteFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestSnapshotDetailValueReportsNullForMissingField(t *testing.T) {
+	fields, err := snapshotDetailFields(&model.ToolSummary{ID: "aws", Installed: true})
+	if err != nil {
+		t.Fatalf("snapshotDetailFields: %v", err)
+	}
+	if got := snapshotDetailValue(fields, "id"); got != `"aws"` {
+		t.Fatalf("id field = %q", got)
+	}
+	if got := snapshotDetailValue(fields, "nonexistent"); got != "null" {
+		t.Fatalf("missing field = %q, want null", got)
+	}
+}

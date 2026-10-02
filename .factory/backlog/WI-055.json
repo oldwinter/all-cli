@@ -1,0 +1,64 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-055",
+  "title": "E2e asserts cross-process lock contention",
+  "kind": "test",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "real-binary e2e: mutating command refused while .factory/lock held; read still works"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -run TestEndToEnd -count=1"
+  ],
+  "branch": "factory/wi-055-e2e-asserts-cross-process-lock-contention",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:51:15Z",
+    "head": "ae634c4",
+    "fingerprint": "5c632b1402480a4ea0191bef5b6a81d98b7fbbaf6c6222edb41851ac16234681"
+  },
+  "created_at": "2026-09-28T21:50:40Z",
+  "updated_at": "2026-09-28T21:51:18Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:50:41Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "ae634c4"
+    },
+    {
+      "ts": "2026-09-28T21:51:15Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -run TestEndToEnd -count=1",
+      "note": "pass",
+      "head": "ae634c4",
+      "log": ".factory/run/WI-055/20260928T215112.140478000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:51:15Z",
+      "event": "verify-pass",
+      "head": "ae634c4"
+    },
+    {
+      "ts": "2026-09-28T21:51:18Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -run TestEndToEnd -count=1",
+      "note": "pass",
+      "head": "ae634c4",
+      "log": ".factory/run/WI-055/20260928T215115.550211000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:51:18Z",
+      "event": "deliver",
+      "note": "e2e-lock-contention",
+      "head": "ae634c4"
+    }
+  ]
+}

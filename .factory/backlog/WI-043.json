@@ -1,0 +1,65 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-043",
+  "title": "Cover adapter parser error branches",
+  "kind": "test",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "Named adapter parser branches exercise success and error paths",
+    "just test passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/... -count=1"
+  ],
+  "branch": "factory/wi-043-cover-adapter-parser-error-branches",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:21:32Z",
+    "head": "92e011a",
+    "fingerprint": "4a4ce2b1b5dadef0ab38ef1a0503401832c3c4b3aa4af874fcb846f43aae63a7"
+  },
+  "created_at": "2026-09-28T21:18:12Z",
+  "updated_at": "2026-09-28T21:21:34Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:18:12Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "92e011a"
+    },
+    {
+      "ts": "2026-09-28T21:21:32Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/... -count=1",
+      "note": "pass",
+      "head": "92e011a",
+      "log": ".factory/run/WI-043/20260928T212129.977175000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:21:32Z",
+      "event": "verify-pass",
+      "head": "92e011a"
+    },
+    {
+      "ts": "2026-09-28T21:21:34Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/... -count=1",
+      "note": "pass",
+      "head": "92e011a",
+      "log": ".factory/run/WI-043/20260928T212132.274863000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:21:34Z",
+      "event": "deliver",
+      "note": "adapter-parser-branch-sweep",
+      "head": "92e011a"
+    }
+  ]
+}

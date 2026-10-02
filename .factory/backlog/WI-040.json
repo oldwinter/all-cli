@@ -1,0 +1,60 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-040",
+  "title": "claim must not silently demote verified items",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 40,
+  "source": {},
+  "acceptance": [
+    "factory claim on a verified item errors instead of dropping verification",
+    "claim on queued works; claim on in_progress stays no-op; claim on failed still hints retry"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-040-claim-must-not-silently-demote-verified-items",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:09:39Z",
+    "head": "d854d02",
+    "fingerprint": "b8c1b350320fdcdd2359ffc187fbf30f0fa9a0cb132ab722d0368ce27ffea0c8"
+  },
+  "created_at": "2026-09-28T21:09:03Z",
+  "updated_at": "2026-09-28T21:09:40Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:09:03Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "d854d02"
+    },
+    {
+      "ts": "2026-09-28T21:09:39Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "d854d02",
+      "log": ".factory/run/WI-040/20260928T210939.110593000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:09:39Z",
+      "event": "verify-pass",
+      "head": "d854d02"
+    },
+    {
+      "ts": "2026-09-28T21:09:40Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "d854d02",
+      "log": ".factory/run/WI-040/20260928T210940.394614000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:09:40Z",
+      "event": "deliver",
+      "note": "claim-gates-verified-state",
+      "head": "d854d02"
+    }
+  ]
+}

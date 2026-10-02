@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-082",
+  "title": "redact_test fixtures must not contain literal secret-shaped strings",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 150,
+  "source": {},
+  "acceptance": [
+    "GitGuardian no longer flags redact_test.go — all credential fixtures built by concatenation; pattern coverage identical at runtime"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ -count=1"
+  ],
+  "branch": "factory/wi-082-redact-test-fixtures-must-not-contain-literal-secret-shaped-strings",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T03:13:17Z",
+    "head": "995d31c",
+    "fingerprint": "5fb6bb754b5d21485bdbb7f4a5b627cab0c894c917680eb3ed856b417cad686d"
+  },
+  "created_at": "2026-09-29T03:12:33Z",
+  "updated_at": "2026-09-29T03:13:18Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T03:12:33Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "995d31c"
+    },
+    {
+      "ts": "2026-09-29T03:13:17Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ -count=1",
+      "note": "pass",
+      "head": "995d31c",
+      "log": ".factory/run/WI-082/20260929T031316.799903000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:13:17Z",
+      "event": "verify-pass",
+      "head": "995d31c"
+    },
+    {
+      "ts": "2026-09-29T03:13:18Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ -count=1",
+      "note": "pass",
+      "head": "995d31c",
+      "log": ".factory/run/WI-082/20260929T031318.119919000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:13:18Z",
+      "event": "deliver",
+      "head": "995d31c"
+    }
+  ]
+}

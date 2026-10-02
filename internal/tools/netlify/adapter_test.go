@@ -301,3 +301,18 @@ func TestConfiguredTreatsExpiredSessionAsNotConfigured(t *testing.T) {
 		t.Fatalf("unexpected errs: %#v", errs)
 	}
 }
+
+func TestCurrentUserErrorRedactsStdoutSecret(t *testing.T) {
+	t.Parallel()
+	secret := "token=" + strings.Repeat("s", 20)
+	a := New(fakeRunner{results: map[string]execx.CmdResult{
+		"netlify api getCurrentUser": {ExitCode: 1, Stdout: "auth failed " + secret, Err: errors.New("exit 1")},
+	}})
+	_, _, errs, err := a.CurrentUser(context.Background())
+	if err == nil || len(errs) == 0 {
+		t.Fatalf("expected error, got errs=%v err=%v", errs, err)
+	}
+	if strings.Contains(errs[0], secret) {
+		t.Fatalf("stdout secret leaked into errors: %q", errs[0])
+	}
+}

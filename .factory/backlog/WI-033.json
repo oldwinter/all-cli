@@ -1,0 +1,78 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-033",
+  "title": "Clear Verified metadata when leaving verified state",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 33,
+  "source": {},
+  "acceptance": [
+    "Transition clears Verified on verified-\u003enon-delivered moves",
+    "validate flags Verified metadata on non-verified/non-delivered states",
+    "regression: verified item blocked/re-verified-then-failed has no verified object"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+    "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate"
+  ],
+  "branch": "factory/wi-033-clear-verified-metadata-when-leaving-verified-state",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T20:13:11Z",
+    "head": "03dc773",
+    "fingerprint": "849ef6e22cb8cf866db297eee2a0d3f8c7b0c85c04944f9818016184ad83aaea"
+  },
+  "created_at": "2026-09-28T20:11:55Z",
+  "updated_at": "2026-09-28T20:13:12Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T20:11:55Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "03dc773"
+    },
+    {
+      "ts": "2026-09-28T20:13:11Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "03dc773",
+      "log": ".factory/run/WI-033/20260928T201309Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:13:11Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+      "note": "pass",
+      "head": "03dc773",
+      "log": ".factory/run/WI-033/20260928T201309Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T20:13:11Z",
+      "event": "verify-pass",
+      "head": "03dc773"
+    },
+    {
+      "ts": "2026-09-28T20:13:12Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "03dc773",
+      "log": ".factory/run/WI-033/20260928T201311Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:13:12Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+      "note": "pass",
+      "head": "03dc773",
+      "log": ".factory/run/WI-033/20260928T201311Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T20:13:12Z",
+      "event": "deliver",
+      "note": "verified-metadata-lifecycle",
+      "head": "03dc773"
+    }
+  ]
+}

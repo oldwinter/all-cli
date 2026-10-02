@@ -1,0 +1,59 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-081",
+  "title": "execx: redact credential-shaped strings from subprocess stderr",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 145,
+  "source": {},
+  "acceptance": [
+    "token-shaped strings (ghp_*, github_pat_*, glpat-*, AKIA*, xox*, JWTs, bearer/kv secrets) in subprocess stderr are replaced with [redacted] in CmdResult.Stderr",
+    "stdout capture stays raw for parsers; kubectl stdout-error fallback is also redacted"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ ./internal/tools/ -count=1"
+  ],
+  "branch": "factory/wi-081-execx-redact-credential-shaped-strings-from-subprocess-stderr",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T03:08:16Z",
+    "head": "60703d3",
+    "fingerprint": "4b24f7823cc0e8a9a84b406ad3bc6f47c1a34ae6a97a5b90a0c06dc8aab038d0"
+  },
+  "created_at": "2026-09-29T03:06:41Z",
+  "updated_at": "2026-09-29T03:08:18Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T03:06:41Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "60703d3"
+    },
+    {
+      "ts": "2026-09-29T03:08:16Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ ./internal/tools/ -count=1",
+      "note": "pass",
+      "head": "60703d3",
+      "log": ".factory/run/WI-081/20260929T030814.492072000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:08:16Z",
+      "event": "verify-pass",
+      "head": "60703d3"
+    },
+    {
+      "ts": "2026-09-29T03:08:18Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ ./internal/tools/ -count=1",
+      "note": "pass",
+      "head": "60703d3",
+      "log": ".factory/run/WI-081/20260929T030817.247384000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:08:18Z",
+      "event": "deliver",
+      "head": "60703d3"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-030",
+  "title": "Cover factory internals fallback and error branches",
+  "kind": "test",
+  "state": "delivered",
+  "order": 30,
+  "source": {},
+  "acceptance": [
+    "options.runner fill-in branches covered",
+    "Store.Save unwritable-dir error path covered",
+    "Execute nil-context and rejectStale save-error covered"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-030-cover-factory-internals-fallback-and-error-branches",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T20:05:59Z",
+    "head": "7ccf54f",
+    "fingerprint": "142befc494d97d56a8f459cad9c2cf30cd87befa759a6ed9fdcf803012dc3025"
+  },
+  "created_at": "2026-09-28T20:03:05Z",
+  "updated_at": "2026-09-28T20:06:00Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T20:03:05Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "7ccf54f"
+    },
+    {
+      "ts": "2026-09-28T20:05:59Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "7ccf54f",
+      "log": ".factory/run/WI-030/20260928T200557Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:05:59Z",
+      "event": "verify-pass",
+      "head": "7ccf54f"
+    },
+    {
+      "ts": "2026-09-28T20:06:00Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "7ccf54f",
+      "log": ".factory/run/WI-030/20260928T200600Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:06:00Z",
+      "event": "deliver",
+      "note": "factory-internals-error-branch-coverage",
+      "head": "7ccf54f"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-063",
+  "title": "Pin check-timeout path: real TimeoutRunner deadline fails verify, lands failed, stays retryable",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "a check exceeding the exec timeout lands the item failed with the deadline error recorded and retryable"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-063-pin-check-timeout-path-real-timeoutrunner-deadline-fails-verify-lands-failed-stays-retryable",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T22:54:46Z",
+    "head": "75b42b4",
+    "fingerprint": "4a7a303bdf35c5c0ccd7f4939dc125ae4e2c815d85777e798b71cc8c4c8bc5f7"
+  },
+  "created_at": "2026-09-28T22:52:29Z",
+  "updated_at": "2026-09-28T22:55:03Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T22:52:33Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "75b42b4"
+    },
+    {
+      "ts": "2026-09-28T22:54:46Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "75b42b4",
+      "log": ".factory/run/WI-063/20260928T225434.419443000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:54:46Z",
+      "event": "verify-pass",
+      "head": "75b42b4"
+    },
+    {
+      "ts": "2026-09-28T22:55:03Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "75b42b4",
+      "log": ".factory/run/WI-063/20260928T225450.434042000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:55:03Z",
+      "event": "deliver",
+      "note": "checkFailMsg surfaces res.Err (timeout/cancel/spawn reasons) in last_error; real-timeout regression test via injectable TimeoutRunner",
+      "head": "75b42b4"
+    }
+  ]
+}

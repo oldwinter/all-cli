@@ -1,0 +1,60 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-034",
+  "title": "Prevent check-log filename collisions within one second",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 34,
+  "source": {},
+  "acceptance": [
+    "two RunChecks calls in the same second produce distinct log paths",
+    "recorded evidence log paths stay accurate (no clobber)"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/..."
+  ],
+  "branch": "factory/wi-034-prevent-check-log-filename-collisions-within-one-second",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T20:14:35Z",
+    "head": "73e3c36",
+    "fingerprint": "f633c3c7f680974118e9377d16e36fc7ca2bbc42aa42cc57aedcb21de9d56b45"
+  },
+  "created_at": "2026-09-28T20:13:47Z",
+  "updated_at": "2026-09-28T20:14:36Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T20:13:47Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "73e3c36"
+    },
+    {
+      "ts": "2026-09-28T20:14:35Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "73e3c36",
+      "log": ".factory/run/WI-034/20260928T201434.750846000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:14:35Z",
+      "event": "verify-pass",
+      "head": "73e3c36"
+    },
+    {
+      "ts": "2026-09-28T20:14:36Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/...",
+      "note": "pass",
+      "head": "73e3c36",
+      "log": ".factory/run/WI-034/20260928T201436.359619000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:14:36Z",
+      "event": "deliver",
+      "note": "unique-log-paths",
+      "head": "73e3c36"
+    }
+  ]
+}

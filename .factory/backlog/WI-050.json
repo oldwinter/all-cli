@@ -1,0 +1,64 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-050",
+  "title": "Document HEAD staleness needs a git repo",
+  "kind": "docs",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "docs/factory.md notes HEAD binding is skipped when the root is not a git worktree"
+  ],
+  "checks": [
+    "grep -qi 'not a git' docs/factory.md"
+  ],
+  "branch": "factory/wi-050-document-head-staleness-needs-a-git-repo",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:33:43Z",
+    "head": "87f21d4",
+    "fingerprint": "3a86b37050c3a6b0a563ba3137f150ce580243c9c744bfda73d6b42aa66227db"
+  },
+  "created_at": "2026-09-28T21:33:43Z",
+  "updated_at": "2026-09-28T21:33:44Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:33:43Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "87f21d4"
+    },
+    {
+      "ts": "2026-09-28T21:33:43Z",
+      "event": "check",
+      "command": "grep -qi 'not a git' docs/factory.md",
+      "note": "pass",
+      "head": "87f21d4",
+      "log": ".factory/run/WI-050/20260928T213343.858835000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:33:43Z",
+      "event": "verify-pass",
+      "head": "87f21d4"
+    },
+    {
+      "ts": "2026-09-28T21:33:44Z",
+      "event": "deliver-check",
+      "command": "grep -qi 'not a git' docs/factory.md",
+      "note": "pass",
+      "head": "87f21d4",
+      "log": ".factory/run/WI-050/20260928T213344.224067000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:33:44Z",
+      "event": "deliver",
+      "note": "non-git-head-caveat",
+      "head": "87f21d4"
+    }
+  ]
+}

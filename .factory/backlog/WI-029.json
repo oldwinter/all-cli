@@ -1,0 +1,83 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-029",
+  "title": "Cover gh text helpers, mise current, snapshot fields, installation ID",
+  "kind": "test",
+  "state": "delivered",
+  "order": 29,
+  "source": {},
+  "acceptance": [
+    "gh statusFromText generic-error/hosts-no-success/fallthrough branches covered",
+    "gh sanitizeGHAuthError head-trim + firstToken covered",
+    "mise Current stderr-fallback and snapshotDetailValue null path covered"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/gh/ ./internal/tools/mise/ ./internal/cli/ ./internal/telemetry/",
+    "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate"
+  ],
+  "branch": "factory/wi-029-cover-gh-text-helpers-mise-current-snapshot-fields-installation-id",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T20:02:21Z",
+    "head": "4d64c48",
+    "fingerprint": "0bf5771c56e1d38570f4b14036ee00828569cdade6ddf8789a945366fdb65f40"
+  },
+  "created_at": "2026-09-28T20:00:26Z",
+  "updated_at": "2026-09-28T20:02:21Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T20:00:27Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "4d64c48"
+    },
+    {
+      "ts": "2026-09-28T20:01:19Z",
+      "event": "note",
+      "note": "scope corrected during claim: installation-ID paths already covered by WI-019; remaining gaps are gh text helpers, mise Current, diff snapshot fields"
+    },
+    {
+      "ts": "2026-09-28T20:02:21Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/gh/ ./internal/tools/mise/ ./internal/cli/ ./internal/telemetry/",
+      "note": "pass",
+      "head": "4d64c48",
+      "log": ".factory/run/WI-029/20260928T200220Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:02:21Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+      "note": "pass",
+      "head": "4d64c48",
+      "log": ".factory/run/WI-029/20260928T200220Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T20:02:21Z",
+      "event": "verify-pass",
+      "head": "4d64c48"
+    },
+    {
+      "ts": "2026-09-28T20:02:21Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/gh/ ./internal/tools/mise/ ./internal/cli/ ./internal/telemetry/",
+      "note": "pass",
+      "head": "4d64c48",
+      "log": ".factory/run/WI-029/20260928T200221Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:02:21Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+      "note": "pass",
+      "head": "4d64c48",
+      "log": ".factory/run/WI-029/20260928T200221Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T20:02:21Z",
+      "event": "deliver",
+      "note": "gh-text+mise+snapshot-field-coverage",
+      "head": "4d64c48"
+    }
+  ]
+}

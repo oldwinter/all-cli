@@ -1,0 +1,393 @@
+package factory
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func writeTestSchema(t *testing.T, root string) {
+	t.Helper()
+	schema := `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "id", "title", "kind", "state", "order", "acceptance", "checks", "attempts", "created_at", "updated_at"],
+  "properties": {
+    "schema_version": {"const": "factory-item-v0.1"},
+    "id": {"type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]+$"}
+  }
+}`
+	dir := filepath.Join(root, ".factory")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "work-item.schema.json"), []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateBacklogValid(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	store := NewStore(filepath.Join(root, ".factory", "backlog"))
+	item := validItem()
+	item.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	item.UpdatedAt = item.CreatedAt
+	if err := store.Save(item); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBacklog(root); err != nil {
+		t.Fatalf("ValidateBacklog: %v", err)
+	}
+}
+
+func TestValidateBacklogRejectsEmbeddedIDMismatch(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	store := NewStore(filepath.Join(root, ".factory", "backlog"))
+	legit := validItem()
+	legit.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	legit.UpdatedAt = legit.CreatedAt
+	if err := store.Save(legit); err != nil {
+		t.Fatal(err)
+	}
+	// A WI-992.json file whose embedded id is WI-001 — a rename/copy mistake —
+	// must fail validation even though the JSON is schema-clean.
+	mismatch := validItem()
+	mismatch.CreatedAt = legit.CreatedAt
+	mismatch.UpdatedAt = legit.UpdatedAt
+	data, err := json.MarshalIndent(mismatch, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(store.Dir, "WI-992.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err = ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-992.json") ||
+		!strings.Contains(err.Error(), "does not match file name") {
+		t.Fatalf("ValidateBacklog = %v, want id-mismatch failure naming WI-992.json", err)
+	}
+}
+
+func TestValidateBacklogMissingBacklog(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	if err := ValidateBacklog(root); err != nil {
+		t.Fatalf("empty backlog should validate: %v", err)
+	}
+}
+
+func TestValidateBacklogDirIsFile(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	if err := os.WriteFile(filepath.Join(root, ".factory", "backlog"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "read backlog") {
+		t.Fatalf("ValidateBacklog with file backlog = %v", err)
+	}
+}
+
+func TestValidateBacklogBadSchema(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".factory"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schemaPath := filepath.Join(root, ".factory", "work-item.schema.json")
+	if err := os.WriteFile(schemaPath, []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "parse") {
+		t.Fatalf("ValidateBacklog with bad schema = %v", err)
+	}
+	// Well-formed JSON that is not a usable schema reaches the compile error.
+	if err := os.WriteFile(schemaPath, []byte(`{"$id": 42}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBacklog(root); err == nil {
+		t.Fatal("expected compile/add error for non-schema document")
+	}
+}
+
+// TestValidateBacklogSchemaNotAResource: a schema document that is valid JSON
+// but not a usable schema resource must surface the load/compile error.
+func TestValidateBacklogSchemaNotAResource(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".factory"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schemaPath := filepath.Join(root, ".factory", "work-item.schema.json")
+	for _, doc := range []string{`[1,2]`, `null`, `"str"`} {
+		if err := os.WriteFile(schemaPath, []byte(doc), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := ValidateBacklog(root); err == nil {
+			t.Fatalf("schema %s should fail to load/compile", doc)
+		}
+	}
+}
+
+// TestValidateBacklogUnreadableItem: a backlog entry that cannot be read
+// (dangling symlink ending in .json) must be reported, not crash.
+func TestValidateBacklogUnreadableItem(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(backlog, "WI-900.json")
+	if err := os.Symlink(filepath.Join(backlog, "missing.json"), link); err != nil {
+		t.Skipf("symlink unsupported: %v", err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-900.json") {
+		t.Fatalf("dangling symlink should be reported: %v", err)
+	}
+}
+
+// TestValidateBacklogTypeMismatchItem: a file that passes the schema (which
+// only requires field presence) but fails WorkItem decode — e.g. order as a
+// string — must be reported as a decode failure.
+func TestValidateBacklogTypeMismatchItem(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	bad := `{"schema_version":"factory-item-v0.1","id":"WI-900","title":"x","kind":"test","state":"queued","order":"nope","acceptance":["a"],"checks":["c"],"attempts":0,"created_at":"2026-09-28T00:00:00Z","updated_at":"2026-09-28T00:00:00Z"}`
+	if err := os.WriteFile(filepath.Join(backlog, "WI-900.json"), []byte(bad), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-900.json") {
+		t.Fatalf("type-mismatched item should be reported: %v", err)
+	}
+}
+
+// TestValidateBacklogSkipsNonItemEntries: directories, non-.json files, and
+// leftover .tmp-*.json write temps are all skipped, not validated.
+func TestValidateBacklogSkipsNonItemEntries(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	store := NewStore(backlog)
+	item := validItem()
+	item.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	item.UpdatedAt = item.CreatedAt
+	if err := store.Save(item); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"subdir", "notes.txt", ".tmp-WI-001-xyz.json"} {
+		p := filepath.Join(backlog, name)
+		if name == "subdir" {
+			if err := os.MkdirAll(p, 0o755); err != nil {
+				t.Fatal(err)
+			}
+		} else if err := os.WriteFile(p, []byte("not an item"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := ValidateBacklog(root); err != nil {
+		t.Fatalf("non-item entries must be skipped: %v", err)
+	}
+}
+
+func TestValidateBacklogReportsBadFiles(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]string{
+		"WI-100.json": `{"schema_version":"factory-item-v0.1","id":"wi-lowercase","title":"x","kind":"bug","state":"queued","order":1,"acceptance":["a"],"checks":["c"],"attempts":0,"created_at":"2026-09-28T12:00:00Z","updated_at":"2026-09-28T12:00:00Z"}`,
+		"WI-200.json": `{not json`,
+		"WI-300.json": `{"schema_version":"factory-item-v0.1","id":"WI-300","title":"x","kind":"bug","state":"limbo","order":1,"acceptance":["a"],"checks":["c"],"attempts":0,"created_at":"2026-09-28T12:00:00Z","updated_at":"2026-09-28T12:00:00Z"}`,
+	}
+	for name, body := range cases {
+		if err := os.WriteFile(filepath.Join(backlog, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	err := ValidateBacklog(root)
+	if err == nil {
+		t.Fatal("expected validation failure")
+	}
+	for _, name := range []string{"WI-100.json", "WI-200.json", "WI-300.json"} {
+		if !strings.Contains(err.Error(), name) {
+			t.Fatalf("error missing %s: %v", name, err)
+		}
+	}
+}
+
+func TestValidateBacklogVerifiedFingerprintConsistency(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	store := NewStore(filepath.Join(root, ".factory", "backlog"))
+	save := func(item *WorkItem) {
+		t.Helper()
+		item.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+		item.UpdatedAt = item.CreatedAt
+		if err := store.Save(item); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	missingMeta := validItem()
+	missingMeta.ID = "WI-400"
+	missingMeta.State = StateVerified
+	save(missingMeta)
+
+	staleMeta := validItem()
+	staleMeta.ID = "WI-401"
+	staleMeta.State = StateVerified
+	staleMeta.Verified = &Verified{At: missingMeta.CreatedAt, Fingerprint: strings.Repeat("0", 64)}
+	save(staleMeta)
+
+	legacyDelivered := validItem()
+	legacyDelivered.ID = "WI-402"
+	legacyDelivered.State = StateDelivered
+	save(legacyDelivered)
+
+	err := ValidateBacklog(root)
+	if err == nil {
+		t.Fatal("expected consistency failures")
+	}
+	if !strings.Contains(err.Error(), "WI-400") || !strings.Contains(err.Error(), "WI-401") {
+		t.Fatalf("expected WI-400 and WI-401 failures: %v", err)
+	}
+	if strings.Contains(err.Error(), "WI-402") {
+		t.Fatalf("delivered legacy item must stay valid: %v", err)
+	}
+}
+
+func TestValidateBacklogVerifiedFingerprintMatch(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	store := NewStore(filepath.Join(root, ".factory", "backlog"))
+	item := validItem()
+	item.State = StateVerified
+	item.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	item.UpdatedAt = item.CreatedAt
+	item.Verified = &Verified{At: item.CreatedAt, Fingerprint: item.AcceptanceFingerprint()}
+	if err := store.Save(item); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBacklog(root); err != nil {
+		t.Fatalf("matching fingerprint must validate: %v", err)
+	}
+}
+
+func TestValidateBacklogMissingSchema(t *testing.T) {
+	if err := ValidateBacklog(t.TempDir()); err == nil {
+		t.Fatal("expected missing-schema error")
+	}
+}
+
+func TestValidateCommand(t *testing.T) {
+	opts, root := testOptions(t, &fakeExec{})
+	writeTestSchema(t, root)
+	stdout, _, err := run(t, opts, "validate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, "backlog valid") {
+		t.Fatalf("validate output = %q", stdout)
+	}
+}
+
+func TestValidateBacklogUnreadableItemFile(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	itemPath := filepath.Join(backlog, "WI-001.json")
+	if err := os.WriteFile(itemPath, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(itemPath, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(itemPath, 0o644) })
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-001.json") {
+		t.Fatalf("ValidateBacklog = %v, want unreadable-file failure", err)
+	}
+}
+
+func TestValidateBacklogItemValidateFailure(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	backlog := filepath.Join(root, ".factory", "backlog")
+	if err := os.MkdirAll(backlog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Passes the test schema (only schema_version+id checked) but fails
+	// item.Validate: kind is not one of the allowed values.
+	body := `{"schema_version":"factory-item-v0.1","id":"WI-500","title":"x","kind":"bogus","state":"queued","order":1,"acceptance":["a"],"checks":["c"],"attempts":0,"created_at":"2026-09-28T12:00:00Z","updated_at":"2026-09-28T12:00:00Z"}`
+	if err := os.WriteFile(filepath.Join(backlog, "WI-500.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "WI-500") {
+		t.Fatalf("ValidateBacklog = %v, want item.Validate failure", err)
+	}
+}
+
+func TestValidateBacklogMalformedSchema(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, ".factory")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "work-item.schema.json"), []byte("not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "parse") {
+		t.Fatalf("ValidateBacklog = %v, want schema parse failure", err)
+	}
+}
+
+func TestValidateBacklogUncompilableSchema(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, ".factory")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schema := `{"$schema": "https://json-schema.org/draft/2020-12/schema", "$ref": "#/missing"}`
+	if err := os.WriteFile(filepath.Join(dir, "work-item.schema.json"), []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBacklog(root); err == nil {
+		t.Fatal("expected compile failure for dangling $ref schema")
+	}
+}
+
+func TestValidateBacklogStrayVerifiedMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeTestSchema(t, root)
+	store := NewStore(filepath.Join(root, ".factory", "backlog"))
+	item := validItem()
+	item.State = StateFailed
+	item.Verified = &Verified{At: "2026-09-28T12:00:00Z", Fingerprint: item.AcceptanceFingerprint()}
+	item.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	item.UpdatedAt = item.CreatedAt
+	if err := store.Save(item); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBacklog(root)
+	if err == nil || !strings.Contains(err.Error(), "verified metadata on state=failed") {
+		t.Fatalf("ValidateBacklog = %v, want stray-metadata failure", err)
+	}
+}

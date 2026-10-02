@@ -1,0 +1,60 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-037",
+  "title": "Document metadata lifecycle and log naming; refresh PR",
+  "kind": "docs",
+  "state": "delivered",
+  "order": 37,
+  "source": {},
+  "acceptance": [
+    "docs/factory.md documents verified-metadata lifecycle and unique log naming",
+    "PR #110 body reflects final factory scope"
+  ],
+  "checks": [
+    "just ci"
+  ],
+  "branch": "factory/wi-037-document-metadata-lifecycle-and-log-naming-refresh-pr",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T20:50:48Z",
+    "head": "21a49b2",
+    "fingerprint": "6e3c5d112a6cefd2429ec64169b80e6d34958316aa552f586faa4de589ba48c9"
+  },
+  "created_at": "2026-09-28T20:49:28Z",
+  "updated_at": "2026-09-28T20:50:54Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T20:49:28Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "21a49b2"
+    },
+    {
+      "ts": "2026-09-28T20:50:48Z",
+      "event": "check",
+      "command": "just ci",
+      "note": "pass",
+      "head": "21a49b2",
+      "log": ".factory/run/WI-037/20260928T205041.866887000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:50:48Z",
+      "event": "verify-pass",
+      "head": "21a49b2"
+    },
+    {
+      "ts": "2026-09-28T20:50:54Z",
+      "event": "deliver-check",
+      "command": "just ci",
+      "note": "pass",
+      "head": "21a49b2",
+      "log": ".factory/run/WI-037/20260928T205048.856854000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:50:54Z",
+      "event": "deliver",
+      "note": "docs-pr-refresh-stability",
+      "head": "21a49b2"
+    }
+  ]
+}

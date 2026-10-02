@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -24,11 +26,52 @@ type Runner interface {
 	Run(ctx context.Context, name string, args ...string) CmdResult
 }
 
+// gitRedirectEnv names environment variables that repoint which repository a
+// spawned `git` operates on. Commands always select their repository with
+// -C/Dir; an inherited GIT_DIR or GIT_WORK_TREE would silently bind them to a
+// different repo (for example, factory verify could record another repo's
+// HEAD), so these never propagate into subprocesses.
+var gitRedirectEnv = []string{
+	"GIT_DIR",
+	"GIT_WORK_TREE",
+	"GIT_COMMON_DIR",
+	"GIT_INDEX_FILE",
+	"GIT_OBJECT_DIRECTORY",
+	"GIT_ALTERNATE_OBJECT_DIRECTORIES",
+	"GIT_NAMESPACE",
+	"GIT_CEILING_DIRECTORIES",
+	"GIT_DISCOVERY_ACROSS_FILESYSTEM",
+}
+
+// cleanEnv returns the process environment minus variables that would
+// redirect repository resolution inside spawned commands.
+func cleanEnv() []string {
+	env := os.Environ()
+	out := env[:0]
+	for _, kv := range env {
+		key := kv
+		if i := strings.IndexByte(kv, '='); i >= 0 {
+			key = kv[:i]
+		}
+		blocked := false
+		for _, b := range gitRedirectEnv {
+			if key == b {
+				blocked = true
+				break
+			}
+		}
+		if !blocked {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
 // DefaultRunner executes commands via os/exec.
 type DefaultRunner struct{}
 
 func (DefaultRunner) Run(ctx context.Context, name string, args ...string) CmdResult {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := newCmd(ctx, name, args...)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -53,7 +96,7 @@ func (DefaultRunner) Run(ctx context.Context, name string, args ...string) CmdRe
 
 	return CmdResult{
 		Stdout:   stdout.String(),
-		Stderr:   stderr.String(),
+		Stderr:   RedactSecrets(stderr.String()),
 		ExitCode: exitCode,
 		Err:      err,
 	}

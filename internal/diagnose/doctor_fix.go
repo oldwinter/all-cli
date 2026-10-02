@@ -222,7 +222,8 @@ func doctorCommandFailure(res execx.CmdResult) string {
 		parts = append(parts, stderr)
 	}
 	if len(parts) == 0 {
-		if stdout := compactDoctorCommandOutput(res.Stdout); stdout != "" {
+		// stdout is raw (parsers rely on it); redact before it becomes an error string.
+		if stdout := compactDoctorCommandOutput(execx.RedactSecrets(res.Stdout)); stdout != "" {
 			parts = append(parts, stdout)
 		}
 	}

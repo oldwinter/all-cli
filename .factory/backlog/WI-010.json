@@ -1,0 +1,47 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-010",
+  "title": "Cover registry tool constructors",
+  "kind": "test",
+  "state": "delivered",
+  "order": 90,
+  "source": {},
+  "acceptance": [
+    "kubectlTool k9sTool dockerTool ghTool glabTool kargoTool argocdTool rise above 50% statement coverage",
+    "go test ./internal/tools passes"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/..."
+  ],
+  "branch": "factory/wi-010-cover-registry-tool-constructors",
+  "attempts": 1,
+  "created_at": "2026-09-28T18:50:38Z",
+  "updated_at": "2026-09-28T18:55:19Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T18:54:46Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "6cacc74"
+    },
+    {
+      "ts": "2026-09-28T18:55:19Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/...",
+      "note": "pass",
+      "head": "6cacc74",
+      "log": ".factory/run/WI-010/20260928T185518Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T18:55:19Z",
+      "event": "verify-pass",
+      "head": "6cacc74"
+    },
+    {
+      "ts": "2026-09-28T18:55:19Z",
+      "event": "deliver",
+      "note": "registry-constructors-100pct",
+      "head": "6cacc74"
+    }
+  ]
+}

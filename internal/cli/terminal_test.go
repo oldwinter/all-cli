@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -91,5 +92,73 @@ func restoreEnv(t *testing.T, key, value string) {
 	}
 	if err := os.Setenv(key, value); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSpinnerEnabledTruthTable(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		ansi, ci, noProgress, want bool
+	}{
+		{false, false, false, false},
+		{false, false, true, false},
+		{false, true, false, false},
+		{false, true, true, false},
+		{true, false, false, true},
+		{true, false, true, false},
+		{true, true, false, false},
+		{true, true, true, false},
+	}
+	for _, tc := range cases {
+		if got := spinnerEnabled(tc.ansi, tc.ci, tc.noProgress); got != tc.want {
+			t.Fatalf("spinnerEnabled(%v,%v,%v)=%v want %v", tc.ansi, tc.ci, tc.noProgress, got, tc.want)
+		}
+	}
+}
+
+// TestTerminalAnsiEnabledCharDevice drives the TTY-true path with /dev/null,
+// which is a real character device on unix CI.
+func TestTerminalAnsiEnabledCharDevice(t *testing.T) {
+	f, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Skip("no char device")
+	}
+	defer f.Close()
+
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("TERM", "xterm")
+	if !terminalAnsiEnabled(f) {
+		t.Fatal("expected ANSI enabled on char device")
+	}
+	t.Setenv("NO_COLOR", "1")
+	if terminalAnsiEnabled(f) {
+		t.Fatal("NO_COLOR should disable ANSI")
+	}
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("TERM", "dumb")
+	if terminalAnsiEnabled(f) {
+		t.Fatal("TERM=dumb should disable ANSI")
+	}
+}
+
+// TestRainbowAndDimOnTTY swaps os.Stdout for a char device to reach the ANSI
+// branches of rainbowLine/dimIfTTY.
+func TestRainbowAndDimOnTTY(t *testing.T) {
+	f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		t.Skip("no char device")
+	}
+	defer f.Close()
+	old := os.Stdout
+	os.Stdout = f
+	t.Cleanup(func() { os.Stdout = old })
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("TERM", "xterm")
+
+	if got := rainbowLine("hi"); !strings.Contains(got, "\033[") {
+		t.Fatalf("rainbowLine on TTY = %q, want ANSI", got)
+	}
+	if got := dimIfTTY("hi"); got != "\033[2mhi\033[0m" {
+		t.Fatalf("dimIfTTY on TTY = %q", got)
 	}
 }

@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -314,5 +316,28 @@ func TestCategoryFilterCompletionCandidatesAndDirective(t *testing.T) {
 				t.Fatalf("directive = %v, want NoFileComp|NoSpace", directive)
 			}
 		})
+	}
+}
+
+func TestWritePatchedCompletionErrorPaths(t *testing.T) {
+	cmd := NewRootCommand()
+	if err := writePatchedCompletion(cmd, func(io.Writer) error {
+		return errors.New("gen failed")
+	}); err == nil || !strings.Contains(err.Error(), "gen failed") {
+		t.Fatalf("generate error = %v", err)
+	}
+	if err := writePatchedCompletion(cmd, func(w io.Writer) error {
+		_, err := w.Write([]byte("script body"))
+		return err
+	}, "absent", "replacement"); err == nil || !strings.Contains(err.Error(), "patch completion") {
+		t.Fatalf("missing replacement error = %v", err)
+	}
+}
+
+func TestCompletionCommandDetectsEmptyShell(t *testing.T) {
+	t.Setenv("SHELL", "")
+	_, _, err := executeTestCommand(t, newCompletionCommand())
+	if err == nil || !strings.Contains(err.Error(), "SHELL is empty") {
+		t.Fatalf("completion error = %v", err)
 	}
 }

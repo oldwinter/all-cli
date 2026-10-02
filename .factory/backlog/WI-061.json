@@ -1,0 +1,77 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-061",
+  "title": "flock-based factory lock (fix reclaim TOCTOU)",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "64 simultaneous acquireLock callers yield exactly one holder across rounds",
+    "SIGKILL holder frees lock with no manual cleanup",
+    "windows+linux+darwin builds clean"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+    "GOOS=windows GOARCH=amd64 env -u GOROOT -u GOTOOLDIR go build ./..."
+  ],
+  "branch": "factory/wi-061-flock-based-factory-lock-fix-reclaim-toctou",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T22:39:39Z",
+    "head": "ecca1c0",
+    "fingerprint": "e32907c4d51fc08b58e8473064d607916d8d2e56dcb2de7401c2d89ea2855367"
+  },
+  "created_at": "2026-09-28T22:39:24Z",
+  "updated_at": "2026-09-28T22:39:54Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T22:39:24Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "ecca1c0"
+    },
+    {
+      "ts": "2026-09-28T22:39:39Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "ecca1c0",
+      "log": ".factory/run/WI-061/20260928T223924.991055000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:39:39Z",
+      "event": "check",
+      "command": "GOOS=windows GOARCH=amd64 env -u GOROOT -u GOTOOLDIR go build ./...",
+      "note": "pass",
+      "head": "ecca1c0",
+      "log": ".factory/run/WI-061/20260928T223924.991055000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T22:39:39Z",
+      "event": "verify-pass",
+      "head": "ecca1c0"
+    },
+    {
+      "ts": "2026-09-28T22:39:54Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "ecca1c0",
+      "log": ".factory/run/WI-061/20260928T223939.434692000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:39:54Z",
+      "event": "deliver-check",
+      "command": "GOOS=windows GOARCH=amd64 env -u GOROOT -u GOTOOLDIR go build ./...",
+      "note": "pass",
+      "head": "ecca1c0",
+      "log": ".factory/run/WI-061/20260928T223939.434692000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T22:39:54Z",
+      "event": "deliver",
+      "head": "ecca1c0"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-074",
+  "title": "Fix uniqueLogPath livelock on unreadable run dir",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 10,
+  "source": {},
+  "acceptance": [
+    "verify on a chmod-000 .factory/run/\u003cid\u003e dir returns promptly with a log-allocation error and lands the item in recoverable failed instead of spinning forever",
+    "collision non-overwrite (suffixed -N logs) behavior retained; ctx can interrupt the retry loop"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-074-fix-uniquelogpath-livelock-on-unreadable-run-dir",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T00:50:03Z",
+    "head": "91fea75",
+    "fingerprint": "d53da7dcbed8e522157e657bb3309c06b79e9a3c82af1921e5dbd5eeab19b3da"
+  },
+  "created_at": "2026-09-29T00:49:31Z",
+  "updated_at": "2026-09-29T00:50:13Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T00:49:32Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "91fea75"
+    },
+    {
+      "ts": "2026-09-29T00:50:03Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "91fea75",
+      "log": ".factory/run/WI-074/20260929T004951.478289000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:50:03Z",
+      "event": "verify-pass",
+      "head": "91fea75"
+    },
+    {
+      "ts": "2026-09-29T00:50:13Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "91fea75",
+      "log": ".factory/run/WI-074/20260929T005003.375015000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:50:13Z",
+      "event": "deliver",
+      "head": "91fea75"
+    }
+  ]
+}

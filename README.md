@@ -138,6 +138,8 @@ High-frequency recipes:
 - `just policy`: check source size, issue-linked debt markers, and AGENTS.md freshness
 - `just lint`: enforce cyclomatic-complexity and duplicate-code thresholds
 - `just pre-commit`: run every configured commit hook against all files
+- `just factory`: repo-local work-item pipeline (intake → claim → verify →
+  deliver); see [docs/factory.md](docs/factory.md) for the operator guide
 - `just fmt` / `just fmt-check`: format code or enforce formatting
 - `just test-cover`: run coverage and print per-package function coverage
 - `just coverage-html`: write `coverage.html` for detailed coverage browsing
@@ -233,11 +235,14 @@ reported by every installed context-aware tool in one compact view.
 all-cli current
 all-cli current --tools kubectl,docker
 all-cli current --categories cloud,k8s
+all-cli current --ids | xargs -n1 all-cli describe
 all-cli current --json
 ```
 
 Use `--tools` or `--categories` to check only the contexts you need and avoid invoking
-unrelated CLIs. When combined, both filters must match.
+unrelated CLIs. When combined, both filters must match. `--ids` prints one matching
+installed tool ID per line for shell pipelines; it resolves via PATH lookup only and
+never invokes a tool command (`--json` takes precedence).
 
 Example text output:
 
@@ -337,7 +342,12 @@ tool needs to validate these reports offline:
 all-cli schema status > status.schema.json
 all-cli schema diagnostic > diagnostic.schema.json
 all-cli schema doctor-fix > doctor-fix.schema.json
+all-cli schema snapshot-diff > snapshot-diff.schema.json
+all-cli schema fix-plan > fix-plan.schema.json
 ```
+
+`all-cli diff <a> <b> --json` emits [snapshot-diff-report-v0.1](schemas/snapshot-diff-report-v0.1.json) (`schema_version` `snapshot-diff-v0.1`).
+`all-cli fix --dry-run --json` and `all-cli docker fix --dry-run --json` emit [fix-plan-report-v0.1](schemas/fix-plan-report-v0.1.json) (`schema_version` `fix-plan-v0.1`).
 
 Use `-` for either diff input to compare a saved snapshot with a live pipeline
 without creating another file. Standard input snapshots are limited to 1 MiB:
@@ -560,8 +570,9 @@ all-cli kargo use --unset
 
 ## Security notes
 
-- `all-cli` does **not** print or read plaintext tokens/secrets.
-- It avoids `--show-token` flags and only uses official CLI outputs to determine “configured” state.
+- `all-cli` never invokes `--show-token`-style flags and only uses official CLI outputs to determine “configured” state.
+- Credential-shaped strings in captured subprocess **stderr** are replaced with `[redacted]` before they can reach status errors, diagnostics, or factory run logs (well-known token prefixes, JWTs, `Bearer` headers, and `key=value`/`"key":"value"` secrets, including quoted values). This is a pattern-based best effort, not a guarantee for arbitrary formats.
+- Subprocess **stdout** is kept raw because adapters parse it as data; a tool that writes secrets to stdout instead of stderr is outside the redaction boundary.
 
 ## Feature flags and observability
 

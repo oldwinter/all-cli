@@ -8,12 +8,14 @@
 - `internal/tools/<tool>/adapter.go`: all tool-specific detection, config, and current-context logic, registered in `internal/tools/registry.go`.
 - `internal/diagnose/`: diagnostics, dry-run fix plans, snapshot diffs.
 - `schemas/`: JSON schemas for `status` and diagnostic reports. When a JSON struct in `internal/model/` changes, update its schema and run `go test ./internal/model/...`.
+- `internal/factory/` + `cmd/factory/`: repository work-item pipeline; the tracked queue is `.factory/backlog/*.json`, its schema is `.factory/work-item.schema.json`, and run logs land in gitignored `.factory/run/`.
 - `dist/` is GoReleaser output.
 
 ## Gates
 
-- `just ci` is the CI-equivalent gate (tidy, fmt, policy, vet, tests, 80% coverage floor, complexity ≤19, duplication); `just check` adds race and three-pass stability runs. Run `just check` before a PR.
-- `just policy` also checks this file: every `just <recipe>` named here must exist in `justfile`, and every local link must resolve.
+- `just ci` is the CI-equivalent gate (tidy, fmt, policy, vet, tests, 80% coverage floor, complexity ≤19, duplication, factory backlog validation); `just check` adds race and three-pass stability runs. Run `just check` before a PR.
+- `just factory` drives the work-item pipeline (states `queued → in_progress → verifying → verified → delivered`, with `failed`/`blocked` lateral); `just factory-validate` schema-checks the backlog. Operator guide: [docs/factory.md](docs/factory.md).
+- `just policy` also checks this file, README.md, and `docs/*.md`: every `just <recipe>` named there must exist in `justfile`, and every local link must resolve.
 - A `just test-stability` failure is a flaky-test defect, never retryable noise.
 - The justfile runs Go as `env -u GOROOT -u GOTOOLDIR go`; use `just go-env` for toolchain mismatches.
 

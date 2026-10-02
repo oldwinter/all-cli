@@ -1,0 +1,77 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-032",
+  "title": "Fix lint regressions: verify-command complexity and nil-ctx tests",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 32,
+  "source": {},
+  "acceptance": [
+    "golangci-lint clean: newVerifyCommand \u003c=20, no SA1012",
+    "refactor keeps verify/deliver behavior identical (tests green)"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR golangci-lint run",
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/telemetry/"
+  ],
+  "branch": "factory/wi-032-fix-lint-regressions-verify-command-complexity-and-nil-ctx-tests",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T20:10:52Z",
+    "head": "ab73635",
+    "fingerprint": "9f6e62f9297b720b652c7930e83588a005eee6d6100be37e17a5023efa30601f"
+  },
+  "created_at": "2026-09-28T20:10:50Z",
+  "updated_at": "2026-09-28T20:10:53Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T20:10:51Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "ab73635"
+    },
+    {
+      "ts": "2026-09-28T20:10:52Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR golangci-lint run",
+      "note": "pass",
+      "head": "ab73635",
+      "log": ".factory/run/WI-032/20260928T201051Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:10:52Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/telemetry/",
+      "note": "pass",
+      "head": "ab73635",
+      "log": ".factory/run/WI-032/20260928T201051Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T20:10:52Z",
+      "event": "verify-pass",
+      "head": "ab73635"
+    },
+    {
+      "ts": "2026-09-28T20:10:53Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR golangci-lint run",
+      "note": "pass",
+      "head": "ab73635",
+      "log": ".factory/run/WI-032/20260928T201052Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:10:53Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ ./internal/telemetry/",
+      "note": "pass",
+      "head": "ab73635",
+      "log": ".factory/run/WI-032/20260928T201052Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T20:10:53Z",
+      "event": "deliver",
+      "note": "lint-regression-fix",
+      "head": "ab73635"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-068",
+  "title": "Cover command-plumbing error branches: deliver dry-run, per-command load errors, save failures, validate stray-file skip",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "deliver --dry-run prints without writing; every mutating command errors cleanly on a missing item; save failures propagate; validate skips non-item files"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-068-cover-command-plumbing-error-branches-deliver-dry-run-per-command-load-errors-save-failures-validate-stray-file-skip",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T23:32:22Z",
+    "head": "c5af0e5",
+    "fingerprint": "1bac33bfff12a85ee5aef783204df77a0a2b30f74e964504f65a16d8875796d3"
+  },
+  "created_at": "2026-09-28T23:30:39Z",
+  "updated_at": "2026-09-28T23:32:34Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T23:30:39Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "c5af0e5"
+    },
+    {
+      "ts": "2026-09-28T23:32:22Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "c5af0e5",
+      "log": ".factory/run/WI-068/20260928T233210.688976000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T23:32:22Z",
+      "event": "verify-pass",
+      "head": "c5af0e5"
+    },
+    {
+      "ts": "2026-09-28T23:32:34Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "c5af0e5",
+      "log": ".factory/run/WI-068/20260928T233222.723670000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T23:32:34Z",
+      "event": "deliver",
+      "head": "c5af0e5"
+    }
+  ]
+}

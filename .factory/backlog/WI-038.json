@@ -1,0 +1,59 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-038",
+  "title": "Cover Execute wiring, completion patcher, options output, telemetry ID",
+  "kind": "test",
+  "state": "delivered",
+  "order": 38,
+  "source": {},
+  "acceptance": [
+    "Execute covers nil deps and telemetry init failure; writePatchedCompletion error paths; options text output; loadOrCreateInstallationID mkdir/rename failures; fix non-JSON and bad-flag paths"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/..."
+  ],
+  "branch": "factory/wi-038-cover-execute-wiring-completion-patcher-options-output-telemetry-id",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:05:36Z",
+    "head": "94be117",
+    "fingerprint": "f3c4e901fa16d6cc90299dadd3a51c604d9f3772110d872e79d311416c3f7d68"
+  },
+  "created_at": "2026-09-28T21:03:00Z",
+  "updated_at": "2026-09-28T21:05:37Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:03:00Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "94be117"
+    },
+    {
+      "ts": "2026-09-28T21:05:36Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/...",
+      "note": "pass",
+      "head": "94be117",
+      "log": ".factory/run/WI-038/20260928T210535.254815000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:05:36Z",
+      "event": "verify-pass",
+      "head": "94be117"
+    },
+    {
+      "ts": "2026-09-28T21:05:37Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/...",
+      "note": "pass",
+      "head": "94be117",
+      "log": ".factory/run/WI-038/20260928T210536.947088000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:05:37Z",
+      "event": "deliver",
+      "note": "wiring+error-path-coverage",
+      "head": "94be117"
+    }
+  ]
+}

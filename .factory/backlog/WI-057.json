@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-057",
+  "title": "e2e: SIGTERM during delivery re-check",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "deliver-cancel e2e asserts in_progress demotion, no leaked lock/orphans, recovery to delivered"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -run TestEndToEndDeliverCancel -count=1"
+  ],
+  "branch": "factory/wi-057-e2e-sigterm-during-delivery-re-check",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T22:15:24Z",
+    "head": "d1ef0a3",
+    "fingerprint": "cd189b4faea428717f954227f7f10d03293ec3584d143dda2cd9571bf1a1aa6c"
+  },
+  "created_at": "2026-09-28T22:15:22Z",
+  "updated_at": "2026-09-28T22:15:26Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T22:15:22Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "d1ef0a3"
+    },
+    {
+      "ts": "2026-09-28T22:15:24Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -run TestEndToEndDeliverCancel -count=1",
+      "note": "pass",
+      "head": "d1ef0a3",
+      "log": ".factory/run/WI-057/20260928T221522.292907000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:15:24Z",
+      "event": "verify-pass",
+      "head": "d1ef0a3"
+    },
+    {
+      "ts": "2026-09-28T22:15:26Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -run TestEndToEndDeliverCancel -count=1",
+      "note": "pass",
+      "head": "d1ef0a3",
+      "log": ".factory/run/WI-057/20260928T221524.413743000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:15:26Z",
+      "event": "deliver",
+      "head": "d1ef0a3"
+    }
+  ]
+}

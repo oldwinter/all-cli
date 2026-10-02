@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/oldwinter/all-cli/internal/execx"
@@ -343,10 +344,22 @@ func TestRcloneConfiguredFindsStandardConfigPath(t *testing.T) {
 	}
 }
 
+func TestRcloneConfiguredWithoutHome(t *testing.T) {
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	configured, _, errs := rcloneConfigured()
+	if configured || len(errs) == 0 {
+		t.Fatalf("no home dir must surface an error: %v %#v", configured, errs)
+	}
+}
+
 func TestDefaultRegistryAdaptersDispatchThroughRunner(t *testing.T) {
 	runner := registryRunnerStub{}
 
-	for _, id := range []string{"aws", "aliyun", "vercel", "railway", "netlify", "opencli"} {
+	for _, id := range []string{
+		"aws", "aliyun", "vercel", "railway", "netlify", "opencli",
+		"kubectl", "k9s", "docker", "gh", "glab", "kargo", "argocd",
+	} {
 		def, ok := FindByID(id)
 		if !ok {
 			t.Fatalf("%s missing from registry", id)
@@ -367,5 +380,44 @@ func TestDefaultRegistryAdaptersDispatchThroughRunner(t *testing.T) {
 	current, _, errs := miseDef.Current(context.Background(), runner, true)
 	if current == nil || len(current) != 0 || len(errs) != 0 {
 		t.Fatalf("mise Current = %#v, %#v", current, errs)
+	}
+}
+
+// cannedRunner serves per-command results so dispatch tests can feed real
+// whoami payloads through the registry validators.
+type cannedRunner map[string]execx.CmdResult
+
+func (r cannedRunner) Run(_ context.Context, name string, args ...string) execx.CmdResult {
+	if res, ok := r[strings.Join(append([]string{name}, args...), " ")]; ok {
+		return res
+	}
+	return execx.CmdResult{ExitCode: 127, Err: errors.New("unexpected command")}
+}
+
+// TestCloudToolValidatorsAcceptWhoami covers the registry validator closures:
+// the empty stub never produces whoami data, so the `||` operands stayed
+// uncovered until each tool sees a real payload.
+func TestCloudToolValidatorsAcceptWhoami(t *testing.T) {
+	t.Parallel()
+
+	// Call the constructors directly: FindByID shares a whoami cache that the
+	// earlier empty-stub dispatch test already populated.
+	tests := []struct {
+		name    string
+		def     ToolDefinition
+		results cannedRunner
+	}{
+		{"vercel", vercelTool(), cannedRunner{"vercel whoami --format json": {Stdout: `{"username":"me","email":"m@x"}`}}},
+		{"vercel", vercelTool(), cannedRunner{"vercel whoami --format json": {Stdout: `{"email":"m@x"}`}}},
+		{"railway", railwayTool(), cannedRunner{"railway whoami --json": {Stdout: `{"email":"m@x"}`}}},
+		{"netlify", netlifyTool(), cannedRunner{"netlify api getCurrentUser": {Stdout: `{"id":"u1","email":"m@x"}`}}},
+		{"netlify", netlifyTool(), cannedRunner{"netlify api getCurrentUser": {Stdout: `{"email":"m@x"}`}}},
+		{"wrangler", wranglerTool(), cannedRunner{"wrangler whoami --json": {Stdout: `{"loggedIn":true,"accounts":[{"id":"a1"}]}`}}},
+	}
+	for _, tt := range tests {
+		state, _, errs := tt.def.ConfigCheck(context.Background(), tt.results, true)
+		if state != model.ConfiguredYes {
+			t.Errorf("%s ConfigCheck = %q errs=%#v, want configured", tt.name, state, errs)
+		}
 	}
 }

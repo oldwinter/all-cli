@@ -1,0 +1,61 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-039",
+  "title": "Cover TTY-true ANSI paths and randomHex fallback",
+  "kind": "test",
+  "state": "delivered",
+  "order": 39,
+  "source": {},
+  "acceptance": [
+    "terminalAnsiEnabled true and env-disabled paths via /dev/null char device",
+    "rainbowLine/dimIfTTY ANSI branches via os.Stdout char-device swap",
+    "randomHex fallback when crypto rand fails"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/..."
+  ],
+  "branch": "factory/wi-039-cover-tty-true-ansi-paths-and-randomhex-fallback",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:07:29Z",
+    "head": "be7ba39",
+    "fingerprint": "3d4d5aec4f57af3b45143377f45dcbe5f56d2f6d1eac5dbbdab05b4e8d84704b"
+  },
+  "created_at": "2026-09-28T21:06:11Z",
+  "updated_at": "2026-09-28T21:07:30Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:06:11Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "be7ba39"
+    },
+    {
+      "ts": "2026-09-28T21:07:29Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/...",
+      "note": "pass",
+      "head": "be7ba39",
+      "log": ".factory/run/WI-039/20260928T210728.497191000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:07:29Z",
+      "event": "verify-pass",
+      "head": "be7ba39"
+    },
+    {
+      "ts": "2026-09-28T21:07:30Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/... ./internal/telemetry/...",
+      "note": "pass",
+      "head": "be7ba39",
+      "log": ".factory/run/WI-039/20260928T210729.869106000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:07:30Z",
+      "event": "deliver",
+      "note": "randomHex-error-branch-was-dead-code-removed-since-go-1.24-rand.Read-is-infallible",
+      "head": "be7ba39"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-083",
+  "title": "redact quoted and JSON-embedded credential values fully",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 160,
+  "source": {},
+  "acceptance": [
+    "key=\"v with spaces\" and \"key\":\"v\" stderr shapes redact whole value incl quotes; neighbors preserved; negative controls pass"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ -count=1"
+  ],
+  "branch": "factory/wi-083-redact-quoted-and-json-embedded-credential-values-fully",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T03:21:10Z",
+    "head": "f1badff",
+    "fingerprint": "919827b81523dcb42c5a4f572b36cfe0a63622caecbd91d234f13605a29206ac"
+  },
+  "created_at": "2026-09-29T03:20:58Z",
+  "updated_at": "2026-09-29T03:21:12Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T03:20:59Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "f1badff"
+    },
+    {
+      "ts": "2026-09-29T03:21:10Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ -count=1",
+      "note": "pass",
+      "head": "f1badff",
+      "log": ".factory/run/WI-083/20260929T032108.013224000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:21:10Z",
+      "event": "verify-pass",
+      "head": "f1badff"
+    },
+    {
+      "ts": "2026-09-29T03:21:12Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ -count=1",
+      "note": "pass",
+      "head": "f1badff",
+      "log": ".factory/run/WI-083/20260929T032110.746851000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:21:12Z",
+      "event": "deliver",
+      "head": "f1badff"
+    }
+  ]
+}

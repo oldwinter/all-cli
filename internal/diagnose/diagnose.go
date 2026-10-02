@@ -280,6 +280,16 @@ func collectionErrorActions(tool model.ToolSummary) []model.SuggestedAction {
 			Mutates:     false,
 		}}
 	}
+	if errorsLookLikeConfigParseFailure(tool.Errors) {
+		return []model.SuggestedAction{{
+			ID:          "inspect_config_file",
+			Title:       "Inspect the config file",
+			Description: "Collection failed while parsing the config file named in the evidence. Fix or remove the invalid file, then rerun all-cli status.",
+			Kind:        "inspect",
+			Command:     []string{"all-cli", "describe", tool.ID},
+			Mutates:     false,
+		}}
+	}
 	return []model.SuggestedAction{{
 		ID:          "rerun_with_timeout",
 		Title:       "Rerun with a longer timeout",
@@ -288,6 +298,21 @@ func collectionErrorActions(tool model.ToolSummary) []model.SuggestedAction {
 		Command:     []string{"all-cli", "status", "--tools", tool.ID, "--timeout", "15s"},
 		Mutates:     false,
 	}}
+}
+
+func errorsLookLikeConfigParseFailure(errs []string) bool {
+	for _, err := range errs {
+		e := strings.ToLower(err)
+		if !strings.Contains(e, "config file") {
+			continue
+		}
+		for _, sig := range []string{"yaml", "json", "toml", "invalid", "error loading"} {
+			if strings.Contains(e, sig) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func errorsLookLikeUnsupportedGHJSON(errs []string) bool {

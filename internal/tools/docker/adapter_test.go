@@ -100,6 +100,29 @@ func TestParseContextLSJSONLinesWarnsOnItemError(t *testing.T) {
 	}
 }
 
+func TestParseContextLSJSONLinesSkipsBlankLines(t *testing.T) {
+	stdout := "\n\n{\"Current\":true,\"Name\":\"remote118\"}\n\n"
+	contexts, warnings, errs, err := parseContextLSJSONLines(stdout)
+	if err != nil || len(errs) != 0 || len(warnings) != 0 {
+		t.Fatalf("unexpected diagnostics: %v %#v %#v", err, warnings, errs)
+	}
+	if len(contexts) != 1 || contexts[0].Name != "remote118" {
+		t.Fatalf("unexpected contexts: %#v", contexts)
+	}
+}
+
+func TestParseContextLSJSONLinesScannerError(t *testing.T) {
+	// A line longer than bufio's 64KiB token limit fails the scan.
+	stdout := `{"Current":true,"Name":"` + strings.Repeat("x", 80*1024) + `"}` + "\n"
+	contexts, _, errs, err := parseContextLSJSONLines(stdout)
+	if err == nil || len(errs) == 0 {
+		t.Fatal("expected scanner error on oversized line")
+	}
+	if len(contexts) != 0 {
+		t.Fatalf("oversized line must not yield a context: %#v", contexts)
+	}
+}
+
 func TestParsePSJSONLinesWarnsOnMissingImage(t *testing.T) {
 	stdout := `{"ID":"abc","Names":"web","Status":"Up"}` + "\n"
 	containers, warnings, errs, err := parsePSJSONLines(stdout)
@@ -540,5 +563,72 @@ func TestUseContextMissingDockerBinaryIncludesCause(t *testing.T) {
 	}
 	if strings.HasSuffix(err.Error(), ": ") {
 		t.Fatalf("use error has empty cause suffix: %q", err.Error())
+	}
+}
+
+func TestParsePSJSONLinesSkipsBlankLines(t *testing.T) {
+	stdout := "\n{\"ID\":\"abc\",\"Names\":\"web\",\"Image\":\"nginx:1.27\"}\n\n"
+	containers, warnings, errs, err := parsePSJSONLines(stdout)
+	if err != nil || len(errs) != 0 || len(warnings) != 0 {
+		t.Fatalf("unexpected diagnostics: %v %#v %#v", err, warnings, errs)
+	}
+	if len(containers) != 1 || containers[0].Image != "nginx:1.27" {
+		t.Fatalf("unexpected containers: %#v", containers)
+	}
+}
+
+func TestParsePSJSONLinesScannerError(t *testing.T) {
+	// A line longer than bufio's 64KiB token limit fails the scan.
+	stdout := `{"ID":"x","Image":"` + strings.Repeat("x", 80*1024) + `"}` + "\n"
+	containers, _, errs, err := parsePSJSONLines(stdout)
+	if err == nil || len(errs) == 0 {
+		t.Fatal("expected scanner error on oversized line")
+	}
+	if len(containers) != 0 {
+		t.Fatalf("oversized line must not yield a container: %#v", containers)
+	}
+}
+
+func TestListContainerImagesFallsBackToRunnerError(t *testing.T) {
+	// A spawn/timeout failure with empty stderr must surface the runner error.
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker ps --format {{json .}}": {
+				ExitCode: 1,
+				Err:      errors.New("context deadline exceeded"),
+				Stderr:   "  ",
+			},
+		},
+	}
+	_, _, errs, err := New(runner).ListContainerImages(context.Background(), false)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if len(errs) != 1 || errs[0] != "context deadline exceeded" {
+		t.Fatalf("expected runner error fallback, got %#v", errs)
+	}
+}
+
+func TestBuildUpdatePlanWarnsOnNoCandidates(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker ps --format {{json .}}": {Stdout: ""},
+		},
+	}
+	updates, warnings, errs, err := New(runner).BuildUpdatePlan(context.Background(), UpdatePlanOptions{})
+	if err != nil || len(errs) != 0 {
+		t.Fatalf("unexpected failure: %v %#v", err, errs)
+	}
+	if len(updates) != 0 {
+		t.Fatalf("expected no updates, got %#v", updates)
+	}
+	found := false
+	for _, w := range warnings {
+		if strings.Contains(w, "no Docker image update candidates") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected no-candidates warning, got %#v", warnings)
 	}
 }

@@ -1,0 +1,68 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-008",
+  "title": "Cover PrintStatusTable renderer",
+  "kind": "test",
+  "state": "delivered",
+  "order": 70,
+  "source": {},
+  "acceptance": [
+    "internal/output.PrintStatusTable produces grouped and ungrouped tables for a synthetic report",
+    "go test ./internal/output passes with the new assertions"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/output/..."
+  ],
+  "branch": "factory/wi-008-cover-printstatustable-renderer",
+  "attempts": 2,
+  "created_at": "2026-09-28T18:50:38Z",
+  "updated_at": "2026-09-28T18:53:24Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T18:51:33Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "770720b"
+    },
+    {
+      "ts": "2026-09-28T18:51:47Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/output/...",
+      "exit_code": 1,
+      "note": "fail",
+      "head": "770720b",
+      "log": ".factory/run/WI-008/20260928T185146Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T18:51:47Z",
+      "event": "verify-fail",
+      "note": "check failed (exit 1): env -u GOROOT -u GOTOOLDIR go test ./internal/output/...",
+      "head": "770720b"
+    },
+    {
+      "ts": "2026-09-28T18:53:16Z",
+      "event": "retried",
+      "note": "attempt 2",
+      "head": "770720b"
+    },
+    {
+      "ts": "2026-09-28T18:53:17Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/output/...",
+      "note": "pass",
+      "head": "770720b",
+      "log": ".factory/run/WI-008/20260928T185316Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T18:53:17Z",
+      "event": "verify-pass",
+      "head": "770720b"
+    },
+    {
+      "ts": "2026-09-28T18:53:24Z",
+      "event": "deliver",
+      "note": "renderer-now-honors-sortby",
+      "head": "770720b"
+    }
+  ]
+}

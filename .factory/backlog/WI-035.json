@@ -1,0 +1,59 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-035",
+  "title": "Cover remaining reachable branches in cli/output/tools",
+  "kind": "test",
+  "state": "delivered",
+  "order": 35,
+  "source": {},
+  "acceptance": [
+    "sortToolsForTable, printDoctorFixes, buildDockerDiagnosticReport, currentProfile, gh helpers, registry optional-field constructors, and newSnapshotCommand flag paths covered"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/output/... ./internal/tools/... ./internal/cli/..."
+  ],
+  "branch": "factory/wi-035-cover-remaining-reachable-branches-in-cli-output-tools",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T20:21:04Z",
+    "head": "97205f3",
+    "fingerprint": "407aec67fa3391091acc760692a446731f7c3c5884881c1406523918158d395d"
+  },
+  "created_at": "2026-09-28T20:15:50Z",
+  "updated_at": "2026-09-28T20:21:06Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T20:15:50Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "97205f3"
+    },
+    {
+      "ts": "2026-09-28T20:21:04Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/output/... ./internal/tools/... ./internal/cli/...",
+      "note": "pass",
+      "head": "97205f3",
+      "log": ".factory/run/WI-035/20260928T202101.993613000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:21:05Z",
+      "event": "verify-pass",
+      "head": "97205f3"
+    },
+    {
+      "ts": "2026-09-28T20:21:06Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/output/... ./internal/tools/... ./internal/cli/...",
+      "note": "pass",
+      "head": "97205f3",
+      "log": ".factory/run/WI-035/20260928T202105.464378000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T20:21:06Z",
+      "event": "deliver",
+      "note": "docker.go:258+failVerifyRun:118 left uncovered: unreachable defensive branches (literal docker filter; caller always verifying-state)",
+      "head": "97205f3"
+    }
+  ]
+}

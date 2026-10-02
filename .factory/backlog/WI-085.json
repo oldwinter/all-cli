@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-085",
+  "title": "redact credential strings in stored snapshot errors/warnings at load",
+  "kind": "bug",
+  "state": "delivered",
+  "order": 180,
+  "source": {},
+  "acceptance": [
+    "report --from and diff no longer re-print plaintext tokens persisted in pre-redaction snapshots; load-time scrub preserves parse behavior"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1"
+  ],
+  "branch": "factory/wi-085-redact-credential-strings-in-stored-snapshot-errors-warnings-at-load",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T03:42:00Z",
+    "head": "1a02686",
+    "fingerprint": "de60ad20ce1bff93333bcdc837964c3e589497756035af456a0330278da3112f"
+  },
+  "created_at": "2026-09-29T03:40:09Z",
+  "updated_at": "2026-09-29T03:42:03Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T03:40:09Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "1a02686"
+    },
+    {
+      "ts": "2026-09-29T03:42:00Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1",
+      "note": "pass",
+      "head": "1a02686",
+      "log": ".factory/run/WI-085/20260929T034158.756196000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:42:00Z",
+      "event": "verify-pass",
+      "head": "1a02686"
+    },
+    {
+      "ts": "2026-09-29T03:42:03Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1",
+      "note": "pass",
+      "head": "1a02686",
+      "log": ".factory/run/WI-085/20260929T034201.174074000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T03:42:03Z",
+      "event": "deliver",
+      "head": "1a02686"
+    }
+  ]
+}

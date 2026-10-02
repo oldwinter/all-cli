@@ -87,7 +87,9 @@ func (a Adapter) Whoami(ctx context.Context) (Whoami, []string, []string, error)
 
 func stdoutOrStderr(res execx.CmdResult) string {
 	if strings.TrimSpace(res.Stdout) != "" {
-		return res.Stdout
+		// stdout stays raw for parsers, but this helper produces error text —
+		// a CLI writing credentials to stdout must not leak them into errors.
+		return execx.RedactSecrets(res.Stdout)
 	}
 	return res.Stderr
 }

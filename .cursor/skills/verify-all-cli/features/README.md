@@ -55,3 +55,4 @@ handles, required state, commands, and observable proof.
 - [Current contexts](./current-contexts.md) covers the compact current-context view.
 - [Agent diagnostics](./agent-diagnostics.md) covers diagnose, doctor, and dry-run fix plans.
 - [Snapshots and diffs](./snapshots-and-diffs.md) covers snapshot files, diffs, stdin, and parse failures.
+- [Schema contracts](./schema-contracts.md) covers bundled schema names, invalid names, and diff/fix JSON report versions.

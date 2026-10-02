@@ -67,3 +67,10 @@ func TestEvaluate_FileConfiguredToolKeepsConfiguredWhenInstalled(t *testing.T) {
 		t.Fatalf("expected current context to be preserved, got %#v", summary.Current)
 	}
 }
+
+func TestDedupeStringsTrimsAndDedupes(t *testing.T) {
+	got := dedupeStrings([]string{" a ", "", "  ", "a", "b", " b"})
+	if len(got) != 2 || got[0] != "a" || got[1] != "b" {
+		t.Fatalf("dedupe = %#v", got)
+	}
+}

@@ -363,3 +363,107 @@ func writeStatusReportFixture(t *testing.T, dir, name string, report model.Statu
 	}
 	return path
 }
+
+func TestSnapshotCommandPlainTableAndFilterError(t *testing.T) {
+	stubAgentStatusEvaluation(t)
+
+	// Non-JSON output renders the status table instead of the machine format.
+	opts := &rootOptions{Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newSnapshotCommand(opts, cliFakeRunner{}), "--tools", "kubectl")
+	if err != nil {
+		t.Fatalf("snapshot plain: %v", err)
+	}
+	if !strings.Contains(stdout, "kubectl") || strings.HasPrefix(strings.TrimSpace(stdout), "{") {
+		t.Fatalf("expected table output, got:\n%s", stdout)
+	}
+
+	// An unknown tool id fails before evaluation.
+	if _, _, err = executeTestCommand(t, newSnapshotCommand(opts, cliFakeRunner{}), "--tools", "bogus"); err == nil {
+		t.Fatal("snapshot --tools bogus should fail")
+	}
+}
+
+func TestFixCommandPlainOutputAndFlagErrors(t *testing.T) {
+	stubAgentStatusEvaluation(t)
+
+	opts := &rootOptions{Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newFixCommand(opts, cliFakeRunner{}), "--dry-run")
+	if err != nil {
+		t.Fatalf("fix --dry-run: %v", err)
+	}
+	if strings.HasPrefix(strings.TrimSpace(stdout), "{") || !strings.Contains(stdout, "Fix") {
+		t.Fatalf("expected human fix plan, got:\n%s", stdout)
+	}
+
+	if _, _, err = executeTestCommand(t, newFixCommand(opts, cliFakeRunner{}), "--dry-run", "--tools", "bogus"); err == nil {
+		t.Fatal("fix --tools bogus should fail")
+	}
+	if _, _, err = executeTestCommand(t, newFixCommand(opts, cliFakeRunner{}), "--dry-run", "--profile", "bogus"); err == nil {
+		t.Fatal("fix --profile bogus should fail")
+	}
+}
+
+func TestDiagnoseAndDoctorFlagAndWriteErrors(t *testing.T) {
+	stubAgentStatusEvaluation(t)
+	opts := &rootOptions{Timeout: time.Second}
+
+	if _, _, err := executeTestCommand(t, newDiagnoseCommand(opts, cliFakeRunner{}), "--tools", "bogus"); err == nil {
+		t.Fatal("diagnose --tools bogus should fail")
+	}
+	if _, _, err := executeTestCommand(t, newDoctorCommand(opts, cliFakeRunner{}), "--profile", "bogus"); err == nil {
+		t.Fatal("doctor --profile bogus should fail")
+	}
+
+	// Write failure inside the JSON report path.
+	w := &diffDetailsFailingWriter{remaining: 0}
+	cmd := newDoctorCommand(&rootOptions{JSON: true, Timeout: time.Second}, cliFakeRunner{})
+	cmd.SetOut(w)
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("doctor --json with failing writer should fail")
+	}
+
+	w = &diffDetailsFailingWriter{remaining: 0}
+	cmd = newDoctorCommand(&rootOptions{JSON: true, Timeout: time.Second}, cliFakeRunner{})
+	cmd.SetOut(w)
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("doctor --fix --json with failing writer should fail")
+	}
+}
+
+func TestDiffRejectsDoubleStdin(t *testing.T) {
+	_, _, err := executeTestCommand(t, newDiffCommand(&rootOptions{Timeout: time.Second}), "-", "-")
+	if err == nil || !strings.Contains(err.Error(), "only one snapshot") {
+		t.Fatalf("diff - - err = %v", err)
+	}
+}
+
+func TestReadStatusSnapshotRedactsStoredSecrets(t *testing.T) {
+	report := model.NewStatusReport(1)
+	report.SchemaVersion = model.SchemaVersionV01
+	report.Tools[0] = model.ToolSummary{
+		ID: "gh",
+		Errors: []string{
+			`Failed: oauth_token ` + "ghp_" + strings.Repeat("z", 24) + ` invalid`,
+			`password="STORED SECRET VAL"`,
+			"ordinary error stays",
+		},
+		Warnings: []string{`api_key:` + strings.Repeat("k", 20)},
+	}
+	path := writeStatusReportFixture(t, t.TempDir(), "legacy.json", report)
+
+	got, err := readStatusSnapshot(path, strings.NewReader(""))
+	if err != nil {
+		t.Fatalf("readStatusSnapshot: %v", err)
+	}
+	for _, e := range got.Tools[0].Errors {
+		if strings.Contains(e, "ghp_") || strings.Contains(e, "STORED SECRET") {
+			t.Fatalf("stored secret survived load: %q", e)
+		}
+	}
+	if got.Tools[0].Errors[2] != "ordinary error stays" {
+		t.Fatalf("non-secret error altered: %q", got.Tools[0].Errors[2])
+	}
+	if strings.Contains(got.Tools[0].Warnings[0], strings.Repeat("k", 20)) {
+		t.Fatalf("stored warning secret survived load: %q", got.Tools[0].Warnings[0])
+	}
+}

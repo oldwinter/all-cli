@@ -1,0 +1,78 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-025",
+  "title": "Cover aws configureGetOptional and terminal/surprise paths",
+  "kind": "test",
+  "state": "delivered",
+  "order": 25,
+  "source": {},
+  "acceptance": [
+    "aws configureGetOptional covers unset/error/success",
+    "spinner + rainbow decision logic covered via extracted pure helpers",
+    "no behavior change; just ci stays green"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/aws/ ./internal/cli/",
+    "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate"
+  ],
+  "branch": "factory/wi-025-cover-aws-configuregetoptional-and-terminal-surprise-paths",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T19:54:59Z",
+    "head": "b409364",
+    "fingerprint": "85f9968946d1611e8260fb90841c6435dd46f3a23f670c8dbb91383793589a90"
+  },
+  "created_at": "2026-09-28T19:54:19Z",
+  "updated_at": "2026-09-28T19:55:00Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T19:54:19Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "b409364"
+    },
+    {
+      "ts": "2026-09-28T19:54:59Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/aws/ ./internal/cli/",
+      "note": "pass",
+      "head": "b409364",
+      "log": ".factory/run/WI-025/20260928T195457Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:54:59Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+      "note": "pass",
+      "head": "b409364",
+      "log": ".factory/run/WI-025/20260928T195457Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T19:54:59Z",
+      "event": "verify-pass",
+      "head": "b409364"
+    },
+    {
+      "ts": "2026-09-28T19:55:00Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/tools/aws/ ./internal/cli/",
+      "note": "pass",
+      "head": "b409364",
+      "log": ".factory/run/WI-025/20260928T195459Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T19:55:00Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go run ./cmd/factory validate",
+      "note": "pass",
+      "head": "b409364",
+      "log": ".factory/run/WI-025/20260928T195459Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T19:55:00Z",
+      "event": "deliver",
+      "note": "aws-optional+spinner+rainbow-coverage",
+      "head": "b409364"
+    }
+  ]
+}

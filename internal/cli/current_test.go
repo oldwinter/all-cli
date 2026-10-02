@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -223,6 +225,60 @@ func TestCurrentCommandRejectsUnknownCategoriesBeforeEvaluation(t *testing.T) {
 	}
 }
 
+func TestCurrentCommandRejectsUnknownToolsBeforeEvaluation(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, _ tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		t.Fatal("unexpected tool evaluation")
+		return model.ToolSummary{}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	_, _, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+		"--tools", "bogus",
+	)
+
+	// Then
+	if err == nil || !strings.Contains(err.Error(), "bogus") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCurrentCommandRunsProgressSpinner(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities,
+			Current: map[string]string{"profile": "work"}}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, true)
+
+	// When
+	stdout, _, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+	)
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "aws") {
+		t.Fatalf("expected current output, got %q", stdout)
+	}
+}
+
 func TestCurrentCommandCompletesCategoryFilters(t *testing.T) {
 	// Given
 	root := NewRootCommand()
@@ -252,5 +308,107 @@ func TestRootRegistersCurrentAsPrimaryCommand(t *testing.T) {
 	}
 	if current.Name() != "current" || current.GroupID != "primary" {
 		t.Fatalf("unexpected current command registration: name=%q group=%q", current.Name(), current.GroupID)
+	}
+}
+
+func TestCurrentCommandIDsPrintsInstalledContextToolIDs(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "fd", Category: "navigation", Binary: "fd"},
+		{ID: "gh", Category: "code", Binary: "gh", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "kubectl", Category: "k8s", Binary: "kubectl", Capabilities: model.Capability{HasContexts: true}},
+	})
+	// gh reports a context capability but its binary is not on PATH.
+	oldLookPath := toolLookPath
+	toolLookPath = func(name string) (string, error) {
+		if name == "gh" {
+			return "", errors.New("gh not found")
+		}
+		return "/fakebin/" + name, nil
+	}
+	t.Cleanup(func() { toolLookPath = oldLookPath })
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		t.Fatalf("unexpected tool evaluation for %q under --ids", def.ID)
+		return model.ToolSummary{}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	stdout, stderr, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+		"--ids",
+	)
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if got := strings.Split(strings.TrimSpace(stdout), "\n"); !slices.Equal(got, []string{"aws", "kubectl"}) {
+		t.Fatalf("--ids output = %q, want [aws kubectl] sorted without uninstalled/non-context tools", stdout)
+	}
+}
+
+func TestCurrentCommandIDsHonorsFiltersAndJSONPrecedence(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "kubectl", Category: "k8s", Binary: "kubectl", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldLookPath := toolLookPath
+	toolLookPath = func(name string) (string, error) { return "/fakebin/" + name, nil }
+	t.Cleanup(func() { toolLookPath = oldLookPath })
+	var evaluated atomic.Int32
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		evaluated.Add(1)
+		return model.ToolSummary{
+			ID:           def.ID,
+			Installed:    true,
+			Capabilities: def.Capabilities,
+			Current:      map[string]string{"context": "ctx"},
+		}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// --tools narrows the printed IDs without evaluating any tool
+	before := evaluated.Load()
+	stdout, _, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+		"--tools", "kubectl", "--ids",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stdout != "kubectl\n" {
+		t.Fatalf("filtered --ids output = %q, want kubectl", stdout)
+	}
+	if n := evaluated.Load() - before; n != 0 {
+		t.Fatalf("--ids evaluated %d tools, want 0 (PATH lookup only)", n)
+	}
+
+	// --json keeps the report shape and ignores --ids
+	stdout, _, err = executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second, JSON: true}, cliFakeRunner{}),
+		"--ids",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var report model.StatusReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("--json output is not a status report: %v\n%s", err, stdout)
+	}
+	if len(report.Tools) != 2 {
+		t.Fatalf("report tools = %d, want both evaluated tools", len(report.Tools))
 	}
 }

@@ -8,15 +8,19 @@ import (
 )
 
 const (
-	Status     = "status"
-	Diagnostic = "diagnostic"
-	DoctorFix  = "doctor-fix"
+	Status       = "status"
+	Diagnostic   = "diagnostic"
+	DoctorFix    = "doctor-fix"
+	SnapshotDiff = "snapshot-diff"
+	FixPlan      = "fix-plan"
 )
 
 var schemaFiles = map[string]string{
-	Status:     "status-report-v0.1.json",
-	Diagnostic: "diagnostic-report-v0.1.json",
-	DoctorFix:  "doctor-fix-report-v0.1.json",
+	Status:       "status-report-v0.1.json",
+	Diagnostic:   "diagnostic-report-v0.1.json",
+	DoctorFix:    "doctor-fix-report-v0.1.json",
+	SnapshotDiff: "snapshot-diff-report-v0.1.json",
+	FixPlan:      "fix-plan-report-v0.1.json",
 }
 
 //go:embed *.json
@@ -24,7 +28,7 @@ var files embed.FS
 
 // Names returns the stable names accepted by Read.
 func Names() []string {
-	return []string{Status, Diagnostic, DoctorFix}
+	return []string{Status, Diagnostic, DoctorFix, SnapshotDiff, FixPlan}
 }
 
 // Read returns one bundled JSON Schema by its stable name.

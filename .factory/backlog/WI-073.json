@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-073",
+  "title": "Extend doc policy audit to docs/*.md",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 25,
+  "source": {},
+  "acceptance": [
+    "repopolicy audits every docs/*.md for undefined just recipes and broken local links; violations name the actual doc path"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/ -count=1"
+  ],
+  "branch": "factory/wi-073-extend-doc-policy-audit-to-docs-md",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T00:25:59Z",
+    "head": "9659eff",
+    "fingerprint": "45a34091f256e870d8acf4c13c5813d73212646f1dd7fbf1a774c3e255197565"
+  },
+  "created_at": "2026-09-29T00:25:01Z",
+  "updated_at": "2026-09-29T00:26:01Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T00:25:01Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "9659eff"
+    },
+    {
+      "ts": "2026-09-29T00:25:59Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "9659eff",
+      "log": ".factory/run/WI-073/20260929T002557.475485000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:25:59Z",
+      "event": "verify-pass",
+      "head": "9659eff"
+    },
+    {
+      "ts": "2026-09-29T00:26:01Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/repopolicy/ -count=1",
+      "note": "pass",
+      "head": "9659eff",
+      "log": ".factory/run/WI-073/20260929T002559.490861000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:26:01Z",
+      "event": "deliver",
+      "head": "9659eff"
+    }
+  ]
+}

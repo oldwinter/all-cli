@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oldwinter/all-cli/schemas/snapshot-diff-report-v0.1.json",
+  "title": "all-cli snapshot diff report",
+  "description": "Object emitted by `all-cli diff <a> <b> --json` (internal/model.SnapshotDiffReport).",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "summary", "changes"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "snapshot-diff-v0.1",
+      "description": "JSON output schema version; matches model.SnapshotDiffSchemaVersionV01."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the diff was computed."
+    },
+    "summary": { "$ref": "#/$defs/diff_summary" },
+    "changes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tool_change" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "diff_summary": {
+      "type": "object",
+      "required": ["added", "removed", "changed"],
+      "properties": {
+        "added": { "type": "integer" },
+        "removed": { "type": "integer" },
+        "changed": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "tool_change": {
+      "type": "object",
+      "required": ["tool_id", "change_type"],
+      "properties": {
+        "tool_id": { "type": "string" },
+        "change_type": {
+          "type": "string",
+          "enum": ["added", "removed", "changed"]
+        },
+        "fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tool summary fields that differ; present for changed tools."
+        },
+        "before": { "$ref": "status-report-v0.1.json#/$defs/tool_summary" },
+        "after": { "$ref": "status-report-v0.1.json#/$defs/tool_summary" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -74,3 +74,29 @@ func TestDailySurpriseRecommendationRotatesTheNextDay(t *testing.T) {
 		t.Fatalf("consecutive days returned the same tool %q", first.ToolID)
 	}
 }
+
+func TestRainbowLineANSIWrapsRunesAndKeepsSpaces(t *testing.T) {
+	got := rainbowLineANSI("a b")
+	if !strings.Contains(got, "\033[38;5;204m") || !strings.Contains(got, "\033[0m") {
+		t.Fatalf("expected ANSI-wrapped output, got %q", got)
+	}
+	if !strings.Contains(got, " ") {
+		t.Fatalf("spaces must be preserved uncolored, got %q", got)
+	}
+	plain := strings.NewReplacer("\033[38;5;204m", "", "\033[38;5;209m", "", "\033[38;5;214m", "",
+		"\033[38;5;220m", "", "\033[38;5;154m", "", "\033[38;5;80m", "", "\033[38;5;45m", "",
+		"\033[38;5;63m", "", "\033[0m", "").Replace(got)
+	if plain != "a b" {
+		t.Fatalf("stripped output = %q, want %q", plain, "a b")
+	}
+}
+
+func TestRainbowAndDimPassThroughWithoutTTY(t *testing.T) {
+	// Test stdout is not a terminal, so styling helpers return input unchanged.
+	if got := rainbowLine("hi there"); got != "hi there" {
+		t.Fatalf("rainbowLine without TTY = %q", got)
+	}
+	if got := dimIfTTY("hi"); got != "hi" {
+		t.Fatalf("dimIfTTY without TTY = %q", got)
+	}
+}

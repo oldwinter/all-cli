@@ -1,0 +1,83 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-054",
+  "title": "Cross-process lockfile for mutating factory commands",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {
+    "avoid_prs": [
+      109,
+      110
+    ]
+  },
+  "acceptance": [
+    "mutating commands acquire .factory/lock (O_EXCL) and refuse when held",
+    "read commands (list/next/status/validate) do not lock",
+    "stale lock is documented and removable"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+    "grep -q O_EXCL docs/factory.md \u0026\u0026 env -u GOROOT -u GOTOOLDIR go vet ./internal/factory/"
+  ],
+  "branch": "factory/wi-054-cross-process-lockfile-for-mutating-factory-commands",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T21:45:46Z",
+    "head": "f0a22d0",
+    "fingerprint": "f4a8a3e5ceeedf433681b9925874681681986b99e4be5c13fe1722c8ed594e90"
+  },
+  "created_at": "2026-09-28T21:42:33Z",
+  "updated_at": "2026-09-28T21:45:51Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T21:42:33Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "f0a22d0"
+    },
+    {
+      "ts": "2026-09-28T21:45:46Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "f0a22d0",
+      "log": ".factory/run/WI-054/20260928T214542.773492000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:45:46Z",
+      "event": "check",
+      "command": "grep -q O_EXCL docs/factory.md \u0026\u0026 env -u GOROOT -u GOTOOLDIR go vet ./internal/factory/",
+      "note": "pass",
+      "head": "f0a22d0",
+      "log": ".factory/run/WI-054/20260928T214542.773492000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:45:46Z",
+      "event": "verify-pass",
+      "head": "f0a22d0"
+    },
+    {
+      "ts": "2026-09-28T21:45:51Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "f0a22d0",
+      "log": ".factory/run/WI-054/20260928T214547.549330000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T21:45:51Z",
+      "event": "deliver-check",
+      "command": "grep -q O_EXCL docs/factory.md \u0026\u0026 env -u GOROOT -u GOTOOLDIR go vet ./internal/factory/",
+      "note": "pass",
+      "head": "f0a22d0",
+      "log": ".factory/run/WI-054/20260928T214547.549330000Z-check-1.log"
+    },
+    {
+      "ts": "2026-09-28T21:45:51Z",
+      "event": "deliver",
+      "note": "backlog-lockfile",
+      "head": "f0a22d0"
+    }
+  ]
+}

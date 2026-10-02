@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-077",
+  "title": "Add current --ids for pipe-ready tool IDs",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 30,
+  "source": {},
+  "acceptance": [
+    "all-cli current --ids prints one installed context-tool ID per line (filters apply); --json takes precedence; empty result prints nothing"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1"
+  ],
+  "branch": "factory/wi-077-add-current-ids-for-pipe-ready-tool-ids",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T01:38:48Z",
+    "head": "b8111e7",
+    "fingerprint": "a0863a35c8a60d564163cc089fa7af05ba8bb45fc506f6aeaaa678a94854f930"
+  },
+  "created_at": "2026-09-29T01:35:22Z",
+  "updated_at": "2026-09-29T01:38:51Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T01:35:22Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "b8111e7"
+    },
+    {
+      "ts": "2026-09-29T01:38:48Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1",
+      "note": "pass",
+      "head": "b8111e7",
+      "log": ".factory/run/WI-077/20260929T013845.863088000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T01:38:48Z",
+      "event": "verify-pass",
+      "head": "b8111e7"
+    },
+    {
+      "ts": "2026-09-29T01:38:51Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/cli/ -count=1",
+      "note": "pass",
+      "head": "b8111e7",
+      "log": ".factory/run/WI-077/20260929T013848.950100000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T01:38:51Z",
+      "event": "deliver",
+      "head": "b8111e7"
+    }
+  ]
+}

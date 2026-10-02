@@ -18,7 +18,7 @@ help:
     just --list
 
 ## Local CI checks (same policy as GitHub CI workflow)
-ci: verify-tidy fmt-check policy vet test coverage-check lint
+ci: verify-tidy fmt-check policy vet cross-build test coverage-check lint factory-validate
 
 ## Extended local checks (CI + race and repeated stability tests)
 check: ci test-race test-stability
@@ -91,6 +91,12 @@ pre-commit:
 vet:
     {{go_cmd}} vet {{packages}}
 
+## Cross-compile all packages for every release target (catches OS-only code drift)
+cross-build:
+    GOOS=windows GOARCH=amd64 {{go_cmd}} build {{packages}}
+    GOOS=darwin GOARCH=arm64 {{go_cmd}} build {{packages}}
+    GOOS=linux GOARCH=amd64 {{go_cmd}} build {{packages}}
+
 ## Build local binary
 build:
     {{go_cmd}} build -o {{bin_path}} {{main_pkg}}
@@ -123,6 +129,18 @@ version-local: build
 smoke: build
     {{bin_path}} version
     {{bin_path}} status --group-by none
+
+## Run the repository work-item factory (example: just factory next)
+## [positional-arguments] keeps argv boundaries: quoted flag values survive
+## (e.g. --title "multi word" --check "test -f README.md").
+[positional-arguments]
+factory *args:
+    #!/usr/bin/env sh
+    exec {{go_cmd}} run ./cmd/factory "$@"
+
+## Validate factory backlog items against the item schema
+factory-validate:
+    {{go_cmd}} run ./cmd/factory validate
 
 ## Show Go env values relevant to toolchain mismatch debugging
 go-env:

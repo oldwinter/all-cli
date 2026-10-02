@@ -1,0 +1,59 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-059",
+  "title": "auto-recover stale factory lock when holder pid is dead",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 100,
+  "source": {},
+  "acceptance": [
+    "mutating command succeeds when lock holder pid no longer exists",
+    "mutating command still refuses when lock holder pid is alive"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-059-auto-recover-stale-factory-lock-when-holder-pid-is-dead",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-28T22:21:46Z",
+    "head": "b216d4b",
+    "fingerprint": "fed5adf4db1f936a8697fa69a99b11eeeef60cc8d623dff38442f18891fff5a5"
+  },
+  "created_at": "2026-09-28T22:18:57Z",
+  "updated_at": "2026-09-28T22:21:58Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T22:18:57Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "b216d4b"
+    },
+    {
+      "ts": "2026-09-28T22:21:46Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "b216d4b",
+      "log": ".factory/run/WI-059/20260928T222136.075488000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:21:46Z",
+      "event": "verify-pass",
+      "head": "b216d4b"
+    },
+    {
+      "ts": "2026-09-28T22:21:58Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "b216d4b",
+      "log": ".factory/run/WI-059/20260928T222147.618380000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-28T22:21:58Z",
+      "event": "deliver",
+      "head": "b216d4b"
+    }
+  ]
+}

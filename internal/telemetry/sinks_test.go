@@ -129,3 +129,28 @@ func TestSinkFailureDoesNotBlockOtherSinks(t *testing.T) {
 		t.Fatalf("metrics were blocked by Sentry failure: %v", err)
 	}
 }
+
+func TestNewSentrySinkDSNErrors(t *testing.T) {
+	cases := []struct{ name, dsn string }{
+		{"unparseable", "http://%zz"},
+		{"missing user", "https://example.com/1"},
+		{"missing project", "https://key@example.com/"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := newSentrySink(Config{SentryDSN: tc.dsn}, nil); err == nil {
+				t.Fatalf("newSentrySink(%q) should fail", tc.dsn)
+			}
+		})
+	}
+}
+
+func TestScrubErrorNilAndTruncation(t *testing.T) {
+	if got := scrubError(nil); got != "" {
+		t.Fatalf("scrubError(nil) = %q", got)
+	}
+	long := errors.New(strings.Repeat("x", 9*1024))
+	if got := scrubError(long); len(got) != 8*1024 {
+		t.Fatalf("scrubError length = %d, want 8192", len(got))
+	}
+}

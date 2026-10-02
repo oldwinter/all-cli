@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-071",
+  "title": "fsync item tempfile before rename for crash durability",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 20,
+  "source": {},
+  "acceptance": [
+    "Store.Save syncs the temp file before rename so a crash cannot rename an unwritten file"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-071-fsync-item-tempfile-before-rename-for-crash-durability",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T00:15:50Z",
+    "head": "b8cc8c1",
+    "fingerprint": "0bf4f9cd43de599683f11acdd9ec08327f804fc48b0c53d569ef7f6a5138f05a"
+  },
+  "created_at": "2026-09-29T00:15:01Z",
+  "updated_at": "2026-09-29T00:16:11Z",
+  "evidence": [
+    {
+      "ts": "2026-09-29T00:15:01Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "b8cc8c1"
+    },
+    {
+      "ts": "2026-09-29T00:15:50Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "b8cc8c1",
+      "log": ".factory/run/WI-071/20260929T001535.523275000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:15:50Z",
+      "event": "verify-pass",
+      "head": "b8cc8c1"
+    },
+    {
+      "ts": "2026-09-29T00:16:11Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "b8cc8c1",
+      "log": ".factory/run/WI-071/20260929T001556.673388000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:16:11Z",
+      "event": "deliver",
+      "head": "b8cc8c1"
+    }
+  ]
+}

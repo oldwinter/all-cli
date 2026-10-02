@@ -82,6 +82,31 @@ func TestCatalogCommandIDsFalsePreservesTable(t *testing.T) {
 	}
 }
 
+func TestValidateCatalogArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{name: "no args", args: nil},
+		{name: "one term", args: []string{"kube"}},
+		{name: "list alias plus term", args: []string{"list", "kube"}},
+		{name: "ls alias plus term", args: []string{"ls", "kube"}},
+		{name: "listing alias plus term", args: []string{"listing", "kube"}},
+		{name: "two terms no alias", args: []string{"kube", "aws"}, wantErr: true},
+		{name: "three args", args: []string{"list", "a", "b"}, wantErr: true},
+		{name: "alias alone counts as term", args: []string{"list"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateCatalogArgs(nil, tc.args)
+			if tc.wantErr != (err != nil) {
+				t.Fatalf("validateCatalogArgs(%v) err = %v, wantErr %v", tc.args, err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestCatalogCommandIDsReturnsWriteError(t *testing.T) {
 	reader, writer := io.Pipe()
 	if err := reader.Close(); err != nil {

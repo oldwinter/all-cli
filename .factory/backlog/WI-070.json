@@ -1,0 +1,58 @@
+{
+  "schema_version": "factory-item-v0.1",
+  "id": "WI-070",
+  "title": "Scrub git repo-resolution env vars from spawned commands",
+  "kind": "improvement",
+  "state": "delivered",
+  "order": 15,
+  "source": {},
+  "acceptance": [
+    "GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE/GIT_OBJECT_DIRECTORY/GIT_COMMON_DIR/GIT_NAMESPACE/GIT_CEILING_DIRECTORIES/GIT_DISCOVERY_ACROSS_FILESYSTEM set in the factory environment must not leak into execx subprocesses; verify inside repo B records repo B's HEAD even when GIT_DIR points elsewhere"
+  ],
+  "checks": [
+    "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ ./internal/factory/ -count=1"
+  ],
+  "branch": "factory/wi-070-scrub-git-repo-resolution-env-vars-from-spawned-commands",
+  "attempts": 1,
+  "verified": {
+    "at": "2026-09-29T00:01:01Z",
+    "head": "113f6c5",
+    "fingerprint": "efedf94463ffe9576bda7a47518441501c8b0f7daf67110fa3ce073659f80c11"
+  },
+  "created_at": "2026-09-28T23:56:27Z",
+  "updated_at": "2026-09-29T00:01:30Z",
+  "evidence": [
+    {
+      "ts": "2026-09-28T23:56:27Z",
+      "event": "claimed",
+      "note": "attempt 1",
+      "head": "113f6c5"
+    },
+    {
+      "ts": "2026-09-29T00:01:01Z",
+      "event": "check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "113f6c5",
+      "log": ".factory/run/WI-070/20260929T000042.111876000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:01:01Z",
+      "event": "verify-pass",
+      "head": "113f6c5"
+    },
+    {
+      "ts": "2026-09-29T00:01:30Z",
+      "event": "deliver-check",
+      "command": "env -u GOROOT -u GOTOOLDIR go test ./internal/execx/ ./internal/factory/ -count=1",
+      "note": "pass",
+      "head": "113f6c5",
+      "log": ".factory/run/WI-070/20260929T000110.600957000Z-check-0.log"
+    },
+    {
+      "ts": "2026-09-29T00:01:30Z",
+      "event": "deliver",
+      "head": "113f6c5"
+    }
+  ]
+}

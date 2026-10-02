@@ -118,3 +118,42 @@ func readExecuteEvent(t *testing.T, path string) map[string]any {
 	}
 	return event
 }
+
+func TestExecuteToleratesNilDeps(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	var nilCtx context.Context
+	if err := Execute(nilCtx, []string{"version"}, &stdout, &stderr, nil); err != nil {
+		t.Fatalf("Execute(nil deps) error = %v", err)
+	}
+	if stdout.Len() == 0 {
+		t.Fatal("Execute(nil deps) produced no stdout")
+	}
+}
+
+func TestExecuteReportsTelemetryInitFailure(t *testing.T) {
+	env := map[string]string{
+		"ALL_CLI_FEATURES": "telemetry-v1",
+		"SENTRY_DSN":       "not-a-dsn",
+	}
+	var stdout, stderr bytes.Buffer
+	err := Execute(context.Background(), []string{"version"}, &stdout, &stderr, mapGetenv(env))
+	if err == nil || !strings.Contains(err.Error(), "initialize telemetry") {
+		t.Fatalf("Execute() error = %v, want telemetry init failure", err)
+	}
+	if !strings.Contains(stderr.String(), "initialize telemetry") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestTelemetryCommandNaming(t *testing.T) {
+	root := NewRootCommand()
+	if got := telemetryCommand(root, []string{"--version"}); got != "version" {
+		t.Fatalf("--version => %q", got)
+	}
+	if got := telemetryCommand(root, []string{"status"}); got != "status" {
+		t.Fatalf("status => %q", got)
+	}
+	if got := telemetryCommand(root, []string{"bogus"}); got != "unknown" {
+		t.Fatalf("bogus => %q", got)
+	}
+}

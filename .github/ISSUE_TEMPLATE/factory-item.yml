@@ -1,0 +1,68 @@
+name: Factory work item
+description: Propose a bounded task for the repository work-item factory (.factory/backlog).
+title: "factory: "
+labels:
+  - type:feature
+  - priority:P3
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Factory work items are bounded changes the repo-local pipeline can
+        verify end to end. One item equals one verifiable diff, not a project.
+        See docs/factory.md for the pipeline states.
+  - type: input
+    id: item_id
+    attributes:
+      label: Suggested item ID
+      description: Uppercase prefix plus number, for example WI-007.
+      placeholder: WI-000
+    validations:
+      required: false
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - improvement
+        - bug
+        - test
+        - docs
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: One observable criterion per line; these are what a reviewer checks.
+      placeholder: |
+        all-cli schema snapshot-diff prints the bundled schema
+        go test ./internal/model/... passes
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Verification checks
+      description: |
+        Shell commands run from the repo root by `factory verify`, one per
+        line. Keep them credential-free and deterministic, for example
+        `env -u GOROOT -u GOTOOLDIR go test ./internal/model/...`.
+      placeholder: |
+        env -u GOROOT -u GOTOOLDIR go test ./internal/model/...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Bounded scope
+      description: Files or packages expected to change; anything else is out of scope.
+    validations:
+      required: true
+  - type: textarea
+    id: avoid_duplication
+    attributes:
+      label: Related issues and active PRs
+      description: Link issues this supersedes and open PR numbers it must not duplicate.
+    validations:
+      required: false
