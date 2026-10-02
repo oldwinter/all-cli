@@ -355,15 +355,20 @@ warnings, and errors:
 ```bash
 all-cli report --from before.json > report.md
 all-cli report --from before.json --tools kubectl,docker > cluster-report.md
+all-cli report --from before.json --categories cloud,k8s > platform-report.md
+all-cli report --from before.json --tools aws,kubectl --categories cloud,k8s > filtered-report.md
 all-cli snapshot --tools kubectl,docker --json | all-cli report --from -
 ```
 
 `--from -` reads standard input, limited to 1 MiB. Add `--tools` to select tracked
-tool IDs from either a file or standard input without editing or recapturing the
-snapshot. Selected tools keep their original order and captured facts; tools
-absent from the snapshot are omitted. An empty `--tools` value keeps all tools.
-Add `--json` to emit the selected status with diagnostics derived only from those
-facts instead of Markdown. Without `--from`, `report` checks local tools as usual.
+tool IDs, or `--categories` to select tools by their captured category, from either
+a file or standard input without editing or recapturing the snapshot. Category names
+must be current built-in registry categories, but saved rows match their captured
+category values. When both filters are present, a row must match both. Selected tools
+keep their original order and captured facts; tools absent from the snapshot are
+omitted. An empty value leaves that filter unrestricted. Add `--json` to emit the
+selected status with diagnostics derived only from those facts instead of Markdown.
+Without `--from`, the same filters limit which local tools are checked.
 
 ### AI-friendly JSON additions
 
