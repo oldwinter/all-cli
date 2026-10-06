@@ -15,7 +15,7 @@ env:
 
 jobs:
   test:
-    runs-on: [self-hosted, Linux, X64, all-cli]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
