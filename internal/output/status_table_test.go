@@ -156,3 +156,80 @@ func TestPrintStatusTableWithOptions_OmitsEmptyDiagnosticsSections(t *testing.T)
 		t.Fatalf("expected no errors section, got:\n%s", got)
 	}
 }
+
+func TestPrintStatusTableWithOptions_PrintsSummaryCounts(t *testing.T) {
+	report := model.StatusReport{
+		Tools: []model.ToolSummary{
+			{ID: "aws", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes},
+			{ID: "gh", Category: "code", Installed: true, ConfiguredState: model.ConfiguredNo},
+			{ID: "kubectx", Category: "k8s", Installed: false, ConfiguredState: model.ConfiguredUnknown},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintStatusTableWithOptions(&buf, report, StatusTableOptions{
+		GroupBy: StatusTableGroupByNone,
+		SortBy:  StatusTableSortTool,
+	})
+
+	got := buf.String()
+	if !strings.Contains(got, "Summary: 3 tools, 2 installed, 2 need attention") {
+		t.Fatalf("expected summary counts, got:\n%s", got)
+	}
+	if strings.Index(got, "Summary:") < strings.Index(got, "kubectx") {
+		t.Fatalf("expected summary after the table rows, got:\n%s", got)
+	}
+}
+
+func TestPrintStatusTableWithOptions_PrintsSingularSummary(t *testing.T) {
+	report := model.StatusReport{
+		Tools: []model.ToolSummary{
+			{ID: "aws", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintStatusTable(&buf, report)
+
+	got := buf.String()
+	if !strings.Contains(got, "Summary: 1 tool, 1 installed, 0 need attention") {
+		t.Fatalf("expected singular summary, got:\n%s", got)
+	}
+}
+
+func TestPrintStatusTableWithOptions_PrintsEmptySummary(t *testing.T) {
+	report := model.StatusReport{}
+
+	var buf bytes.Buffer
+	PrintStatusTableWithOptions(&buf, report, StatusTableOptions{
+		GroupBy: StatusTableGroupByCategory,
+		SortBy:  StatusTableSortCategory,
+	})
+
+	got := buf.String()
+	if !strings.Contains(got, "Summary: 0 tools, 0 installed, 0 need attention") {
+		t.Fatalf("expected empty summary, got:\n%s", got)
+	}
+}
+
+func TestPrintStatusTableWithOptions_SummaryCountsWarnings(t *testing.T) {
+	report := model.StatusReport{
+		Tools: []model.ToolSummary{
+			{
+				ID:              "aws",
+				Category:        "cloud",
+				Installed:       true,
+				ConfiguredState: model.ConfiguredYes,
+				Warnings:        []string{"region lookup failed"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintStatusTable(&buf, report)
+
+	got := buf.String()
+	if !strings.Contains(got, "Summary: 1 tool, 1 installed, 1 need attention") {
+		t.Fatalf("expected warning to count as needing attention, got:\n%s", got)
+	}
+}
