@@ -49,6 +49,8 @@ func TestParseStatusSort(t *testing.T) {
 		{name: "tool-desc", input: "tool-desc", want: statusSortToolDesc, ok: true},
 		{name: "category", input: "category", want: statusSortCategory, ok: true},
 		{name: "category-desc", input: "category-desc", want: statusSortCategoryDesc, ok: true},
+		{name: "attention", input: "attention", want: statusSortAttention, ok: true},
+		{name: "attention case-insensitive", input: "Attention", want: statusSortAttention, ok: true},
 		{name: "invalid", input: "desc", ok: false},
 	}
 
@@ -89,6 +91,43 @@ func TestSortToolSummaries(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("tool sort desc: got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestSortToolSummariesAttention(t *testing.T) {
+	toolsList := []model.ToolSummary{
+		{ID: "kubectl", Category: "k8s", Installed: true, ConfiguredState: model.ConfiguredYes},
+		{ID: "aws", Category: "cloud", Installed: false, ConfiguredState: model.ConfiguredUnknown},
+		{ID: "gh", Category: "code", Installed: true, ConfiguredState: model.ConfiguredNo},
+		{ID: "docker", Category: "containers", Installed: true, ConfiguredState: model.ConfiguredYes, Warnings: []string{"daemon slow"}},
+		{ID: "mise", Category: "env", Installed: true, ConfiguredState: model.ConfiguredYes, Errors: []string{"shim broken"}},
+		{ID: "zoxide", Category: "navigation", Installed: true, ConfiguredState: model.ConfiguredNA},
+	}
+
+	sortToolSummaries(toolsList, statusSortAttention)
+	got := []string{toolsList[0].ID, toolsList[1].ID, toolsList[2].ID, toolsList[3].ID, toolsList[4].ID, toolsList[5].ID}
+	want := []string{"aws", "docker", "gh", "mise", "kubectl", "zoxide"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attention sort: got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestToolNeedsAttentionMatchesQuietFilter(t *testing.T) {
+	toolsList := []model.ToolSummary{
+		{ID: "healthy", Installed: true, ConfiguredState: model.ConfiguredYes},
+		{ID: "missing", Installed: false, ConfiguredState: model.ConfiguredUnknown},
+		{ID: "unconfigured", Installed: true, ConfiguredState: model.ConfiguredNo},
+		{ID: "warned", Installed: true, ConfiguredState: model.ConfiguredYes, Warnings: []string{"w"}},
+		{ID: "errored", Installed: true, ConfiguredState: model.ConfiguredNA, Errors: []string{"e"}},
+	}
+
+	for _, tool := range toolsList {
+		quietKept := len(filterStatusTools([]model.ToolSummary{tool}, false, false, true)) == 1
+		if quietKept != toolNeedsAttention(tool) {
+			t.Fatalf("%s: quiet filter kept=%v, needsAttention=%v", tool.ID, quietKept, toolNeedsAttention(tool))
 		}
 	}
 }

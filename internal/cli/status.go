@@ -24,6 +24,7 @@ const (
 	statusSortToolDesc     = "tool-desc"
 	statusSortCategory     = "category"
 	statusSortCategoryDesc = "category-desc"
+	statusSortAttention    = "attention"
 )
 
 var (
@@ -56,6 +57,7 @@ Use --ids to print one checked tool ID per line. --json takes precedence over --
   all-cli status --categories ai,cloud
   all-cli status --categories ai --missing-only
   all-cli status --missing-only --ids
+  all-cli status --sort attention
   all-cli status --installed-only --quiet`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -110,7 +112,7 @@ Use --ids to print one checked tool ID per line. --json takes precedence over --
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to check (e.g. kubectl,docker)")
 	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to check (e.g. ai,cloud)")
 	cmd.Flags().StringVar(&groupBy, "group-by", statusGroupByCategory, "Group output: category|none")
-	cmd.Flags().StringVar(&sortBy, "sort", statusSortTool, "Sort order: tool|tool-desc|category|category-desc")
+	cmd.Flags().StringVar(&sortBy, "sort", statusSortTool, "Sort order: tool|tool-desc|category|category-desc|attention")
 	cmd.Flags().BoolVar(&ids, "ids", false, "Print only checked tool IDs, one per line (ignored with --json)")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Only show tools with issues (not installed, unconfigured, warnings, or errors)")
 	cmd.Flags().BoolVar(&installedOnly, "installed-only", false, "Only show installed tools")
@@ -137,13 +139,24 @@ func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly
 		if missingOnly && tool.Installed {
 			continue
 		}
-		if quiet && tool.Installed && tool.ConfiguredState != model.ConfiguredNo &&
-			len(tool.Warnings) == 0 && len(tool.Errors) == 0 {
+		if quiet && !toolNeedsAttention(tool) {
 			continue
 		}
 		filtered = append(filtered, tool)
 	}
 	return filtered
+}
+
+// toolNeedsAttention mirrors the --quiet filter: anything not installed,
+// unconfigured, or carrying warnings/errors.
+func toolNeedsAttention(tool model.ToolSummary) bool {
+	if !tool.Installed {
+		return true
+	}
+	if tool.ConfiguredState == model.ConfiguredNo {
+		return true
+	}
+	return len(tool.Warnings) > 0 || len(tool.Errors) > 0
 }
 
 func buildStatusReport(ctx context.Context, runner execx.Runner, defaultTimeout time.Duration, toolsFilter string) (model.StatusReport, error) {
@@ -244,10 +257,10 @@ func parseStatusSort(s string) (string, error) {
 	switch value {
 	case "", statusSortTool:
 		return statusSortTool, nil
-	case statusSortToolDesc, statusSortCategory, statusSortCategoryDesc:
+	case statusSortToolDesc, statusSortCategory, statusSortCategoryDesc, statusSortAttention:
 		return value, nil
 	default:
-		return "", fmt.Errorf("invalid --sort value %q (allowed: tool, tool-desc, category, category-desc)", s)
+		return "", fmt.Errorf("invalid --sort value %q (allowed: tool, tool-desc, category, category-desc, attention)", s)
 	}
 }
 
@@ -272,6 +285,16 @@ func sortToolSummaries(toolsList []model.ToolSummary, sortBy string) {
 				return left.Category > right.Category
 			}
 			return left.ID < right.ID
+		case statusSortAttention:
+			leftAttention := toolNeedsAttention(left)
+			rightAttention := toolNeedsAttention(right)
+			if leftAttention != rightAttention {
+				return leftAttention && !rightAttention
+			}
+			if left.ID != right.ID {
+				return left.ID < right.ID
+			}
+			return left.Category < right.Category
 		case statusSortTool:
 			fallthrough
 		default:

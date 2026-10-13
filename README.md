@@ -202,6 +202,7 @@ all-cli status --missing-only --ids
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
+all-cli status --sort attention
 all-cli status --timeout 10s
 all-cli status --no-progress
 all-cli status --quiet
@@ -223,6 +224,11 @@ example, `--categories cloud,k<TAB>` keeps `cloud` and offers `k8s`.
 Use `--missing-only` to turn the inventory into a focused installation checklist. It can
 be combined with `--categories` or `--tools`, and is mutually exclusive with
 `--installed-only`.
+
+Use `--sort attention` for a quick morning triage: tools that need attention (not
+installed, unconfigured, or carrying warnings/errors) float to the top in tool order
+while everything healthy stays below. It pairs with the summary counts printed under
+every status table.
 
 ### Current contexts at a glance
 
