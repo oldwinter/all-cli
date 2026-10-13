@@ -217,6 +217,87 @@ func TestStatusCommandErrorsOnInvalidSort(t *testing.T) {
 	}
 }
 
+func stubSummaryOnlyRegistry(t *testing.T) {
+	t.Helper()
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Binary: "aws"},
+		{ID: "kubectl", DisplayName: "kubectl", Category: "k8s", Binary: "kubectl"},
+		{ID: "gh", DisplayName: "gh", Category: "code", Binary: "gh"},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		switch def.ID {
+		case "aws":
+			return model.ToolSummary{ID: "aws", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes, Configured: true}
+		case "kubectl":
+			return model.ToolSummary{ID: "kubectl", Category: "k8s", Installed: true, ConfiguredState: model.ConfiguredNo}
+		case "gh":
+			return model.ToolSummary{ID: "gh", Category: "code", Installed: false, ConfiguredState: model.ConfiguredUnknown}
+		default:
+			t.Fatalf("unexpected tool %s", def.ID)
+			return model.ToolSummary{}
+		}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+}
+
+func TestStatusCommandSummaryOnlyPrintsOneLine(t *testing.T) {
+	stubSummaryOnlyRegistry(t)
+	stubShowStatusSpinner(t, true)
+
+	stdout, stderr, err := executeTestCommand(t, newStatusCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}), "--summary-only")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "\nSummary: 3 tools, 2 installed, 2 need attention\n"
+	if stdout != want {
+		t.Fatalf("expected summary-only line %q, got %q", want, stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected summary-only to skip spinner, got %q", stderr)
+	}
+}
+
+func TestStatusCommandSummaryOnlyRespectsFilters(t *testing.T) {
+	stubSummaryOnlyRegistry(t)
+	stubShowStatusSpinner(t, false)
+
+	stdout, _, err := executeTestCommand(t, newStatusCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}), "--summary-only", "--missing-only")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "\nSummary: 1 tool, 0 installed, 1 need attention\n"
+	if stdout != want {
+		t.Fatalf("expected filtered summary-only line %q, got %q", want, stdout)
+	}
+}
+
+func TestStatusCommandSummaryOnlyConflictsWithIDs(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	_, _, err := executeTestCommand(t, newStatusCommand(opts, cliFakeRunner{}), "--summary-only", "--ids")
+	if err == nil || !strings.Contains(err.Error(), "if any flags in the group") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestStatusCommandSummaryOnlyYieldsToJSON(t *testing.T) {
+	stubSummaryOnlyRegistry(t)
+	stubShowStatusSpinner(t, false)
+
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	stdout, _, err := executeTestCommand(t, newStatusCommand(opts, cliFakeRunner{}), "--summary-only")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got model.StatusReport
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("expected full JSON report, decode failed: %v", err)
+	}
+	if len(got.Tools) != 3 {
+		t.Fatalf("expected 3 tools in JSON payload, got %#v", got.Tools)
+	}
+}
+
 func TestStatusHelpIncludesDescription(t *testing.T) {
 	t.Parallel()
 

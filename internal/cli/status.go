@@ -39,6 +39,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var groupBy string
 	var sortBy string
 	var ids bool
+	var summaryOnly bool
 	var quiet bool
 	var installedOnly bool
 	var missingOnly bool
@@ -50,12 +51,15 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 configuration state, capabilities, and optional current context snapshot.
 
 When not using --json or --ids, a progress indicator may be shown on stderr while tools are checked.
-Use --ids to print one checked tool ID per line. --json takes precedence over --ids.`,
+When not using --json, --ids, or --summary-only, a progress indicator may be shown on stderr while tools are checked.
+Use --ids to print one checked tool ID per line. --json takes precedence over --ids.
+Use --summary-only to print just the one-line summary count without tables or warning details.`,
 		Example: `  all-cli status
   all-cli status --tools kubectl,docker --group-by none
   all-cli status --categories ai,cloud
   all-cli status --categories ai --missing-only
   all-cli status --missing-only --ids
+  all-cli status --summary-only
   all-cli status --installed-only --quiet`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -78,7 +82,7 @@ Use --ids to print one checked tool ID per line. --json takes precedence over --
 			}
 
 			var spinner *progressSpinner
-			if !opts.JSON && !ids && !opts.NoProgress && !quiet && showStatusSpinner() {
+			if !opts.JSON && !ids && !summaryOnly && !opts.NoProgress && !quiet && showStatusSpinner() {
 				spinner = newProgressSpinner(cmd.ErrOrStderr(), len(reg))
 				spinner.Start()
 			}
@@ -99,6 +103,10 @@ Use --ids to print one checked tool ID per line. --json takes precedence over --
 			if ids {
 				return printStatusIDs(cmd, report.Tools)
 			}
+			if summaryOnly {
+				output.PrintStatusSummary(cmd.OutOrStdout(), report)
+				return nil
+			}
 			output.PrintStatusTableWithOptions(cmd.OutOrStdout(), report, output.StatusTableOptions{
 				GroupBy: groupByValue,
 				SortBy:  sortByValue,
@@ -112,10 +120,12 @@ Use --ids to print one checked tool ID per line. --json takes precedence over --
 	cmd.Flags().StringVar(&groupBy, "group-by", statusGroupByCategory, "Group output: category|none")
 	cmd.Flags().StringVar(&sortBy, "sort", statusSortTool, "Sort order: tool|tool-desc|category|category-desc")
 	cmd.Flags().BoolVar(&ids, "ids", false, "Print only checked tool IDs, one per line (ignored with --json)")
+	cmd.Flags().BoolVar(&summaryOnly, "summary-only", false, "Print only the one-line summary count (ignored with --json)")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Only show tools with issues (not installed, unconfigured, warnings, or errors)")
 	cmd.Flags().BoolVar(&installedOnly, "installed-only", false, "Only show installed tools")
 	cmd.Flags().BoolVar(&missingOnly, "missing-only", false, "Only show tools that are not installed")
 	cmd.MarkFlagsMutuallyExclusive("installed-only", "missing-only")
+	cmd.MarkFlagsMutuallyExclusive("ids", "summary-only")
 	return cmd
 }
 
