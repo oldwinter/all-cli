@@ -272,3 +272,52 @@ func TestRunSingleToolStatusCommandErrorsWhenToolMissing(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestStatusCommandJSONUnconfiguredOnly(t *testing.T) {
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", DisplayName: "AWS CLI", Category: "cloud", Binary: "aws"},
+		{ID: "kubectl", DisplayName: "kubectl", Category: "k8s", Binary: "kubectl"},
+		{ID: "gh", DisplayName: "gh", Category: "code", Binary: "gh"},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		switch def.ID {
+		case "aws":
+			return model.ToolSummary{ID: "aws", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes, Configured: true}
+		case "kubectl":
+			return model.ToolSummary{ID: "kubectl", Category: "k8s", Installed: true, ConfiguredState: model.ConfiguredNo}
+		case "gh":
+			return model.ToolSummary{ID: "gh", Category: "code", Installed: false, ConfiguredState: model.ConfiguredUnknown}
+		default:
+			t.Fatalf("unexpected tool %s", def.ID)
+			return model.ToolSummary{}
+		}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	stdout, stderr, err := executeTestCommand(t, newStatusCommand(opts, cliFakeRunner{}), "--unconfigured-only")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var got model.StatusReport
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode json: %v", err)
+	}
+	if len(got.Tools) != 1 || got.Tools[0].ID != "kubectl" {
+		t.Fatalf("unexpected tools payload: %#v", got.Tools)
+	}
+}
+
+func TestStatusCommandRejectsUnconfiguredWithMissing(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	_, _, err := executeTestCommand(t, newStatusCommand(opts, cliFakeRunner{}), "--unconfigured-only", "--missing-only")
+	if err == nil || !strings.Contains(err.Error(), "if any flags in the group") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

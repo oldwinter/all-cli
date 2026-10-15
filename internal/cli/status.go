@@ -42,6 +42,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var quiet bool
 	var installedOnly bool
 	var missingOnly bool
+	var unconfiguredOnly bool
 
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -56,6 +57,7 @@ Use --ids to print one checked tool ID per line. --json takes precedence over --
   all-cli status --categories ai,cloud
   all-cli status --categories ai --missing-only
   all-cli status --missing-only --ids
+  all-cli status --unconfigured-only --ids
   all-cli status --installed-only --quiet`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -90,7 +92,7 @@ Use --ids to print one checked tool ID per line. --json takes precedence over --
 			}
 
 			sortToolSummaries(report.Tools, sortByValue)
-			report.Tools = filterStatusTools(report.Tools, installedOnly, missingOnly, quiet)
+			report.Tools = filterStatusTools(report.Tools, installedOnly, missingOnly, quiet, unconfiguredOnly)
 
 			if opts.JSON {
 				report.Diagnostics = diag.Generate(report, diag.Options{Profile: diag.ProfileAgent}).Diagnostics
@@ -115,7 +117,9 @@ Use --ids to print one checked tool ID per line. --json takes precedence over --
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Only show tools with issues (not installed, unconfigured, warnings, or errors)")
 	cmd.Flags().BoolVar(&installedOnly, "installed-only", false, "Only show installed tools")
 	cmd.Flags().BoolVar(&missingOnly, "missing-only", false, "Only show tools that are not installed")
+	cmd.Flags().BoolVar(&unconfiguredOnly, "unconfigured-only", false, "Only show installed tools that are not configured")
 	cmd.MarkFlagsMutuallyExclusive("installed-only", "missing-only")
+	cmd.MarkFlagsMutuallyExclusive("unconfigured-only", "missing-only")
 	return cmd
 }
 
@@ -128,13 +132,16 @@ func printStatusIDs(cmd *cobra.Command, toolsList []model.ToolSummary) error {
 	return nil
 }
 
-func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly, quiet bool) []model.ToolSummary {
+func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly, quiet, unconfiguredOnly bool) []model.ToolSummary {
 	filtered := toolsList[:0]
 	for _, tool := range toolsList {
 		if installedOnly && !tool.Installed {
 			continue
 		}
 		if missingOnly && tool.Installed {
+			continue
+		}
+		if unconfiguredOnly && (!tool.Installed || tool.ConfiguredState != model.ConfiguredNo) {
 			continue
 		}
 		if quiet && tool.Installed && tool.ConfiguredState != model.ConfiguredNo &&
