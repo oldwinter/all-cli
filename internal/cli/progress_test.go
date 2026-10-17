@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -177,13 +178,20 @@ func TestIsTerminalFalseOnRegularFile(t *testing.T) {
 }
 
 func TestIsTerminalTrueOnDevNull(t *testing.T) {
-	f, err := os.Open("/dev/null")
+	// os.DevNull is /dev/null on POSIX and NUL on Windows, so this test is
+	// portable. On Windows NUL is not reported as a character device by Stat,
+	// so the assertion is only meaningful on POSIX platforms.
+	if runtime.GOOS == "windows" {
+		t.Skip("NUL is not a character device on Windows")
+	}
+
+	f, err := os.Open(os.DevNull)
 	if err != nil {
-		t.Fatalf("open /dev/null: %v", err)
+		t.Fatalf("open %s: %v", os.DevNull, err)
 	}
 	defer f.Close()
 
 	if !isTerminal(f) {
-		t.Fatal("expected /dev/null to be treated as a character device")
+		t.Fatalf("expected %s to be treated as a character device", os.DevNull)
 	}
 }

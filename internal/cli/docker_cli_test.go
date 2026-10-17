@@ -35,10 +35,7 @@ func TestDockerStatusJSON(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 
-	var got model.ToolSummary
-	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
-		t.Fatalf("decode json: %v", err)
-	}
+	got := decodeSingleToolStatus(t, stdout)
 	if got.ID != "docker" || got.Current["context"] != "prod" {
 		t.Fatalf("unexpected summary: %#v", got)
 	}
@@ -185,9 +182,19 @@ func TestDockerListPlain(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	for _, needle := range []string{"* prod\tProd cluster", "  staging\tStaging cluster"} {
+	// Output goes through tabwriter, so the description column is aligned with
+	// spaces rather than a raw TAB byte.
+	for _, needle := range []string{"* prod", "Prod cluster", "  staging", "Staging cluster"} {
 		if !strings.Contains(stdout, needle) {
 			t.Fatalf("expected %q in stdout, got:\n%s", needle, stdout)
+		}
+	}
+	if strings.Contains(stdout, "\t") {
+		t.Fatalf("expected tabwriter-aligned columns, got raw TAB in stdout:\n%s", stdout)
+	}
+	for _, line := range strings.Split(strings.TrimRight(stdout, "\n"), "\n") {
+		if !strings.HasPrefix(line, "* prod") && !strings.HasPrefix(line, "  staging") {
+			t.Fatalf("unexpected line %q in stdout:\n%s", line, stdout)
 		}
 	}
 }
@@ -573,6 +580,44 @@ func TestDockerUpdateSkipsUnsafeImageRefs(t *testing.T) {
 	}
 }
 
+// TestDockerUpdateJSONNeverEmitsNullSlices pins the machine contract for the
+// only mutating command: a failed plan must still emit arrays, not null, so a
+// consumer can range over updates/warnings/errors unconditionally.
+func TestDockerUpdateJSONNeverEmitsNullSlices(t *testing.T) {
+	opts := &rootOptions{JSON: true, Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker ps --format {{json .}}": {
+				ExitCode: 1,
+				Err:      assertError("exit status 1"),
+				Stderr:   "daemon unavailable",
+			},
+		},
+	}
+
+	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, runner), "update", "--dry-run")
+	if err == nil {
+		t.Fatal("expected non-zero exit for docker update failure")
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(stdout), &raw); err != nil {
+		t.Fatalf("decode json: %v\npayload:\n%s", err, stdout)
+	}
+	for _, field := range []string{"updates", "warnings", "errors"} {
+		value, ok := raw[field]
+		if !ok {
+			t.Fatalf("missing %q in payload:\n%s", field, stdout)
+		}
+		if strings.TrimSpace(string(value)) == "null" {
+			t.Fatalf("%q marshaled as null, want an array:\n%s", field, stdout)
+		}
+	}
+	if strings.TrimSpace(string(raw["updates"])) != "[]" {
+		t.Fatalf("updates = %s, want [] for an empty plan", strings.TrimSpace(string(raw["updates"])))
+	}
+}
+
 func TestDockerUpdateReportsDockerErrors(t *testing.T) {
 	opts := &rootOptions{JSON: true, Timeout: time.Second}
 	runner := cliFakeRunner{
@@ -586,8 +631,11 @@ func TestDockerUpdateReportsDockerErrors(t *testing.T) {
 	}
 
 	stdout, _, err := executeTestCommand(t, newDockerCommand(opts, runner), "update", "--dry-run")
-	if err != nil {
-		t.Fatalf("json mode should report errors in payload, got %v", err)
+	// docker update is the only mutating command, so a partial failure must
+	// exit non-zero in every output format. The JSON payload is still emitted
+	// first so machine consumers can read the per-image diagnostics.
+	if err == nil {
+		t.Fatal("expected non-zero exit for docker update failure in JSON mode")
 	}
 	var got dockerUpdateResult
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
@@ -595,6 +643,30 @@ func TestDockerUpdateReportsDockerErrors(t *testing.T) {
 	}
 	if len(got.Errors) != 2 || got.Errors[0] != "daemon unavailable" {
 		t.Fatalf("unexpected result: %#v", got)
+	}
+}
+
+// TestDockerUpdateExitCodeMatchesAcrossFormats pins the contract that the exit
+// code of the only mutating command does not depend on --json.
+func TestDockerUpdateExitCodeMatchesAcrossFormats(t *testing.T) {
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker ps --format {{json .}}": {
+				ExitCode: 1,
+				Err:      assertError("exit status 1"),
+				Stderr:   "daemon unavailable",
+			},
+		},
+	}
+
+	_, _, plainErr := executeTestCommand(t, newDockerCommand(&rootOptions{Timeout: time.Second}, runner), "update", "--dry-run")
+	_, _, jsonErr := executeTestCommand(t, newDockerCommand(&rootOptions{JSON: true, Timeout: time.Second}, runner), "update", "--dry-run")
+
+	if (plainErr == nil) != (jsonErr == nil) {
+		t.Fatalf("exit code depends on output format: plain err=%v json err=%v", plainErr, jsonErr)
+	}
+	if plainErr == nil {
+		t.Fatal("expected both formats to fail for the same docker failure")
 	}
 }
 

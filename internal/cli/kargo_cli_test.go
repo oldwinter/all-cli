@@ -87,10 +87,7 @@ func TestKargoStatusJSON(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	var got model.ToolSummary
-	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
-		t.Fatalf("decode json: %v", err)
-	}
+	got := decodeSingleToolStatus(t, stdout)
 	if got.ID != "kargo" || got.Current["project"] != "payments" {
 		t.Fatalf("unexpected summary: %#v", got)
 	}

@@ -33,10 +33,7 @@ func TestKubectlStatusJSON(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 
-	var got model.ToolSummary
-	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
-		t.Fatalf("decode json: %v", err)
-	}
+	got := decodeSingleToolStatus(t, stdout)
 	if got.ID != "kubectl" || got.Current["namespace"] != "payments" {
 		t.Fatalf("unexpected summary: %#v", got)
 	}
