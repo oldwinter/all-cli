@@ -11,6 +11,10 @@ import (
 )
 
 // commandResolver re-parses a suggested command through the real command tree.
+//
+// A resolver owns one command tree and is NOT safe for concurrent use: cobra's
+// Find calls mergePersistentFlags, which writes the command's cached pflag set.
+// Give each parallel subtest its own resolver.
 type commandResolver struct {
 	root *cobra.Command
 }
@@ -216,7 +220,6 @@ func TestInspectCommandUsesStatusTools(t *testing.T) {
 func TestSuggestedCommandResolutionRejectsKnownBadForms(t *testing.T) {
 	t.Parallel()
 
-	resolver := newCommandResolver()
 	tests := []struct {
 		name    string
 		command []string
@@ -230,6 +233,11 @@ func TestSuggestedCommandResolutionRejectsKnownBadForms(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
+			// Build a resolver per subtest: cobra's Find calls
+			// mergePersistentFlags, which mutates the command's cached pflag
+			// set, so one command tree must never be searched from two
+			// goroutines at once.
+			resolver := newCommandResolver()
 			if err := resolver.resolves(tt.command); err == nil {
 				t.Fatalf("expected %q to be rejected, but it resolved", strings.Join(tt.command, " "))
 			}
