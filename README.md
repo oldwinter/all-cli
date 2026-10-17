@@ -199,6 +199,7 @@ all-cli status --tools kubectl,docker
 all-cli status --categories ai,cloud
 all-cli status --categories ai --missing-only
 all-cli status --missing-only --ids
+all-cli status --unconfigured-only --ids
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
@@ -231,6 +232,10 @@ example, `--categories cloud,k<TAB>` keeps `cloud` and offers `k8s`.
 Use `--missing-only` to turn the inventory into a focused installation checklist. It can
 be combined with `--categories` or `--tools`, and is mutually exclusive with
 `--installed-only`.
+
+Use `--unconfigured-only` for the complementary setup checklist: installed tools that
+report no configuration (the ones waiting for a login or init step). It composes with
+`--ids` for scripting and is mutually exclusive with `--missing-only`.
 
 ### Current contexts at a glance
 

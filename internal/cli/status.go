@@ -43,6 +43,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var quiet bool
 	var installedOnly bool
 	var missingOnly bool
+	var unconfiguredOnly bool
 
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -59,6 +60,7 @@ Use --summary-only to print just the one-line summary count without tables or wa
   all-cli status --categories ai,cloud
   all-cli status --categories ai --missing-only
   all-cli status --missing-only --ids
+  all-cli status --unconfigured-only --ids
   all-cli status --summary-only
   all-cli status --installed-only --quiet`,
 		Args: cobra.NoArgs,
@@ -97,16 +99,17 @@ Use --summary-only to print just the one-line summary count without tables or wa
 
 			// Diagnostics describe the full evaluation, not the rendered subset.
 			// Generating them after filtering --installed-only / --missing-only /
-			// --quiet silently dropped almost every diagnostic: the filtered-out
-			// tools are exactly the ones that carry "not installed" and
-			// "unconfigured" findings, so a caller asking "what is wrong with what
-			// I have installed" received a near-empty, falsely healthy report.
+			// --quiet / --unconfigured-only silently dropped almost every
+			// diagnostic: the filtered-out tools are exactly the ones that carry
+			// "not installed" and "unconfigured" findings, so a caller asking
+			// "what is wrong with what I have installed" received a near-empty,
+			// falsely healthy report.
 			var diagnostics []model.DiagnosticItem
 			if opts.JSON {
 				diagnostics = diag.Generate(report, diag.Options{Profile: diag.ProfileAgent}).Diagnostics
 			}
 
-			report.Tools = filterStatusTools(report.Tools, installedOnly, missingOnly, quiet)
+			report.Tools = filterStatusTools(report.Tools, installedOnly, missingOnly, quiet, unconfiguredOnly)
 
 			if opts.JSON {
 				report.Diagnostics = diagnostics
@@ -136,7 +139,9 @@ Use --summary-only to print just the one-line summary count without tables or wa
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Only show tools with issues (not installed, unconfigured, warnings, or errors)")
 	cmd.Flags().BoolVar(&installedOnly, "installed-only", false, "Only show installed tools")
 	cmd.Flags().BoolVar(&missingOnly, "missing-only", false, "Only show tools that are not installed")
+	cmd.Flags().BoolVar(&unconfiguredOnly, "unconfigured-only", false, "Only show installed tools that are not configured")
 	cmd.MarkFlagsMutuallyExclusive("installed-only", "missing-only")
+	cmd.MarkFlagsMutuallyExclusive("unconfigured-only", "missing-only")
 	cmd.MarkFlagsMutuallyExclusive("ids", "summary-only")
 	return cmd
 }
@@ -150,13 +155,19 @@ func printStatusIDs(cmd *cobra.Command, toolsList []model.ToolSummary) error {
 	return nil
 }
 
-func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly, quiet bool) []model.ToolSummary {
+func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly, quiet, unconfiguredOnly bool) []model.ToolSummary {
+	// Allocate rather than reusing toolsList[:0]: the function reads as a pure
+	// filter, and overwriting the caller's backing array would corrupt any
+	// caller that keeps the original slice.
 	filtered := make([]model.ToolSummary, 0, len(toolsList))
 	for _, tool := range toolsList {
 		if installedOnly && !tool.Installed {
 			continue
 		}
 		if missingOnly && tool.Installed {
+			continue
+		}
+		if unconfiguredOnly && (!tool.Installed || tool.ConfiguredState != model.ConfiguredNo) {
 			continue
 		}
 		if quiet && tool.Installed && tool.ConfiguredState != model.ConfiguredNo &&
