@@ -233,3 +233,20 @@ func TestPrintStatusTableWithOptions_SummaryCountsWarnings(t *testing.T) {
 		t.Fatalf("expected warning to count as needing attention, got:\n%s", got)
 	}
 }
+
+func TestPrintStatusSummary(t *testing.T) {
+	report := model.StatusReport{
+		Tools: []model.ToolSummary{
+			{ID: "aws", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes},
+			{ID: "gh", Category: "code", Installed: false, ConfiguredState: model.ConfiguredUnknown},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintStatusSummary(&buf, report)
+
+	want := "\nSummary: 2 tools, 1 installed, 1 need attention\n"
+	if buf.String() != want {
+		t.Fatalf("expected summary-only line %q, got %q", want, buf.String())
+	}
+}
