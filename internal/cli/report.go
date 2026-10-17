@@ -57,7 +57,10 @@ selected captured tools, preserving their original order and facts.`,
 					report.Tools = filterReportSnapshotCategories(report.Tools, selectedCategories)
 				}
 			} else {
-				report, err = buildReportStatus(cmd.Context(), runner, opts.Timeout, toolsFilter, categoriesFilter)
+				// Timeout-aware so an explicit --timeout is not overridden by a
+				// per-tool registry default, and category-aware so --categories
+				// narrows the live evaluation too.
+				report, err = buildReportStatus(cmd.Context(), runner, opts.timeouts(), toolsFilter, categoriesFilter)
 			}
 			if err != nil {
 				return err

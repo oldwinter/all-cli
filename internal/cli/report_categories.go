@@ -3,13 +3,16 @@ package cli
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
 )
 
-func buildReportStatus(ctx context.Context, runner execx.Runner, timeout time.Duration, toolsFilter, categoriesFilter string) (model.StatusReport, error) {
+// buildReportStatus evaluates the registry for `report`, honouring both the
+// --tools and --categories filters. It takes the caller's full timeout intent so
+// an explicit --timeout stays authoritative for tools that declare their own
+// default.
+func buildReportStatus(ctx context.Context, runner execx.Runner, timeouts timeoutSetting, toolsFilter, categoriesFilter string) (model.StatusReport, error) {
 	reg, err := registryForToolsFilter(toolsFilter)
 	if err != nil {
 		return model.StatusReport{}, err
@@ -18,7 +21,7 @@ func buildReportStatus(ctx context.Context, runner execx.Runner, timeout time.Du
 	if err != nil {
 		return model.StatusReport{}, err
 	}
-	report := evaluateStatusRegistry(ctx, reg, runner, timeout, nil)
+	report := evaluateStatusRegistry(ctx, reg, runner, timeouts, nil)
 	sortToolSummaries(report.Tools, statusSortTool)
 	return report, nil
 }

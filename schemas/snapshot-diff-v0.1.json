@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oldwinter/all-cli/schemas/snapshot-diff-v0.1.json",
+  "title": "all-cli snapshot diff",
+  "description": "Emitted by `all-cli diff <a> <b> --json`. schema_version matches model.SnapshotDiffSchemaVersionV01.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "summary", "changes"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "snapshot-diff-v0.1",
+      "description": "JSON output schema version; matches model.SnapshotDiffSchemaVersionV01."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the diff was built."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["added", "removed", "changed"],
+      "properties": {
+        "added": { "type": "integer", "minimum": 0 },
+        "removed": { "type": "integer", "minimum": 0 },
+        "changed": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "changes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tool_change" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "capability": {
+      "type": "object",
+      "required": ["has_contexts", "can_switch"],
+      "properties": {
+        "has_contexts": { "type": "boolean" },
+        "can_switch": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "tool_summary": {
+      "type": "object",
+      "required": [
+        "id",
+        "display_name",
+        "category",
+        "installed",
+        "configured_state",
+        "configured",
+        "capabilities"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "display_name": { "type": "string" },
+        "category": { "type": "string" },
+        "installed": { "type": "boolean" },
+        "install_path": { "type": "string" },
+        "configured_state": {
+          "type": "string",
+          "enum": ["yes", "no", "n/a", "unknown"]
+        },
+        "configured": { "type": "boolean" },
+        "capabilities": { "$ref": "#/$defs/capability" },
+        "current": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "metadata": { "type": "object", "additionalProperties": true },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "errors": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "tool_change": {
+      "type": "object",
+      "required": ["tool_id", "change_type"],
+      "properties": {
+        "tool_id": { "type": "string" },
+        "change_type": {
+          "type": "string",
+          "enum": ["added", "removed", "changed"]
+        },
+        "fields": {
+          "type": "array",
+          "description": "Top-level ToolSummary field names that differ. Only set for change_type=changed.",
+          "items": { "type": "string" }
+        },
+        "before": { "$ref": "#/$defs/tool_summary" },
+        "after": { "$ref": "#/$defs/tool_summary" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

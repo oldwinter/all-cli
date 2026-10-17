@@ -1,95 +1,62 @@
 package cli
 
 import (
-	"os"
 	"testing"
 )
 
+// The tests in this file mutate process-global environment variables, and the
+// code under test reads them through os.Getenv. They therefore must not call
+// t.Parallel(): a parallel test that consults the same variables (for example
+// the options command reporting no_progress, or status deciding whether to draw
+// a spinner) would observe a value written by another test's goroutine.
+//
+// That is not theoretical: TestOptionsCommandOutputsPersistentFlagsAsText
+// failed the three-pass stability lane with "expected no_progress=false" while
+// TestStatusSpinnerEnvHelpers had ALL_CLI_NO_PROGRESS set concurrently.
+// t.Setenv both isolates the value and restores it automatically, and it panics
+// if the test is marked parallel, which keeps this constraint enforced.
+
 func TestAnsiDisabledByEnv(t *testing.T) {
-	t.Parallel()
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("TERM", "")
 
-	oldNO, oldTERM := os.Getenv("NO_COLOR"), os.Getenv("TERM")
-	t.Cleanup(func() {
-		restoreEnv(t, "NO_COLOR", oldNO)
-		restoreEnv(t, "TERM", oldTERM)
-	})
-
-	if err := os.Unsetenv("NO_COLOR"); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Unsetenv("TERM"); err != nil {
-		t.Fatal(err)
-	}
 	if ansiDisabledByEnv() {
 		t.Fatal("expected ansi not disabled with empty env")
 	}
 
-	if err := os.Setenv("NO_COLOR", "1"); err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv("NO_COLOR", "1")
 	if !ansiDisabledByEnv() {
 		t.Fatal("expected NO_COLOR to disable ansi")
 	}
-	if err := os.Unsetenv("NO_COLOR"); err != nil {
-		t.Fatal(err)
-	}
 
-	if err := os.Setenv("TERM", "dumb"); err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("TERM", "dumb")
 	if !ansiDisabledByEnv() {
 		t.Fatal("expected TERM=dumb to disable ansi")
 	}
 }
 
 func TestStatusSpinnerEnvHelpers(t *testing.T) {
-	t.Parallel()
+	t.Setenv("CI", "")
+	t.Setenv("ALL_CLI_NO_PROGRESS", "")
 
-	oldCI := os.Getenv("CI")
-	oldProg := os.Getenv("ALL_CLI_NO_PROGRESS")
-	t.Cleanup(func() {
-		restoreEnv(t, "CI", oldCI)
-		restoreEnv(t, "ALL_CLI_NO_PROGRESS", oldProg)
-	})
-
-	if err := os.Unsetenv("CI"); err != nil {
-		t.Fatal(err)
-	}
 	if ciEnvSet() {
 		t.Fatal("expected CI unset to be false")
 	}
-	if err := os.Setenv("CI", "true"); err != nil {
-		t.Fatal(err)
-	}
+
+	t.Setenv("CI", "true")
 	if !ciEnvSet() {
 		t.Fatal("expected CI set")
 	}
 
-	if err := os.Unsetenv("ALL_CLI_NO_PROGRESS"); err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv("ALL_CLI_NO_PROGRESS", "")
 	if allCliNoProgressEnvSet() {
 		t.Fatal("expected ALL_CLI_NO_PROGRESS unset")
 	}
 	for _, v := range []string{"1", "true", "yes", "on", "TRUE"} {
-		if err := os.Setenv("ALL_CLI_NO_PROGRESS", v); err != nil {
-			t.Fatal(err)
-		}
+		t.Setenv("ALL_CLI_NO_PROGRESS", v)
 		if !allCliNoProgressEnvSet() {
 			t.Fatalf("expected ALL_CLI_NO_PROGRESS=%q to be set", v)
 		}
-	}
-}
-
-func restoreEnv(t *testing.T, key, value string) {
-	t.Helper()
-	if value == "" {
-		if err := os.Unsetenv(key); err != nil {
-			t.Fatal(err)
-		}
-		return
-	}
-	if err := os.Setenv(key, value); err != nil {
-		t.Fatal(err)
 	}
 }

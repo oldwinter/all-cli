@@ -28,6 +28,8 @@ type catalogReport struct {
 func newCatalogCommand(opts *rootOptions) *cobra.Command {
 	var categoriesFilter string
 	var ids bool
+	var matchAll bool
+	var summary bool
 
 	cmd := &cobra.Command{
 		Use:   "catalog [list|ls|listing] [search]",
@@ -36,8 +38,10 @@ func newCatalogCommand(opts *rootOptions) *cobra.Command {
 search term matches tool IDs, names, categories, binary names, and purposes.
 The tokens list, ls, and listing are aliases for the full catalog and can be
 followed by an optional search term.
+Use --match-all to match every whitespace-separated search word across those fields.
 Use --categories to limit results to one or more exact registry categories.
-Use --ids to print one matching tool ID per line. --json takes precedence over --ids.`,
+Use --ids to print one matching tool ID per line, or --summary for category counts.
+--json takes precedence over either text mode. --ids and --summary are mutually exclusive.`,
 		Example: `  all-cli catalog
   all-cli catalog list
   all-cli catalog kubernetes
@@ -51,12 +55,20 @@ Use --ids to print one matching tool ID per line. --json takes precedence over -
 			if err != nil {
 				return err
 			}
-			report := buildCatalogReport(query, registry)
+			var report catalogReport
+			if matchAll {
+				report = buildCatalogWordsReport(query, registry)
+			} else {
+				report = buildCatalogReport(query, registry)
+			}
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
 			if ids {
 				return printCatalogIDs(cmd, report)
+			}
+			if summary {
+				return printCatalogSummary(cmd, report)
 			}
 			return printCatalogTable(cmd, report)
 		},
@@ -65,7 +77,10 @@ Use --ids to print one matching tool ID per line. --json takes precedence over -
 		},
 	}
 	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to browse (e.g. ai,cloud)")
+	cmd.Flags().BoolVar(&matchAll, "match-all", false, "Match every search word across tool metadata instead of an exact phrase")
 	cmd.Flags().BoolVar(&ids, "ids", false, "Print only tool IDs, one per line (ignored with --json)")
+	cmd.Flags().BoolVar(&summary, "summary", false, "Show matching tool counts by category (ignored with --json)")
+	cmd.MarkFlagsMutuallyExclusive("ids", "summary")
 	return cmd
 }
 

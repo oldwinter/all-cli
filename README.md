@@ -199,17 +199,27 @@ all-cli status --tools kubectl,docker
 all-cli status --categories ai,cloud
 all-cli status --categories ai --missing-only
 all-cli status --missing-only --ids
+all-cli status --unconfigured-only --ids
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
+all-cli status --sort attention
 all-cli status --timeout 10s
 all-cli status --no-progress
+all-cli status --summary-only
 all-cli status --quiet
 ```
 
 Use `--ids` to print one checked tool ID per line after applying the status filters and
 sort order. This mode suppresses the progress spinner, so stdout contains only IDs. If
 you also pass `--json`, the full JSON report takes precedence.
+
+Use `--summary-only` to print just the `Summary: ...` line without the tables or the
+warning and error details, after applying the status filters. It is handy as a
+prompt-friendly one-liner or a quick health check (for example with `--tools`,
+`--categories`, or `--missing-only`). This mode also suppresses the progress spinner,
+and is mutually exclusive with `--ids`. If you also pass `--json`, the full JSON
+report takes precedence.
 
 Use the global `--no-progress` flag to suppress progress indicators in human-readable
 commands. `status --quiet` also suppresses the status spinner while showing only tools
@@ -223,6 +233,15 @@ example, `--categories cloud,k<TAB>` keeps `cloud` and offers `k8s`.
 Use `--missing-only` to turn the inventory into a focused installation checklist. It can
 be combined with `--categories` or `--tools`, and is mutually exclusive with
 `--installed-only`.
+
+Use `--sort attention` for a quick morning triage: tools that need attention (not
+installed, unconfigured, or carrying warnings/errors) float to the top in tool order
+while everything healthy stays below. It pairs with the summary counts printed under
+every status table.
+
+Use `--unconfigured-only` for the complementary setup checklist: installed tools that
+report no configuration (the ones waiting for a login or init step). It composes with
+`--ids` for scripting and is mutually exclusive with `--missing-only`.
 
 ### Current contexts at a glance
 
@@ -431,7 +450,10 @@ the full catalog; each alias can take an optional search term. Add an optional
 search term to match tool IDs, names,
 categories, binary names, and purposes; human table output shows the active
 query. Use `--categories` to browse one or more exact registry categories;
-category filters and search terms can be combined:
+category filters and search terms can be combined. Add `--match-all` to match
+every whitespace-separated word anywhere in the metadata, instead of requiring
+one contiguous phrase. Matching is case-insensitive; words may match different
+fields, and an empty query still lists the full catalog:
 
 ```bash
 all-cli catalog
@@ -441,7 +463,22 @@ all-cli catalog kubernetes
 all-cli catalog --categories ai,cloud
 all-cli catalog kubernetes --categories k8s,cloud
 all-cli catalog cloud --json
+all-cli catalog "tui kubernetes" --match-all
+all-cli catalog list "cloud account" --match-all --ids
 ```
+
+Use `--summary` instead to see an alphabetical category breakdown and total
+tool count without the individual rows. Search, `--match-all`, and category
+filters apply before counting. No matches produces a total of zero:
+
+```bash
+all-cli catalog --summary
+all-cli catalog "cloud account" --match-all --summary
+all-cli catalog --categories ai,cloud --summary
+```
+
+`--summary` and `--ids` are mutually exclusive. `--json` keeps the full catalog
+report unchanged and takes precedence over either text mode.
 
 Use `--ids` to print one matching tool ID per line for a picker or a shell loop:
 

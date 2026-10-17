@@ -142,17 +142,11 @@ func newKubectlUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 
 			contextName := args[0]
 			if err := a.UseContext(ctx, contextName); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "kubectl", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "kubectl", err)
 			}
 			if strings.TrimSpace(namespace) != "" {
 				if err := a.SetNamespaceForContext(ctx, contextName, namespace); err != nil {
-					if opts.JSON {
-						_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "kubectl", Error: err.Error()})
-					}
-					return err
+					return reportUseFailure(cmd, opts, "kubectl", err)
 				}
 			}
 
@@ -182,10 +176,7 @@ func newKubectlNamespaceCommand(opts *rootOptions, runner execx.Runner) *cobra.C
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
 			ns := args[0]
 			if err := a.SetNamespaceForCurrentContext(ctx, ns); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "kubectl", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "kubectl", err)
 			}
 			cur, _, _, _ := a.Current(ctx)
 			if opts.JSON {

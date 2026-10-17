@@ -35,16 +35,22 @@ type ToolAdapter interface {
 }
 
 // toolFromAdapter generates a ToolDefinition from a ToolAdapter factory.
-// The adapter instance is created once and reused for both ConfigCheck and Current
-// within a single evaluation cycle.
+//
+// Each callback builds its adapter from the runner it is handed rather than
+// sharing one lazily-initialized instance captured when the definition was
+// created. The shared instance was wrong twice over: DefaultRegistry returns
+// struct copies that still close over the same variable, so a second evaluation
+// with a different runner silently kept using the first runner and issued zero
+// new commands; and the `adapter == nil` check-then-write was an unsynchronized
+// read-modify-write, i.e. a data race under the Go memory model, even though the
+// status command evaluates tools concurrently.
+//
+// Building per callback is cheap: every adapter is a stateless struct that only
+// stores its runner. It also does not reintroduce the duplicate external command
+// that Configured and Current both need, because Evaluate installs a memoizing
+// runner for the duration of one evaluation (see evaluate.go), so the second
+// callback replays the first callback's result instead of re-running the tool.
 func toolFromAdapter(id, displayName, category, binary string, caps model.Capability, factory func(execx.Runner) ToolAdapter) ToolDefinition {
-	var adapter ToolAdapter
-	getAdapter := func(runner execx.Runner) ToolAdapter {
-		if adapter == nil {
-			adapter = factory(runner)
-		}
-		return adapter
-	}
 	return ToolDefinition{
 		ID:           id,
 		DisplayName:  displayName,
@@ -55,8 +61,7 @@ func toolFromAdapter(id, displayName, category, binary string, caps model.Capabi
 			if !installed {
 				return model.ConfiguredUnknown, nil, nil
 			}
-			a := getAdapter(runner)
-			ok, warnings, errs, err := a.Configured(ctx)
+			ok, warnings, errs, err := factory(runner).Configured(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 				return model.ConfiguredUnknown, warnings, errs
@@ -70,8 +75,7 @@ func toolFromAdapter(id, displayName, category, binary string, caps model.Capabi
 			if !installed {
 				return nil, nil, nil
 			}
-			a := getAdapter(runner)
-			cur, warnings, errs, err := a.Current(ctx)
+			cur, warnings, errs, err := factory(runner).Current(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
@@ -115,7 +119,16 @@ type ToolDefinition struct {
 	DisplayName string
 	Category    string
 	Binary      string
-	Timeout     time.Duration
+
+	// Timeout is a DEFAULT per-command timeout for this tool, used only when the
+	// user did not pass an explicit --timeout. A tool sets it when its checks are
+	// known to need longer than the global default (wrangler and the cloud
+	// whoami tools allow 10s). A user-supplied --timeout always wins, so this
+	// field can never silently stretch a timeout the caller asked for; see
+	// cli.runnerForTool, which is the only consumer.
+	//
+	// Zero means "no tool-specific default": the global --timeout applies.
+	Timeout time.Duration
 
 	Capabilities model.Capability
 
@@ -288,21 +301,54 @@ func glabTool() ToolDefinition {
 	)
 }
 
-func rcloneConfigured() (bool, []string, []string) {
+// rcloneConfigCandidates returns the paths rclone itself would use, most
+// specific first.
+//
+// rclone follows the OS config-directory convention rather than a hardcoded
+// ~/.config path, so on Windows the real location is
+// %APPDATA%\rclone\rclone.conf and on macOS it is
+// ~/Library/Application Support/rclone/rclone.conf. Checking only the XDG path
+// made a correctly configured rclone report as unconfigured on both platforms.
+func rcloneConfigCandidates() ([]string, error) {
+	var candidates []string
+
+	if configDir, err := os.UserConfigDir(); err == nil && configDir != "" {
+		candidates = append(candidates, filepath.Join(configDir, "rclone", "rclone.conf"))
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return false, nil, []string{err.Error()}
+		if len(candidates) > 0 {
+			return candidates, nil
+		}
+		return nil, err
 	}
-	candidates := []string{
-		filepath.Join(home, ".config", "rclone", "rclone.conf"),
+	candidates = append(candidates,
+		// Explicit override rclone honors on every platform.
 		filepath.Join(home, ".rclone.conf"),
-	}
+		// XDG location, kept for Linux setups that predate UserConfigDir.
+		filepath.Join(home, ".config", "rclone", "rclone.conf"),
+	)
+	return candidates, nil
+}
+
+// rcloneConfiguredIn reports whether any candidate path exists. It is a pure
+// function of its input so it can be tested without touching the environment.
+func rcloneConfiguredIn(candidates []string) (bool, []string, []string) {
 	for _, p := range candidates {
 		if _, err := os.Stat(p); err == nil {
 			return true, nil, nil
 		}
 	}
 	return false, nil, nil
+}
+
+func rcloneConfigured() (bool, []string, []string) {
+	candidates, err := rcloneConfigCandidates()
+	if err != nil {
+		return false, nil, []string{err.Error()}
+	}
+	return rcloneConfiguredIn(candidates)
 }
 
 func awsTool() ToolDefinition {

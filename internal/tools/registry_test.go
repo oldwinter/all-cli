@@ -1,6 +1,9 @@
 package tools
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestRegistryToolIDsAreUnique(t *testing.T) {
 	t.Parallel()
@@ -65,6 +68,52 @@ func TestDefaultRegistryIncludesToolsFromToolsMD(t *testing.T) {
 		}
 		if def.Binary != want.binary {
 			t.Errorf("tool %q binary = %q, want %q", id, def.Binary, want.binary)
+		}
+	}
+}
+
+// TestRegistryToolTimeouts pins the exact set of tools that declare a
+// tool-specific Timeout default.
+//
+// Timeout is a per-tool DEFAULT that only applies when the user did not pass an
+// explicit --timeout (see the field comment on ToolDefinition). Because it
+// silently lengthens the wait for those tools, the set has to be a deliberate,
+// reviewed decision rather than something a new tool picks up by accident.
+// Adding a tool here is fine; adding one without updating this table fails the
+// test on purpose.
+func TestRegistryToolTimeouts(t *testing.T) {
+	t.Parallel()
+
+	want := map[string]time.Duration{
+		// wrangler's whoami chain can fall back from --json to plain text.
+		"wrangler": 10 * time.Second,
+		// The cloud whoami tools share cloudWhoamiTool's default.
+		"vercel":  10 * time.Second,
+		"railway": 10 * time.Second,
+		"netlify": 10 * time.Second,
+	}
+
+	got := map[string]time.Duration{}
+	for _, def := range DefaultRegistry() {
+		if def.Timeout != 0 {
+			got[def.ID] = def.Timeout
+		}
+	}
+
+	for id, wantTimeout := range want {
+		gotTimeout, ok := got[id]
+		if !ok {
+			t.Errorf("tool %q has no Timeout, want %s", id, wantTimeout)
+			continue
+		}
+		if gotTimeout != wantTimeout {
+			t.Errorf("tool %q Timeout = %s, want %s", id, gotTimeout, wantTimeout)
+		}
+	}
+	for id, gotTimeout := range got {
+		if _, ok := want[id]; !ok {
+			t.Errorf("tool %q declares Timeout = %s but is not in the pinned set; "+
+				"either remove the Timeout or add it here deliberately", id, gotTimeout)
 		}
 	}
 }

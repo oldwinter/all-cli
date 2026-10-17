@@ -2,7 +2,9 @@
 
 Runtime telemetry is **disabled by default**. Set
 `ALL_CLI_FEATURES=telemetry-v1` to initialize configured sinks. Telemetry
-delivery failures never change the command's output or exit status.
+delivery failures never change the command's output or exit status, and a
+misconfigured individual sink is disabled with a warning on stderr rather than
+failing the command.
 
 ## Data contract
 
@@ -17,8 +19,18 @@ Every enabled command lifecycle records:
 The implementation intentionally excludes command arguments, environment
 contents, external command output, usernames, account IDs, configuration
 values, and paths. PostHog receives no error text or trace ID. Sentry receives
-a scrubbed error, release/environment context, trace context, a command
-breadcrumb, and an in-process stack trace.
+an error **classification** from a closed vocabulary (`timeout`, `canceled`,
+`exit_nonzero`, `not_found`, `permission_denied`, `invalid_usage`,
+`invalid_snapshot`, `network`, `command_failed`, `error`), release/environment
+context, trace context, a command breadcrumb, and an in-process stack trace —
+never the raw error message. The full error text stays local in the structured
+log (`ALL_CLI_LOG_PATH`) for diagnosis.
+
+## Exit-time budget
+
+Remote sinks are delivered concurrently behind a single shared 200 ms budget, so
+telemetry can never add noticeable latency to a command. Delivery is detached
+from the command context, so a cancelled or timed-out command still reports.
 
 ## Structured logs
 
