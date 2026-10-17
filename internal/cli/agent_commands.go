@@ -29,6 +29,7 @@ func newDiagnoseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Short: "Generate agent-readable diagnostics from CLI status",
 		Long: `Generates structured diagnostics from the same tool evaluation used by status.
 Diagnostics include severity, evidence, suggested actions, autofix safety, and related tool IDs.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
@@ -54,6 +55,7 @@ func newDoctorCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Run read-only health checks for local CLI tools",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := buildDiagnosticReport(cmd, opts, runner, toolsFilter, profile)
 			if err != nil {
@@ -111,8 +113,9 @@ func newSnapshotCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "snapshot",
 		Short: "Capture a status snapshot for later diffing",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			report, err := buildStatusReport(cmd.Context(), runner, opts.Timeout, toolsFilter)
+			report, err := buildStatusReportWithTimeoutSettings(cmd.Context(), runner, opts.timeouts(), toolsFilter)
 			if err != nil {
 				return err
 			}
@@ -178,7 +181,7 @@ func buildDiagnosticReport(cmd *cobra.Command, opts *rootOptions, runner execx.R
 	if err := validateAgentProfile(profile); err != nil {
 		return model.DiagnosticReport{}, err
 	}
-	statusReport, err := buildStatusReport(cmd.Context(), runner, opts.Timeout, toolsFilter)
+	statusReport, err := buildStatusReportWithTimeoutSettings(cmd.Context(), runner, opts.timeouts(), toolsFilter)
 	if err != nil {
 		return model.DiagnosticReport{}, err
 	}

@@ -21,7 +21,7 @@ existing machine-readable status report instead.`,
   all-cli report --tools gh --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			report, err := buildStatusReport(cmd.Context(), runner, opts.Timeout, toolsFilter)
+			report, err := buildStatusReportWithTimeoutSettings(cmd.Context(), runner, opts.timeouts(), toolsFilter)
 			if err != nil {
 				return err
 			}

@@ -3,6 +3,7 @@ package cli
 import (
 	"github.com/oldwinter/all-cli/internal/diagnose"
 	"github.com/oldwinter/all-cli/internal/execx"
+	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/output"
 	"github.com/oldwinter/all-cli/internal/tools"
 	"github.com/spf13/cobra"
@@ -47,12 +48,12 @@ Use --tools or --categories to evaluate only selected tools and skip unrelated
 				spinner.Start()
 			}
 
-			report := evaluateStatusRegistry(cmd.Context(), contextRegistry, runner, opts.Timeout, spinner)
+			report := evaluateStatusRegistry(cmd.Context(), contextRegistry, runner, opts.timeouts(), spinner)
 			if spinner != nil {
 				spinner.Stop()
 			}
 
-			installed := report.Tools[:0]
+			installed := make([]model.ToolSummary, 0, len(report.Tools))
 			for _, tool := range report.Tools {
 				if tool.Installed {
 					installed = append(installed, tool)
