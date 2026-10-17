@@ -34,6 +34,35 @@ var naToolPurposes = map[string]string{
 	"opensearch":    "OpenSearch CLI for OpenSearch cluster and index operations.",
 }
 
+// metadataSwitchIDs lists every tool ID handled by an explicit case in
+// MetadataForTool's switch, in source order.
+//
+// It exists so the drift guard in metadata_test.go can assert the reverse
+// direction (metadata -> registry) without parsing this file. A switch case that
+// is not listed here would be invisible to that guard, so keep the two in sync:
+// TestMetadataSwitchIDsMatchMetadataForTool enforces it by checking each entry
+// actually resolves to a non-default metadata value and that the list has no
+// duplicates.
+var metadataSwitchIDs = []string{
+	"obsidian",
+	"k9s",
+	"aws",
+	"aliyun",
+	"wrangler",
+	"vercel",
+	"railway",
+	"netlify",
+	"kubectl",
+	"docker",
+	"gh",
+	"glab",
+	"opencli",
+	"rclone",
+	"kargo",
+	"argocd",
+	"mise",
+}
+
 func MetadataForTool(id string) model.ToolMetadata {
 	if purpose, ok := naToolPurposes[id]; ok {
 		return naMetadata(purpose)

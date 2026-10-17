@@ -2,29 +2,23 @@ package tools
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
 )
 
-// whoamiOnce runs fetch at most once per ToolDefinition closure (for ConfigCheck).
-type whoamiOnce[T any] struct {
-	once sync.Once
-	val  T
-	warn []string
-	errs []string
-	err  error
-}
-
-func (w *whoamiOnce[T]) load(ctx context.Context, r execx.Runner, fetch func(context.Context, execx.Runner) (T, []string, []string, error)) (T, []string, []string, error) {
-	w.once.Do(func() {
-		w.val, w.warn, w.errs, w.err = fetch(ctx, r)
-	})
-	return w.val, w.warn, w.errs, w.err
-}
-
+// cloudWhoamiTool builds a definition for a cloud CLI whose "configured" answer
+// is derived from a single identity fetch that its current-context snapshot also
+// needs.
+//
+// This helper used to cache that fetch in a package-level sync.Once per
+// definition. The cache outlived one evaluation, because DefaultRegistry hands
+// out struct copies whose closures still share the slot, so a second evaluation
+// with a different runner replayed the first runner's identity. It is gone:
+// Evaluate installs a memoizing runner for the duration of one evaluation
+// (see evaluate.go), so ConfigCheck and Current still issue the underlying
+// command once, while a later evaluation is free to fetch again.
 func cloudWhoamiTool[T any](
 	id string,
 	displayName string,
@@ -32,7 +26,6 @@ func cloudWhoamiTool[T any](
 	configured func(T) bool,
 	current func(context.Context, execx.Runner) (map[string]string, []string, []string, error),
 ) ToolDefinition {
-	var cache whoamiOnce[T]
 	return ToolDefinition{
 		ID:          id,
 		DisplayName: displayName,
@@ -47,7 +40,7 @@ func cloudWhoamiTool[T any](
 			if !installed {
 				return model.ConfiguredUnknown, nil, nil
 			}
-			who, warnings, errs, err := cache.load(ctx, runner, fetch)
+			who, warnings, errs, err := fetch(ctx, runner)
 			if err != nil {
 				errs = append(errs, err.Error())
 				return model.ConfiguredUnknown, warnings, errs
