@@ -125,18 +125,40 @@ func TestToolNeedsAttentionMatchesQuietFilter(t *testing.T) {
 	}
 
 	for _, tool := range toolsList {
-		quietKept := len(filterStatusTools([]model.ToolSummary{tool}, false, false, true)) == 1
+		quietKept := len(filterStatusTools([]model.ToolSummary{tool}, false, false, true, false)) == 1
 		if quietKept != toolNeedsAttention(tool) {
 			t.Fatalf("%s: quiet filter kept=%v, needsAttention=%v", tool.ID, quietKept, toolNeedsAttention(tool))
 		}
 	}
 }
 
-func TestRunnerForToolUsesToolTimeoutOverride(t *testing.T) {
+// TestRunnerForToolHonorsExplicitTimeout pins the precedence rule for --timeout:
+// a value the user passed on the command line beats a tool definition's own
+// default. This test previously asserted the opposite (that wrangler's 10s
+// default silently replaced `--timeout 100ms`), which locked the bug in.
+func TestRunnerForToolHonorsExplicitTimeout(t *testing.T) {
 	base := execx.DefaultRunner{}
 	def := tools.ToolDefinition{ID: "wrangler", Timeout: 10 * time.Second}
 
-	got := runnerForTool(base, 5*time.Second, def)
+	got := runnerForTool(base, timeoutSetting{Value: 100 * time.Millisecond, Explicit: true}, def)
+	timeoutRunner, ok := got.(execx.TimeoutRunner)
+	if !ok {
+		t.Fatalf("expected execx.TimeoutRunner, got %T", got)
+	}
+	if timeoutRunner.Timeout != 100*time.Millisecond {
+		t.Fatalf("timeout = %v, want %v (explicit --timeout must not be overridden by the tool default)",
+			timeoutRunner.Timeout, 100*time.Millisecond)
+	}
+}
+
+// TestRunnerForToolUsesToolDefaultTimeoutWhenNotExplicit covers the other half
+// of the rule: the tool definition's Timeout is still used as a default when the
+// user did not set --timeout.
+func TestRunnerForToolUsesToolDefaultTimeoutWhenNotExplicit(t *testing.T) {
+	base := execx.DefaultRunner{}
+	def := tools.ToolDefinition{ID: "wrangler", Timeout: 10 * time.Second}
+
+	got := runnerForTool(base, timeoutSetting{Value: 5 * time.Second}, def)
 	timeoutRunner, ok := got.(execx.TimeoutRunner)
 	if !ok {
 		t.Fatalf("expected execx.TimeoutRunner, got %T", got)
@@ -150,7 +172,7 @@ func TestRunnerForToolUsesDefaultTimeoutWhenNoOverride(t *testing.T) {
 	base := execx.DefaultRunner{}
 	def := tools.ToolDefinition{ID: "aws"}
 
-	got := runnerForTool(base, 5*time.Second, def)
+	got := runnerForTool(base, timeoutSetting{Value: 5 * time.Second}, def)
 	timeoutRunner, ok := got.(execx.TimeoutRunner)
 	if !ok {
 		t.Fatalf("expected execx.TimeoutRunner, got %T", got)

@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/oldwinter/all-cli/internal/execx"
@@ -39,6 +41,33 @@ type registryRunnerStub struct{}
 
 func (registryRunnerStub) Run(context.Context, string, ...string) execx.CmdResult {
 	return execx.CmdResult{}
+}
+
+// countingRunner records every command it is asked to run.
+type countingRunner struct {
+	mu    sync.Mutex
+	calls []string
+}
+
+func (r *countingRunner) Run(_ context.Context, name string, args ...string) execx.CmdResult {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls = append(r.calls, name+" "+strings.Join(args, " "))
+	return execx.CmdResult{}
+}
+
+func (r *countingRunner) snapshot() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]string, len(r.calls))
+	copy(out, r.calls)
+	return out
+}
+
+func (r *countingRunner) count() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.calls)
 }
 
 func TestToolFromAdapterHonorsInstalledStateAndReusesAdapter(t *testing.T) {
@@ -88,13 +117,135 @@ func TestToolFromAdapterHonorsInstalledStateAndReusesAdapter(t *testing.T) {
 		!reflect.DeepEqual(errs, []string{"current diagnostic", "current failed"}) {
 		t.Fatalf("installed Current = %#v, %#v, %#v", current, warnings, errs)
 	}
-	if factoryCalls != 1 || adapter.configuredCalls != 1 || adapter.currentCalls != 1 {
+	// The adapter is built per callback from the runner each callback received,
+	// so construction happens once for ConfigCheck and once for Current. It is a
+	// stateless struct wrapping the runner, so this is not per-evaluation work;
+	// what must not repeat is the external command, which the memoizing runner
+	// handles (see TestEvaluateDeduplicatesConfiguredAndCurrentFetch).
+	if factoryCalls != 2 {
+		t.Fatalf("factory called %d times, want 2 (one per callback)", factoryCalls)
+	}
+	if adapter.configuredCalls != 1 || adapter.currentCalls != 1 {
 		t.Fatalf(
-			"calls = factory %d, configured %d, current %d",
-			factoryCalls,
+			"adapter calls = configured %d, current %d; want 1 each",
 			adapter.configuredCalls,
 			adapter.currentCalls,
 		)
+	}
+}
+
+// TestToolFromAdapterUsesRunnerPassedToEachCallback is the regression test for
+// the stale-adapter bug: the definition used to capture the first runner it ever
+// saw, so a second evaluation with a different runner issued zero commands.
+func TestToolFromAdapterUsesRunnerPassedToEachCallback(t *testing.T) {
+	t.Parallel()
+
+	def := toolFromAdapter(
+		"example",
+		"Example",
+		"test",
+		"example",
+		model.Capability{},
+		func(r execx.Runner) ToolAdapter {
+			return &runnerBackedAdapter{runner: r}
+		},
+	)
+
+	first := &countingRunner{}
+	second := &countingRunner{}
+
+	def.ConfigCheck(context.Background(), first, true)
+	if first.count() != 1 {
+		t.Fatalf("first runner calls = %d, want 1", first.count())
+	}
+
+	def.ConfigCheck(context.Background(), second, true)
+	if second.count() != 1 {
+		t.Fatalf("second runner calls = %d, want 1; the definition is pinned to the first runner", second.count())
+	}
+	if first.count() != 1 {
+		t.Fatalf("first runner calls = %d after second evaluation, want 1", first.count())
+	}
+}
+
+// runnerBackedAdapter issues one command from Configured and one from Current,
+// mimicking a real adapter.
+type runnerBackedAdapter struct {
+	runner execx.Runner
+}
+
+func (a *runnerBackedAdapter) Configured(ctx context.Context) (bool, []string, []string, error) {
+	a.runner.Run(ctx, "example", "whoami")
+	return true, nil, nil, nil
+}
+
+func (a *runnerBackedAdapter) Current(ctx context.Context) (map[string]string, []string, []string, error) {
+	a.runner.Run(ctx, "example", "whoami")
+	return map[string]string{"user": "example"}, nil, nil, nil
+}
+
+// TestEvaluateDeduplicatesConfiguredAndCurrentFetch measures the P1-1 fix: a
+// definition whose Configured and Current both shell out to the same command must
+// execute that command once per Evaluate, not twice.
+func TestEvaluateDeduplicatesConfiguredAndCurrentFetch(t *testing.T) {
+	t.Parallel()
+
+	adapter := &runnerBackedAdapter{}
+	def := toolFromAdapter(
+		"go",
+		"Go",
+		"test",
+		"go",
+		model.Capability{},
+		func(r execx.Runner) ToolAdapter {
+			adapter.runner = r
+			return adapter
+		},
+	)
+
+	runner := &countingRunner{}
+	summary := Evaluate(context.Background(), def, runner)
+
+	if !summary.Installed {
+		t.Skipf("go binary not on PATH: %#v", summary.Errors)
+	}
+	if got := runner.snapshot(); len(got) != 1 {
+		t.Fatalf("commands run = %#v, want exactly one (Configured and Current share it)", got)
+	}
+	if summary.Current["user"] != "example" {
+		t.Fatalf("Current = %#v, want user=example", summary.Current)
+	}
+}
+
+// TestEvaluateDoesNotShareMemoAcrossEvaluations guards the other half of P1-1:
+// the dedup memo must be scoped to one Evaluate, so a later evaluation with a
+// different runner observes its own commands.
+func TestEvaluateDoesNotShareMemoAcrossEvaluations(t *testing.T) {
+	t.Parallel()
+
+	adapter := &runnerBackedAdapter{}
+	def := toolFromAdapter(
+		"go",
+		"Go",
+		"test",
+		"go",
+		model.Capability{},
+		func(r execx.Runner) ToolAdapter {
+			adapter.runner = r
+			return adapter
+		},
+	)
+
+	first := &countingRunner{}
+	Evaluate(context.Background(), def, first)
+	if first.count() != 1 {
+		t.Fatalf("first evaluation commands = %d, want 1", first.count())
+	}
+
+	second := &countingRunner{}
+	Evaluate(context.Background(), def, second)
+	if second.count() != 1 {
+		t.Fatalf("second evaluation commands = %d, want 1; the memo leaked across evaluations", second.count())
 	}
 }
 
@@ -225,16 +376,19 @@ func TestSimpleRegistryDefinitionsReportConfiguredStates(t *testing.T) {
 	}
 }
 
-func TestCloudWhoamiToolCachesConfigAndPreservesDiagnostics(t *testing.T) {
+// TestCloudWhoamiToolPreservesDiagnostics checks the state mapping and that
+// warnings/errors survive both callbacks. The fetch is no longer cached across
+// calls here: cross-evaluation caching replayed a stale identity, and within one
+// evaluation the memoizing runner in evaluate.go already prevents a repeat
+// subprocess (see TestEvaluateDeduplicatesConfiguredAndCurrentFetch).
+func TestCloudWhoamiToolPreservesDiagnostics(t *testing.T) {
 	t.Parallel()
 
-	fetchCalls := 0
 	currentCalls := 0
 	def := cloudWhoamiTool(
 		"example",
 		"Example",
 		func(context.Context, execx.Runner) (string, []string, []string, error) {
-			fetchCalls++
 			return "account", []string{"config warning"}, []string{"config diagnostic"}, nil
 		},
 		func(value string) bool { return value == "account" },
@@ -254,16 +408,11 @@ func TestCloudWhoamiToolCachesConfigAndPreservesDiagnostics(t *testing.T) {
 		t.Fatalf("uninstalled Current = %#v, %#v, %#v", current, warnings, errs)
 	}
 
-	for range 2 {
-		state, warnings, errs = def.ConfigCheck(context.Background(), runner, true)
-		if state != model.ConfiguredYes ||
-			!reflect.DeepEqual(warnings, []string{"config warning"}) ||
-			!reflect.DeepEqual(errs, []string{"config diagnostic"}) {
-			t.Fatalf("configured ConfigCheck = %q, %#v, %#v", state, warnings, errs)
-		}
-	}
-	if fetchCalls != 1 {
-		t.Fatalf("fetch called %d times, want once", fetchCalls)
+	state, warnings, errs = def.ConfigCheck(context.Background(), runner, true)
+	if state != model.ConfiguredYes ||
+		!reflect.DeepEqual(warnings, []string{"config warning"}) ||
+		!reflect.DeepEqual(errs, []string{"config diagnostic"}) {
+		t.Fatalf("configured ConfigCheck = %q, %#v, %#v", state, warnings, errs)
 	}
 
 	current, warnings, errs = def.Current(context.Background(), runner, true)
@@ -321,25 +470,76 @@ func TestCloudWhoamiToolReturnsNoAndUnknownStates(t *testing.T) {
 	}
 }
 
-func TestRcloneConfiguredFindsStandardConfigPath(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+// TestRcloneConfiguredInReportsMissingConfig verifies the pure stat loop on a
+// directory with no rclone config. It never touches the environment, so it is
+// portable to every OS.
+func TestRcloneConfiguredInReportsMissingConfig(t *testing.T) {
+	t.Parallel()
 
-	configured, warnings, errs := rcloneConfigured()
+	dir := t.TempDir()
+	configured, warnings, errs := rcloneConfiguredIn([]string{
+		filepath.Join(dir, "rclone", "rclone.conf"),
+		filepath.Join(dir, ".rclone.conf"),
+	})
 	if configured || warnings != nil || errs != nil {
 		t.Fatalf("missing config = %v, %#v, %#v", configured, warnings, errs)
 	}
+}
 
-	path := filepath.Join(home, ".config", "rclone", "rclone.conf")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
+// TestRcloneConfiguredInFindsExistingConfig covers both supported layouts.
+func TestRcloneConfiguredInFindsExistingConfig(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		relPath string
+	}{
+		{name: "os config dir", relPath: filepath.Join("rclone", "rclone.conf")},
+		{name: "legacy dotfile", relPath: ".rclone.conf"},
 	}
-	if err := os.WriteFile(path, []byte("[remote]\n"), 0o600); err != nil {
-		t.Fatal(err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			path := filepath.Join(dir, tt.relPath)
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte("[remote]\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			configured, warnings, errs := rcloneConfiguredIn([]string{path})
+			if !configured || warnings != nil || errs != nil {
+				t.Fatalf("existing config = %v, %#v, %#v", configured, warnings, errs)
+			}
+		})
 	}
-	configured, warnings, errs = rcloneConfigured()
-	if !configured || warnings != nil || errs != nil {
-		t.Fatalf("existing config = %v, %#v, %#v", configured, warnings, errs)
+}
+
+// TestRcloneConfigCandidatesPreferOSConfigDir is the regression test for the
+// Windows/macOS product bug: the first candidate must live under the OS config
+// directory, not a hardcoded ~/.config path.
+func TestRcloneConfigCandidatesPreferOSConfigDir(t *testing.T) {
+	t.Parallel()
+
+	candidates, err := rcloneConfigCandidates()
+	if err != nil {
+		t.Fatalf("rcloneConfigCandidates: %v", err)
+	}
+	if len(candidates) == 0 {
+		t.Fatal("expected at least one candidate")
+	}
+
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		t.Skipf("no OS config dir on this platform: %v", err)
+	}
+	want := filepath.Join(configDir, "rclone", "rclone.conf")
+	if candidates[0] != want {
+		t.Fatalf("first candidate = %q, want %q", candidates[0], want)
 	}
 }
 

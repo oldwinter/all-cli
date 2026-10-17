@@ -31,6 +31,8 @@ Configured in `internal/cli/status.go`:
 | `--sort` | `tool`, `tool-desc`, `category`, `category-desc`, or `attention` (needs-attention first, then tool A-Z); default is `tool`. |
 | `--quiet` | Shows only missing, unconfigured, warning, or error tools. |
 | `--installed-only` | Shows only installed tools. |
+| `--unconfigured-only` | Shows only installed tools that are not configured. |
+| `--summary-only` | Prints only the one-line summary count; mutually exclusive with `--ids`. |
 
 ## Developer automation
 

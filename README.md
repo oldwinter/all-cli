@@ -199,18 +199,27 @@ all-cli status --tools kubectl,docker
 all-cli status --categories ai,cloud
 all-cli status --categories ai --missing-only
 all-cli status --missing-only --ids
+all-cli status --unconfigured-only --ids
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
 all-cli status --sort attention
 all-cli status --timeout 10s
 all-cli status --no-progress
+all-cli status --summary-only
 all-cli status --quiet
 ```
 
 Use `--ids` to print one checked tool ID per line after applying the status filters and
 sort order. This mode suppresses the progress spinner, so stdout contains only IDs. If
 you also pass `--json`, the full JSON report takes precedence.
+
+Use `--summary-only` to print just the `Summary: ...` line without the tables or the
+warning and error details, after applying the status filters. It is handy as a
+prompt-friendly one-liner or a quick health check (for example with `--tools`,
+`--categories`, or `--missing-only`). This mode also suppresses the progress spinner,
+and is mutually exclusive with `--ids`. If you also pass `--json`, the full JSON
+report takes precedence.
 
 Use the global `--no-progress` flag to suppress progress indicators in human-readable
 commands. `status --quiet` also suppresses the status spinner while showing only tools
@@ -229,6 +238,10 @@ Use `--sort attention` for a quick morning triage: tools that need attention (no
 installed, unconfigured, or carrying warnings/errors) float to the top in tool order
 while everything healthy stays below. It pairs with the summary counts printed under
 every status table.
+
+Use `--unconfigured-only` for the complementary setup checklist: installed tools that
+report no configuration (the ones waiting for a login or init step). It composes with
+`--ids` for scripting and is mutually exclusive with `--missing-only`.
 
 ### Current contexts at a glance
 

@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -22,11 +23,6 @@ type sentrySink struct {
 	release     string
 	client      *http.Client
 }
-
-var (
-	secretPattern = regexp.MustCompile(`(?i)\b(token|password|secret|api[_-]?key|authorization)\s*[:=]\s*[^,\s;]+`)
-	pathPattern   = regexp.MustCompile(`(?:[A-Za-z]:\\|/)(?:[^/\s:\\]+[/\\]){1,}[^,\s:]*`)
-)
 
 func newSentrySink(config Config, client *http.Client) (*sentrySink, error) {
 	parsed, err := url.Parse(config.SentryDSN)
@@ -83,8 +79,12 @@ func (s *sentrySink) capture(ctx context.Context, span Span, command string, com
 		},
 		"exception": map[string]any{
 			"values": []map[string]any{{
-				"type":  "CommandError",
-				"value": scrubError(commandErr),
+				"type": "CommandError",
+				// Only a closed-vocabulary classification is sent. The raw
+				// error text is never transmitted because adapters embed user
+				// context names, namespaces, hostnames, and file paths in it;
+				// the full message stays in the local structured log instead.
+				"value": errorClass(commandErr),
 				"stacktrace": map[string]any{
 					"frames": captureStackFrames(),
 				},
@@ -123,17 +123,53 @@ func (s *sentrySink) capture(ctx context.Context, span Span, command string, com
 	}
 }
 
-func scrubError(err error) string {
+// errorClass reduces an error to a closed-vocabulary category that is safe to
+// transmit. It intentionally carries no user data: no tool output, no context
+// names, no paths, no hostnames, no credentials.
+//
+// This is the enforcement point for the privacy contract in
+// docs/observability.md. The full error text is still available locally through
+// ALL_CLI_LOG_PATH, so operators keep diagnosability without the leak.
+func errorClass(err error) string {
 	if err == nil {
-		return ""
+		return "none"
 	}
-	message := secretPattern.ReplaceAllString(err.Error(), "$1=<redacted>")
-	message = pathPattern.ReplaceAllString(message, "<path>")
-	const maxLength = 8 * 1024
-	if len(message) > maxLength {
-		message = message[:maxLength]
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
 	}
-	return message
+
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return "exit_nonzero"
+	}
+
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "not found"),
+		strings.Contains(message, "executable file not found"),
+		strings.Contains(message, "no such file"):
+		return "not_found"
+	case strings.Contains(message, "permission denied"):
+		return "permission_denied"
+	case strings.Contains(message, "unknown flag"),
+		strings.Contains(message, "unknown command"),
+		strings.Contains(message, "invalid argument"):
+		return "invalid_usage"
+	case strings.Contains(message, "missing schema_version"),
+		strings.Contains(message, "parse snapshot"):
+		return "invalid_snapshot"
+	case strings.Contains(message, "connection refused"),
+		strings.Contains(message, "no such host"),
+		strings.Contains(message, "timeout"):
+		return "network"
+	case strings.Contains(message, "failed"):
+		return "command_failed"
+	default:
+		return "error"
+	}
 }
 
 func captureStackFrames() []map[string]any {

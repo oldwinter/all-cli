@@ -44,6 +44,12 @@ func PrintStatusTableWithOptions(w io.Writer, report model.StatusReport, opts St
 	printStatusDiagnostics(w, report)
 }
 
+// PrintStatusSummary prints only the one-line count of the given report, for
+// compact views such as `status --summary-only`.
+func PrintStatusSummary(w io.Writer, report model.StatusReport) {
+	printStatusSummary(w, report)
+}
+
 // printStatusSummary prints a one-line count of the displayed tools so a
 // glance at the table answers "how many need me?" without counting rows.
 func printStatusSummary(w io.Writer, report model.StatusReport) {

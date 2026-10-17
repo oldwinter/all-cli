@@ -54,9 +54,15 @@ func Execute(
 		TraceParent:        getenv("ALL_CLI_TRACEPARENT"),
 	})
 	if err != nil {
-		startupErr := fmt.Errorf("initialize telemetry: %w", err)
-		printStartupError(stderr, startupErr)
-		return startupErr
+		// Telemetry must never make the CLI unusable: report the problem and
+		// continue without it, keeping the command's output and exit status.
+		printStartupError(stderr, fmt.Errorf("telemetry disabled: %w", err))
+		return root.Execute()
+	}
+	for _, warning := range recorder.Warnings() {
+		if stderr != nil {
+			fmt.Fprintf(stderr, "warning: %s\n", warning)
+		}
 	}
 	ctx, span := recorder.Start(ctx)
 	root.SetContext(ctx)

@@ -87,6 +87,7 @@ func TestStatusCommandIDsApplyFilters(t *testing.T) {
 		{name: "tools and categories intersect", args: []string{"--tools", "aws,docker,kubectl", "--categories", "containers,k8s"}, want: "docker\nkubectl\n"},
 		{name: "installed only", args: []string{"--installed-only"}, want: "aws\ngh\nkubectl\n"},
 		{name: "missing only", args: []string{"--missing-only"}, want: "docker\n"},
+		{name: "unconfigured only", args: []string{"--unconfigured-only"}, want: "gh\n"},
 		{name: "quiet", args: []string{"--quiet"}, want: "docker\ngh\nkubectl\n"},
 		{name: "filter intersection with quiet", args: []string{"--tools", "aws,docker,kubectl", "--categories", "containers,k8s", "--installed-only", "--quiet"}, want: "kubectl\n"},
 		{name: "empty intersection", args: []string{"--tools", "aws", "--categories", "k8s"}, want: ""},

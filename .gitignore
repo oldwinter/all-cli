@@ -36,3 +36,7 @@ qa-results/
 # Opt-in local telemetry state and textfile metrics
 .all-cli-telemetry/
 all-cli.prom
+
+# Windows reserved device name; a stray shell redirect creates this file and it
+# breaks checkout on Windows if committed.
+nul
