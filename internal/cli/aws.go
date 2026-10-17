@@ -24,30 +24,21 @@ func newAWSCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newAWSStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
-		Use:   "status",
-		Short: "Show AWS CLI status and current context",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSingleToolStatusCommand(cmd, opts, runner, "aws")
-		},
-	}
+	return newToolStatusCommand(opts, runner, "aws", "Show AWS CLI status and current context")
 }
 
 func newAWSCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current AWS profile, region, and output format",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolaws.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
 			cur, warnings, errs, _ := a.Current(ctx)
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
-					"current":  cur,
-					"warnings": dedupeMessages(warnings),
-					"errors":   dedupeMessages(errs),
-				})
+				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
@@ -70,6 +61,7 @@ func newAWSListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List AWS CLI profiles",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolaws.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -95,8 +87,8 @@ func newAWSListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"profiles": items,
-					"warnings": dedupeMessages(warnings),
-					"errors":   dedupeMessages(errs),
+					"warnings": nonNil(dedupeMessages(warnings)),
+					"errors":   nonNil(dedupeMessages(errs)),
 				})
 			}
 

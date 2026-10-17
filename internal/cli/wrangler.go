@@ -23,19 +23,14 @@ func newWranglerCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newWranglerStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
-		Use:   "status",
-		Short: "Show Wrangler status and current account context",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSingleToolStatusCommand(cmd, opts, runner, "wrangler")
-		},
-	}
+	return newToolStatusCommand(opts, runner, "wrangler", "Show Wrangler status and current account context")
 }
 
 func newWranglerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show Wrangler login state and account summary",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolwrangler.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -45,11 +40,7 @@ func newWranglerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Co
 			}
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
-					"current":  cur,
-					"warnings": dedupeMessages(warnings),
-					"errors":   dedupeMessages(errs),
-				})
+				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)

@@ -29,51 +29,54 @@ func newGLabStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show effective and global glab host context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := cmd.Context()
-			a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, warnings, errs, _ := a.Current(ctx)
-
-			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
-					"current":  cur,
-					"warnings": warnings,
-					"errors":   errs,
-				})
-			}
-
-			for _, w := range warnings {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
-			}
-			for _, e := range errs {
-				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
-			}
-
-			if v := strings.TrimSpace(cur["effective_host"]); v != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "effective_host: %s\n", v)
-			}
-			if v := strings.TrimSpace(cur["global_host"]); v != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "global_host: %s\n", v)
-			}
-			if v := strings.TrimSpace(cur["user"]); v != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "user: %s\n", v)
-			}
-			return nil
+			return runGLabContextReport(cmd, opts, runner)
 		},
 	}
 }
 
 func newGLabCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	cmd := newGLabStatusCommand(opts, runner)
-	cmd.Use = "current"
-	cmd.Short = "Show current glab context"
-	return cmd
+	return &cobra.Command{
+		Use:   "current",
+		Short: "Show current glab context",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runGLabContextReport(cmd, opts, runner)
+		},
+	}
+}
+
+// runGLabContextReport is the shared body of `glab status` and `glab current`.
+// Both commands stay independent values so neither mutates the other's metadata.
+func runGLabContextReport(cmd *cobra.Command, opts *rootOptions, runner execx.Runner) error {
+	ctx := cmd.Context()
+	a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
+	cur, warnings, errs, _ := a.Current(ctx)
+
+	if opts.JSON {
+		return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
+	}
+
+	printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+
+	if v := strings.TrimSpace(cur["effective_host"]); v != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "effective_host: %s\n", v)
+	}
+	if v := strings.TrimSpace(cur["global_host"]); v != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "global_host: %s\n", v)
+	}
+	if v := strings.TrimSpace(cur["user"]); v != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "user: %s\n", v)
+	}
+	return nil
 }
 
 func newGLabListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List all configured glab instances",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -85,17 +88,12 @@ func newGLabListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"instances": lst.Instances,
-					"warnings":  warnings,
-					"errors":    errs,
+					"warnings":  nonNil(dedupeMessages(warnings)),
+					"errors":    nonNil(dedupeMessages(errs)),
 				})
 			}
 
-			for _, w := range warnings {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
-			}
-			for _, e := range errs {
-				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
-			}
+			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
 
 			for _, inst := range lst.Instances {
 				ok := "no"
@@ -124,10 +122,7 @@ func newGLabUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			host := args[0]
 			after, err := a.UseHost(ctx, host)
 			if err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "glab", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "glab", err)
 			}
 			cur, _, _, _ := a.Current(ctx)
 			if opts.JSON {

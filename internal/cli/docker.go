@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	diag "github.com/oldwinter/all-cli/internal/diagnose"
@@ -30,36 +31,25 @@ func newDockerCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newDockerStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
-		Use:   "status",
-		Short: "Show docker status and current context",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSingleToolStatusCommand(cmd, opts, runner, "docker")
-		},
-	}
+	return newToolStatusCommand(opts, runner, "docker", "Show docker status and current context")
 }
 
 func newDockerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current docker context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, _, errs, err := a.Current(ctx)
+			cur, warnings, errs, err := a.Current(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
-					"current":  cur,
-					"warnings": []string(nil),
-					"errors":   errs,
-				})
+				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
 			}
-			for _, e := range errs {
-				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
-			}
+			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
 			if v := strings.TrimSpace(cur["context"]); v != "" {
 				fmt.Fprintln(cmd.OutOrStdout(), v)
 			}
@@ -72,6 +62,7 @@ func newDockerListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List docker contexts",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -87,17 +78,13 @@ func newDockerListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"contexts": contexts,
-					"warnings": warnings,
-					"errors":   errs,
+					"warnings": nonNil(dedupeMessages(warnings)),
+					"errors":   nonNil(dedupeMessages(errs)),
 				})
 			}
 
-			for _, w := range warnings {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
-			}
-			for _, e := range errs {
-				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
-			}
+			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
 			for _, c := range contexts {
 				mark := " "
 				if c.Name == currentName || c.IsCurrent {
@@ -105,12 +92,12 @@ func newDockerListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				}
 				desc := strings.TrimSpace(c.Description)
 				if desc != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\t%s\n", mark, c.Name, desc)
+					fmt.Fprintf(w, "%s %s\t%s\n", mark, c.Name, desc)
 				} else {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", mark, c.Name)
+					fmt.Fprintf(w, "%s %s\n", mark, c.Name)
 				}
 			}
-			return nil
+			return w.Flush()
 		},
 	}
 }
@@ -126,10 +113,7 @@ func newDockerUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 
 			contextName := args[0]
 			if err := a.UseContext(ctx, contextName); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "docker", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "docker", err)
 			}
 
 			cur, _, _, _ := a.Current(ctx)
@@ -148,6 +132,7 @@ func newDockerFixCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 	cmd := &cobra.Command{
 		Use:   "fix",
 		Short: "Preview Docker diagnostic fixes",
+		Args:  cobra.NoArgs,
 		Long: `Builds a Docker-only fix plan from diagnostics. This command is dry-run only:
 it does not run Docker commands or mutate Docker configuration.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -178,6 +163,7 @@ func newDockerUpdateCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Plan or run Docker image refreshes",
+		Args:  cobra.NoArgs,
 		Long: `Plans Docker image refreshes from running containers by default.
 Use --all to include stopped containers or --image to target explicit image refs.
 Without --dry-run, this command runs docker pull for planned image refs only; it does not stop,
@@ -207,41 +193,47 @@ recreate, prune, remove containers, or change Docker contexts.`,
 
 			result := dockerUpdateResult{
 				DryRun:   dryRun,
-				Updates:  updates,
+				Updates:  nonNilUpdates(updates),
 				Warnings: dedupeMessages(warnings),
 				Errors:   dedupeMessages(errs),
 			}
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), result)
-			}
-
-			printDiagnostics(cmd.ErrOrStderr(), result.Warnings, result.Errors)
-			if dryRun {
-				fmt.Fprintln(cmd.OutOrStdout(), "Docker update plan (dry-run):")
+				if printErr := output.PrintJSON(cmd.OutOrStdout(), result); printErr != nil {
+					return printErr
+				}
 			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), "Docker update results:")
+				printDiagnostics(cmd.ErrOrStderr(), result.Warnings, result.Errors)
+				if dryRun {
+					fmt.Fprintln(cmd.OutOrStdout(), "Docker update plan (dry-run):")
+				} else {
+					fmt.Fprintln(cmd.OutOrStdout(), "Docker update results:")
+				}
+				if len(updates) == 0 {
+					fmt.Fprintln(cmd.OutOrStdout(), "No Docker image update candidates found.")
+				}
+				for _, update := range updates {
+					status := "planned"
+					if update.Applied {
+						status = "pulled"
+					}
+					if update.Error != "" {
+						status = "error"
+					}
+					line := fmt.Sprintf("- %s: %s", status, strings.Join(update.Command, " "))
+					if len(update.SourceContainers) > 0 {
+						line += fmt.Sprintf(" (containers: %s)", strings.Join(update.SourceContainers, ","))
+					}
+					if update.Error != "" {
+						line += fmt.Sprintf(" error=%s", update.Error)
+					}
+					fmt.Fprintln(cmd.OutOrStdout(), line)
+				}
 			}
-			if len(updates) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No Docker image update candidates found.")
-			}
-			for _, update := range updates {
-				status := "planned"
-				if update.Applied {
-					status = "pulled"
-				}
-				if update.Error != "" {
-					status = "error"
-				}
-				line := fmt.Sprintf("- %s: %s", status, strings.Join(update.Command, " "))
-				if len(update.SourceContainers) > 0 {
-					line += fmt.Sprintf(" (containers: %s)", strings.Join(update.SourceContainers, ","))
-				}
-				if update.Error != "" {
-					line += fmt.Sprintf(" error=%s", update.Error)
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), line)
-			}
+			// This is the only mutating command, so a partial failure must exit
+			// non-zero in every output format. Both paths have already emitted
+			// their payload above, so the diagnostics are never lost.
 			if len(result.Errors) > 0 {
+				cmd.Root().SilenceErrors = true
 				return fmt.Errorf("docker update completed with errors")
 			}
 			return nil
@@ -256,8 +248,18 @@ recreate, prune, remove containers, or change Docker contexts.`,
 type dockerUpdateResult struct {
 	DryRun   bool                 `json:"dry_run"`
 	Updates  []docker.ImageUpdate `json:"updates"`
-	Warnings []string             `json:"warnings,omitempty"`
-	Errors   []string             `json:"errors,omitempty"`
+	Warnings []string             `json:"warnings"`
+	Errors   []string             `json:"errors"`
+}
+
+// nonNilUpdates normalizes a nil update slice so a failed plan marshals as []
+// instead of null. Machine consumers of `docker update --json` must be able to
+// range over updates unconditionally, exactly like warnings and errors.
+func nonNilUpdates(updates []docker.ImageUpdate) []docker.ImageUpdate {
+	if updates == nil {
+		return []docker.ImageUpdate{}
+	}
+	return updates
 }
 
 func buildDockerDiagnosticReport(cmd *cobra.Command, runner execx.Runner, timeout time.Duration) (model.DiagnosticReport, error) {

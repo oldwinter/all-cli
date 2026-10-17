@@ -24,19 +24,14 @@ func newMiseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newMiseStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
-		Use:   "status",
-		Short: "Show mise status and current resolved runtimes",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSingleToolStatusCommand(cmd, opts, runner, "mise")
-		},
-	}
+	return newToolStatusCommand(opts, runner, "mise", "Show mise status and current resolved runtimes")
 }
 
 func newMiseCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show resolved mise runtime versions",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolmise.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -46,11 +41,7 @@ func newMiseCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 			}
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
-					"current":  cur,
-					"warnings": dedupeMessages(warnings),
-					"errors":   dedupeMessages(errs),
-				})
+				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)

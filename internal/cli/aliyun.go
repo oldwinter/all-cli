@@ -24,19 +24,14 @@ func newAliyunCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newAliyunStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
-		Use:   "status",
-		Short: "Show Aliyun CLI status and current context",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSingleToolStatusCommand(cmd, opts, runner, "aliyun")
-		},
-	}
+	return newToolStatusCommand(opts, runner, "aliyun", "Show Aliyun CLI status and current context")
 }
 
 func newAliyunCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current Aliyun profile and fields",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolaliyun.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -46,11 +41,7 @@ func newAliyunCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 			}
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
-					"current":  cur,
-					"warnings": dedupeMessages(warnings),
-					"errors":   dedupeMessages(errs),
-				})
+				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
@@ -68,6 +59,7 @@ func newAliyunListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List Aliyun CLI profiles",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolaliyun.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -87,8 +79,8 @@ func newAliyunListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"profiles": profiles,
-					"warnings": dedupeMessages(warnings),
-					"errors":   dedupeMessages(errs),
+					"warnings": nonNil(dedupeMessages(warnings)),
+					"errors":   nonNil(dedupeMessages(errs)),
 				})
 			}
 

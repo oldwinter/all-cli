@@ -23,30 +23,21 @@ func newK9sCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newK9sStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
-		Use:   "status",
-		Short: "Show k9s status and current context",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSingleToolStatusCommand(cmd, opts, runner, "k9s")
-		},
-	}
+	return newToolStatusCommand(opts, runner, "k9s", "Show k9s status and current context")
 }
 
 func newK9sCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current k9s context, namespace, and config path",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := toolk9s.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
 			cur, warnings, errs, _ := a.Current(ctx)
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
-					"current":  cur,
-					"warnings": dedupeMessages(warnings),
-					"errors":   dedupeMessages(errs),
-				})
+				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)

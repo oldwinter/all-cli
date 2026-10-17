@@ -25,36 +25,25 @@ func newKargoCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newKargoStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
-		Use:   "status",
-		Short: "Show kargo status and current context",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSingleToolStatusCommand(cmd, opts, runner, "kargo")
-		},
-	}
+	return newToolStatusCommand(opts, runner, "kargo", "Show kargo status and current context")
 }
 
 func newKargoCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current kargo API/project context",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := kargo.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, _, errs, err := a.Current(ctx)
+			cur, warnings, errs, err := a.Current(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
-					"current":  cur,
-					"warnings": []string(nil),
-					"errors":   errs,
-				})
+				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
 			}
-			for _, e := range errs {
-				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
-			}
+			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
 			if v := strings.TrimSpace(cur["api_address"]); v != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "api_address: %s\n", v)
 			}
@@ -91,10 +80,7 @@ func newKargoUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			}
 
 			if err := a.SetDefaultProject(ctx, project); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "kargo", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "kargo", err)
 			}
 
 			cur, _, _, _ := a.Current(ctx)

@@ -27,33 +27,22 @@ func newKubectlCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newKubectlStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
-		Use:   "status",
-		Short: "Show kubectl status and current context",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSingleToolStatusCommand(cmd, opts, runner, "kubectl")
-		},
-	}
+	return newToolStatusCommand(opts, runner, "kubectl", "Show kubectl status and current context")
 }
 
 func newKubectlCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "Show current kubectl context and namespace",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-			cur, _, errs, _ := a.Current(ctx)
+			cur, warnings, errs, _ := a.Current(ctx)
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
-					"current":  cur,
-					"warnings": []string(nil),
-					"errors":   errs,
-				})
+				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
 			}
-			for _, e := range errs {
-				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
-			}
+			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
 			if v := strings.TrimSpace(cur["context"]); v != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "context: %s\n", v)
 			}
@@ -69,11 +58,12 @@ func newKubectlListCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List kubeconfig contexts",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
 
-			contexts, _, errs, err := a.ListContexts(ctx)
+			contexts, warnings, errs, err := a.ListContexts(ctx)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
@@ -96,13 +86,11 @@ func newKubectlListCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"contexts": items,
-					"warnings": []string(nil),
-					"errors":   errs,
+					"warnings": nonNil(dedupeMessages(warnings)),
+					"errors":   nonNil(dedupeMessages(errs)),
 				})
 			}
-			for _, e := range errs {
-				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
-			}
+			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
 
 			for _, name := range contexts {
 				mark := " "
@@ -133,17 +121,11 @@ func newKubectlUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 
 			contextName := args[0]
 			if err := a.UseContext(ctx, contextName); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "kubectl", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "kubectl", err)
 			}
 			if strings.TrimSpace(namespace) != "" {
 				if err := a.SetNamespaceForContext(ctx, contextName, namespace); err != nil {
-					if opts.JSON {
-						_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "kubectl", Error: err.Error()})
-					}
-					return err
+					return reportUseFailure(cmd, opts, "kubectl", err)
 				}
 			}
 
@@ -173,10 +155,7 @@ func newKubectlNamespaceCommand(opts *rootOptions, runner execx.Runner) *cobra.C
 			a := kubectl.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
 			ns := args[0]
 			if err := a.SetNamespaceForCurrentContext(ctx, ns); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "kubectl", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "kubectl", err)
 			}
 			cur, _, _, _ := a.Current(ctx)
 			if opts.JSON {
