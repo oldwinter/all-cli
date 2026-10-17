@@ -68,9 +68,9 @@
 
 | 输入 | 修复前洗脱结果 | 泄露 |
 |---|---|---|
-| `Authorization: Bearer eyJhbGci...` | `Authorization=<redacted> eyJhbGci...` | JWT（正则遇空格即停） |
-| `{"password":"hunter2"}` | 原样 | JSON 形式密钥 |
-| `https://alice:hunter2@host/api` | `https://alice:hunter2@host<path>` | URL userinfo 凭据 |
+| `Authorization: Bearer <token>` | `Authorization=<redacted> <token>` | JWT（正则遇空格即停） |
+| `{"password":"<value>"}` | 原样 | JSON 形式密钥 |
+| `https://<user>:<password>@host/api` | `https://<user>:<password>@host<path>` | URL userinfo 凭据 |
 | `not logged in to github.acme-corp.internal` | 原样 | 私有主机名 |
 | `C:\Users\John Doe\private\x.json` | `C:\Users\<path> Doe\private\x.json` | 用户名与路径 |
 

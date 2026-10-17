@@ -58,6 +58,10 @@ func sentryFixture(t *testing.T, sinkURL string) Config {
 // TestSentryNeverTransmitsSensitiveContent is the end-to-end regression test for
 // the privacy contract in docs/observability.md. Each fixture was captured from
 // a real code path that previously reached the network verbatim.
+//
+// Every credential below is a deliberately low-entropy placeholder so secret
+// scanners do not mistake this test data for a live credential. The shapes still
+// exercise the same scrubber paths as the real leaks they stand in for.
 func TestSentryNeverTransmitsSensitiveContent(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -66,8 +70,8 @@ func TestSentryNeverTransmitsSensitiveContent(t *testing.T) {
 	}{
 		{
 			name:        "bearer token",
-			commandErr:  errors.New("request failed: Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.c2lnbmF0dXJl"),
-			mustNotHold: []string{"eyJhbGciOiJIUzI1NiJ9", "c2lnbmF0dXJl"},
+			commandErr:  errors.New("request failed: Authorization: Bearer placeholder-bearer-value-not-a-real-secret"),
+			mustNotHold: []string{"placeholder-bearer-value-not-a-real-secret"},
 		},
 		{
 			name:        "json form secret",
@@ -76,8 +80,8 @@ func TestSentryNeverTransmitsSensitiveContent(t *testing.T) {
 		},
 		{
 			name:        "aws secret access key",
-			commandErr:  errors.New("aws failed AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENG"),
-			mustNotHold: []string{"wJalrXUtnFEMIK7MDENG"},
+			commandErr:  errors.New("aws failed AWS_SECRET_ACCESS_KEY=placeholder-aws-value-not-a-real-secret"),
+			mustNotHold: []string{"placeholder-aws-value-not-a-real-secret"},
 		},
 		{
 			name:        "url userinfo credentials",
