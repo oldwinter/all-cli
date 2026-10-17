@@ -222,7 +222,7 @@ func diagnosticsForTool(tool model.ToolSummary) []model.DiagnosticItem {
 				Title:       "Configure " + displayName(tool),
 				Description: configureDescription(tool),
 				Kind:        "configure",
-				Command:     []string{"all-cli", tool.ID, "status"},
+				Command:     inspectCommand(tool.ID),
 				Mutates:     false,
 			}},
 		})
@@ -260,13 +260,25 @@ func diagnosticsForTool(tool model.ToolSummary) []model.DiagnosticItem {
 				Title:       "List contexts",
 				Description: "List available contexts and choose the intended target before operating.",
 				Kind:        "inspect",
-				Command:     []string{"all-cli", tool.ID, "list"},
+				Command:     inspectCommand(tool.ID),
 				Mutates:     false,
 			}},
 		})
 	}
 
 	return out
+}
+
+// inspectCommand is the suggested command for "look at this tool again".
+//
+// Suggested commands must actually resolve: an agent that follows a suggestion
+// and gets `unknown command "vercel" for "all-cli"` (exit 1), or worse, a parent
+// command's help text (exit 0, silent no-op), learns the wrong thing about both
+// the tool and this CLI. `all-cli status --tools <id>` is the one inspection form
+// that exists for every registered tool, so it is used unconditionally instead
+// of guessing at per-tool `status`/`list` subcommands that only some tools have.
+func inspectCommand(toolID string) []string {
+	return []string{"all-cli", "status", "--tools", toolID}
 }
 
 func collectionErrorActions(tool model.ToolSummary) []model.SuggestedAction {

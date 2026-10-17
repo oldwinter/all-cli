@@ -19,6 +19,26 @@ type rootOptions struct {
 	JSON       bool
 	NoProgress bool
 	Timeout    time.Duration
+	// TimeoutExplicit records whether the user passed --timeout on the command
+	// line. An explicit value must win over a tool definition's own default
+	// timeout; otherwise `status --timeout 100ms` is silently rewritten to 10s
+	// for the tools that declare a default.
+	TimeoutExplicit bool
+}
+
+// timeoutSetting carries the effective --timeout together with whether the
+// user set it explicitly, so callers can tell a default from a decision.
+type timeoutSetting struct {
+	Value    time.Duration
+	Explicit bool
+}
+
+// timeouts returns the current --timeout setting for runner construction.
+func (o *rootOptions) timeouts() timeoutSetting {
+	if o == nil {
+		return timeoutSetting{}
+	}
+	return timeoutSetting{Value: o.Timeout, Explicit: o.TimeoutExplicit}
 }
 
 func NewRootCommand() *cobra.Command {
@@ -82,10 +102,14 @@ Environment:
 	cmd.PersistentFlags().BoolVar(&opts.NoProgress, "no-progress", false, "Disable progress indicators")
 	cmd.PersistentFlags().DurationVar(&opts.Timeout, "timeout", opts.Timeout, "External command timeout (e.g. 3s)")
 
-	cmd.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		if opts.Timeout <= 0 {
 			return fmt.Errorf("invalid --timeout: must be positive, got %s", opts.Timeout)
 		}
+		// Record whether --timeout was passed explicitly. Cobra only consults the
+		// flags that were actually set on this command or an ancestor, so ask the
+		// flag directly rather than comparing against the default value.
+		opts.TimeoutExplicit = cmd.Flags().Changed("timeout")
 		return nil
 	}
 

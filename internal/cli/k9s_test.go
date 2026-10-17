@@ -33,10 +33,7 @@ func TestK9sStatusJSON(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 
-	var got model.ToolSummary
-	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
-		t.Fatalf("failed to decode JSON: %v", err)
-	}
+	got := decodeSingleToolStatus(t, stdout)
 	if got.ID != "k9s" || got.Current["context"] != "prod-cluster" {
 		t.Fatalf("unexpected summary: %#v", got)
 	}
