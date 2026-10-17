@@ -93,10 +93,7 @@ func newKargoUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			}
 
 			if err := a.SetDefaultProject(ctx, project); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "kargo", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "kargo", err)
 			}
 
 			cur, _, _, _ := a.Current(ctx)

@@ -83,17 +83,29 @@ Use --ids to print one checked tool ID per line. --json takes precedence over --
 				spinner.Start()
 			}
 
-			report := evaluateStatusRegistry(cmd.Context(), reg, runner, opts.Timeout, spinner)
+			report := evaluateStatusRegistry(cmd.Context(), reg, runner, opts.timeouts(), spinner)
 
 			if spinner != nil {
 				spinner.Stop()
 			}
 
 			sortToolSummaries(report.Tools, sortByValue)
+
+			// Diagnostics describe the full evaluation, not the rendered subset.
+			// Generating them after filtering --installed-only / --missing-only /
+			// --quiet silently dropped almost every diagnostic: the filtered-out
+			// tools are exactly the ones that carry "not installed" and
+			// "unconfigured" findings, so a caller asking "what is wrong with what
+			// I have installed" received a near-empty, falsely healthy report.
+			var diagnostics []model.DiagnosticItem
+			if opts.JSON {
+				diagnostics = diag.Generate(report, diag.Options{Profile: diag.ProfileAgent}).Diagnostics
+			}
+
 			report.Tools = filterStatusTools(report.Tools, installedOnly, missingOnly, quiet)
 
 			if opts.JSON {
-				report.Diagnostics = diag.Generate(report, diag.Options{Profile: diag.ProfileAgent}).Diagnostics
+				report.Diagnostics = diagnostics
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
 			if ids {
@@ -129,7 +141,7 @@ func printStatusIDs(cmd *cobra.Command, toolsList []model.ToolSummary) error {
 }
 
 func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly, quiet bool) []model.ToolSummary {
-	filtered := toolsList[:0]
+	filtered := make([]model.ToolSummary, 0, len(toolsList))
 	for _, tool := range toolsList {
 		if installedOnly && !tool.Installed {
 			continue
@@ -146,14 +158,25 @@ func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly
 	return filtered
 }
 
-func buildStatusReport(ctx context.Context, runner execx.Runner, defaultTimeout time.Duration, toolsFilter string) (model.StatusReport, error) {
+// buildStatusReportWithTimeoutSettings evaluates the registry with the user's
+// full --timeout intent, so an explicit flag stays authoritative for tools that
+// declare their own default timeout.
+func buildStatusReportWithTimeoutSettings(ctx context.Context, runner execx.Runner, timeouts timeoutSetting, toolsFilter string) (model.StatusReport, error) {
 	reg, err := registryForToolsFilter(toolsFilter)
 	if err != nil {
 		return model.StatusReport{}, err
 	}
-	report := evaluateStatusRegistry(ctx, reg, runner, defaultTimeout, nil)
+	report := evaluateStatusRegistry(ctx, reg, runner, timeouts, nil)
 	sortToolSummaries(report.Tools, statusSortTool)
 	return report, nil
+}
+
+// buildStatusReport is the Duration-only form of
+// buildStatusReportWithTimeoutSettings. A bare Duration carries no knowledge of
+// whether the user passed --timeout, so it is treated as a default: tool
+// definitions may still substitute their own value.
+func buildStatusReport(ctx context.Context, runner execx.Runner, defaultTimeout time.Duration, toolsFilter string) (model.StatusReport, error) {
+	return buildStatusReportWithTimeoutSettings(ctx, runner, timeoutSetting{Value: defaultTimeout}, toolsFilter)
 }
 
 func registryForToolsFilter(toolsFilter string) ([]tools.ToolDefinition, error) {
@@ -174,7 +197,7 @@ func registryForToolsFilter(toolsFilter string) ([]tools.ToolDefinition, error) 
 	return filtered, nil
 }
 
-func evaluateStatusRegistry(ctx context.Context, reg []tools.ToolDefinition, runner execx.Runner, defaultTimeout time.Duration, spinner *progressSpinner) model.StatusReport {
+func evaluateStatusRegistry(ctx context.Context, reg []tools.ToolDefinition, runner execx.Runner, timeouts timeoutSetting, spinner *progressSpinner) model.StatusReport {
 	report := model.NewStatusReport(len(reg))
 	report.GeneratedAt = time.Now()
 
@@ -183,7 +206,7 @@ func evaluateStatusRegistry(ctx context.Context, reg []tools.ToolDefinition, run
 		wg.Add(1)
 		go func(i int, def tools.ToolDefinition) {
 			defer wg.Done()
-			report.Tools[i] = evaluateToolSummary(ctx, def, runnerForTool(runner, defaultTimeout, def))
+			report.Tools[i] = evaluateToolSummary(ctx, def, runnerForTool(runner, timeouts, def))
 			if spinner != nil {
 				spinner.Inc(def.ID)
 			}
@@ -193,9 +216,15 @@ func evaluateStatusRegistry(ctx context.Context, reg []tools.ToolDefinition, run
 	return report
 }
 
-func runnerForTool(baseRunner execx.Runner, defaultTimeout time.Duration, def tools.ToolDefinition) execx.Runner {
-	timeout := defaultTimeout
-	if def.Timeout > 0 {
+// runnerForTool builds the runner used to inspect one tool.
+//
+// Precedence: an explicit --timeout always wins. A tool definition's Timeout is
+// a fallback for tools whose own commands are legitimately slow, not an
+// override of the user's decision: silently replacing `--timeout 100ms` with
+// 10s made the flag a lie for wrangler/vercel/railway/netlify.
+func runnerForTool(baseRunner execx.Runner, timeouts timeoutSetting, def tools.ToolDefinition) execx.Runner {
+	timeout := timeouts.Value
+	if !timeouts.Explicit && def.Timeout > 0 {
 		timeout = def.Timeout
 	}
 	return execx.TimeoutRunner{Runner: baseRunner, Timeout: timeout}

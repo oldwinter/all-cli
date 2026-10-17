@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oldwinter/all-cli/schemas/fix-plan-v0.1.json",
+  "title": "all-cli fix plan",
+  "description": "Emitted by `all-cli fix --dry-run --json` and `all-cli docker fix --dry-run --json`. schema_version matches model.FixPlanSchemaVersionV01.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "dry_run", "summary", "items"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "fix-plan-v0.1",
+      "description": "JSON output schema version; matches model.FixPlanSchemaVersionV01."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the plan was built."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "Whether the plan was produced without mutating anything."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total", "supported", "blocked"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "supported": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fix_plan_item" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "suggested_action": {
+      "type": "object",
+      "required": ["id", "title", "mutates"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "kind": { "type": "string" },
+        "command": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "mutates": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "fix_plan_item": {
+      "type": "object",
+      "required": [
+        "diagnostic_id",
+        "action",
+        "supported",
+        "will_run",
+        "mutates"
+      ],
+      "properties": {
+        "diagnostic_id": { "type": "string" },
+        "related_tool": { "type": "string" },
+        "action": { "$ref": "#/$defs/suggested_action" },
+        "supported": {
+          "type": "boolean",
+          "description": "Whether the action is eligible for automatic execution."
+        },
+        "will_run": {
+          "type": "boolean",
+          "description": "Whether the action will actually execute. Always false in dry-run mode."
+        },
+        "mutates": { "type": "boolean" },
+        "reason": {
+          "type": "string",
+          "description": "Why the item is supported or blocked."
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

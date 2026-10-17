@@ -126,10 +126,7 @@ func newGLabUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			host := args[0]
 			after, err := a.UseHost(ctx, host)
 			if err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "glab", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "glab", err)
 			}
 			cur, _, _, _ := a.Current(ctx)
 			if opts.JSON {

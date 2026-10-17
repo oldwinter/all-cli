@@ -141,10 +141,7 @@ func newGHUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				return fmt.Errorf("want gh use --hostname <host> --user <login> (example: all-cli gh list)")
 			}
 			if err := a.UseAccount(ctx, hostname, user); err != nil {
-				if opts.JSON {
-					_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: "gh", Error: err.Error()})
-				}
-				return err
+				return reportUseFailure(cmd, opts, "gh", err)
 			}
 			cur, _, _, _ := a.Current(ctx)
 			if opts.JSON {

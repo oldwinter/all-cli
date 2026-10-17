@@ -39,10 +39,7 @@ func TestAWSStatusJSON(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 
-	var got model.ToolSummary
-	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
-		t.Fatalf("failed to decode JSON: %v", err)
-	}
+	got := decodeSingleToolStatus(t, stdout)
 	if got.ID != "aws" || got.Current["profile"] != "prod" {
 		t.Fatalf("unexpected summary: %#v", got)
 	}
