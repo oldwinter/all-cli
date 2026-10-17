@@ -7,22 +7,27 @@ import (
 	"strings"
 )
 
+// Stable schema names accepted by Read and by `all-cli schema <name>`.
 const (
-	Status     = "status"
-	Diagnostic = "diagnostic"
+	Status       = "status"
+	Diagnostic   = "diagnostic"
+	FixPlan      = "fix-plan"
+	SnapshotDiff = "snapshot-diff"
 )
 
 var schemaFiles = map[string]string{
-	Status:     "status-report-v0.1.json",
-	Diagnostic: "diagnostic-report-v0.1.json",
+	Status:       "status-report-v0.1.json",
+	Diagnostic:   "diagnostic-report-v0.1.json",
+	FixPlan:      "fix-plan-v0.1.json",
+	SnapshotDiff: "snapshot-diff-v0.1.json",
 }
 
 //go:embed *.json
 var files embed.FS
 
-// Names returns the stable names accepted by Read.
+// Names returns the stable names accepted by Read, in a deterministic order.
 func Names() []string {
-	return []string{Status, Diagnostic}
+	return []string{Status, Diagnostic, FixPlan, SnapshotDiff}
 }
 
 // Read returns one bundled JSON Schema by its stable name.

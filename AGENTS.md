@@ -29,10 +29,9 @@
 ## Agent Diagnostics Commands
 - `just run diagnose --json`: emit agent-readable diagnostics from the status facts.
 - `just run doctor --json`: human-oriented health-check entrypoint with the same diagnostic report shape.
-- `just run doctor --fix --dry-run`: preview supported missing-tool installs; use `--installer auto|brew|npm|pipx|go` to force an installer.
-- `just run doctor --fix --tools <tool>`: install supported missing CLI tools only after reviewing the dry-run plan.
 - `just run fix --dry-run --json`: produce a dry-run diagnostic fix plan; it does not mutate CLI configuration.
 - `just run snapshot --json > before.json` and `just run diff before.json after.json --json`: capture and compare status snapshots.
+- `just run schema <status|diagnostic|fix-plan|snapshot-diff>`: print the bundled JSON Schema for a report so a caller can validate it offline.
 - When evolving JSON structs, update the matching schema in `schemas/` and run `go test ./internal/model/...`.
 
 ## Tool-Specific Workflows
