@@ -28,7 +28,7 @@ Configured in `internal/cli/status.go`:
 | --- | --- |
 | `--tools` | Comma-separated built-in tool IDs; unknown IDs are rejected. |
 | `--group-by` | `category` or `none`; default is `category`. |
-| `--sort` | `tool`, `tool-desc`, `category`, or `category-desc`; default is `tool`. |
+| `--sort` | `tool`, `tool-desc`, `category`, `category-desc`, or `attention` (needs-attention first, then tool A-Z); default is `tool`. |
 | `--quiet` | Shows only missing, unconfigured, warning, or error tools. |
 | `--installed-only` | Shows only installed tools. |
 | `--unconfigured-only` | Shows only installed tools that are not configured. |
