@@ -1,0 +1,22 @@
+# Normalize line endings so the working tree matches the repository on every platform.
+# Without this, a Windows checkout (core.autocrlf=true) is CRLF while the index is LF,
+# and `gofmt -l .` reports every Go file as unformatted.
+* text=auto eol=lf
+
+*.go text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+justfile text eol=lf
+
+# Binary assets must never be converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.tar.gz binary
+*.exe binary
