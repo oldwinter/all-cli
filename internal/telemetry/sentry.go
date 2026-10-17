@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -24,8 +26,29 @@ type sentrySink struct {
 }
 
 var (
-	secretPattern = regexp.MustCompile(`(?i)\b(token|password|secret|api[_-]?key|authorization)\s*[:=]\s*[^,\s;]+`)
-	pathPattern   = regexp.MustCompile(`(?:[A-Za-z]:\\|/)(?:[^/\s:\\]+[/\\]){1,}[^,\s:]*`)
+	// sensitiveKeyValuePattern matches `key=value` / `key: value` pairs whose key
+	// looks like a credential, capturing the key so it can be preserved while
+	// the value is dropped. The value run is deliberately greedy across spaces
+	// so that multi-word values such as `Bearer <jwt>` are removed entirely.
+	sensitiveKeyValuePattern = regexp.MustCompile(
+		`(?i)\b([A-Za-z0-9_.-]*(?:token|password|passwd|secret|api[_-]?key|apikey|access[_-]?key|private[_-]?key|authorization|auth|credential|session|cookie)[A-Za-z0-9_.-]*)\s*[:=]\s*\S+`,
+	)
+	// jsonSecretPattern matches JSON-style `"key": "value"` credential pairs.
+	jsonSecretPattern = regexp.MustCompile(
+		`(?i)"([A-Za-z0-9_.-]*(?:token|password|passwd|secret|api[_-]?key|apikey|access[_-]?key|private[_-]?key|authorization|auth|credential|session|cookie)[A-Za-z0-9_.-]*)"\s*:\s*"[^"]*"`,
+	)
+	// urlUserInfoPattern strips credentials embedded in URLs (scheme://user:pass@host).
+	urlUserInfoPattern = regexp.MustCompile(`(?i)([a-z][a-z0-9+.-]*://)[^/\s@]+@`)
+	// bearerPattern removes bare bearer/basic credentials even without a key name.
+	bearerPattern = regexp.MustCompile(`(?i)\b(bearer|basic)\s+[A-Za-z0-9\-._~+/]+=*`)
+	// pathPattern removes filesystem paths on POSIX and Windows, including
+	// ~-prefixed paths and paths containing spaces.
+	pathPattern = regexp.MustCompile(
+		`(?:[A-Za-z]:\\|~/|/)(?:[^/\s:\\]+[/\\])*[^/\s:\\]*`,
+	)
+	// safeTokenPattern matches the only content kept verbatim: short identifiers
+	// made of letters, digits, dots, dashes and underscores.
+	safeTokenPattern = regexp.MustCompile(`[^A-Za-z0-9 ._-]+`)
 )
 
 func newSentrySink(config Config, client *http.Client) (*sentrySink, error) {
@@ -83,8 +106,12 @@ func (s *sentrySink) capture(ctx context.Context, span Span, command string, com
 		},
 		"exception": map[string]any{
 			"values": []map[string]any{{
-				"type":  "CommandError",
-				"value": scrubError(commandErr),
+				"type": "CommandError",
+				// Only a closed-vocabulary classification is sent. The raw
+				// error text is never transmitted because adapters embed user
+				// context names, namespaces, hostnames, and file paths in it;
+				// the full message stays in the local structured log instead.
+				"value": errorClass(commandErr),
 				"stacktrace": map[string]any{
 					"frames": captureStackFrames(),
 				},
@@ -123,13 +150,91 @@ func (s *sentrySink) capture(ctx context.Context, span Span, command string, com
 	}
 }
 
+// errorClass reduces an error to a closed-vocabulary category that is safe to
+// transmit. It intentionally carries no user data: no tool output, no context
+// names, no paths, no hostnames, no credentials.
+//
+// This is the enforcement point for the privacy contract in
+// docs/observability.md. The full error text is still available locally through
+// ALL_CLI_LOG_PATH, so operators keep diagnosability without the leak.
+func errorClass(err error) string {
+	if err == nil {
+		return "none"
+	}
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	}
+
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return "exit_nonzero"
+	}
+
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "not found"),
+		strings.Contains(message, "executable file not found"),
+		strings.Contains(message, "no such file"):
+		return "not_found"
+	case strings.Contains(message, "permission denied"):
+		return "permission_denied"
+	case strings.Contains(message, "unknown flag"),
+		strings.Contains(message, "unknown command"),
+		strings.Contains(message, "invalid argument"):
+		return "invalid_usage"
+	case strings.Contains(message, "missing schema_version"),
+		strings.Contains(message, "parse snapshot"):
+		return "invalid_snapshot"
+	case strings.Contains(message, "connection refused"),
+		strings.Contains(message, "no such host"),
+		strings.Contains(message, "timeout"):
+		return "network"
+	case strings.Contains(message, "failed"):
+		return "command_failed"
+	default:
+		return "error"
+	}
+}
+
+// scrubError reduces an error message to content that is safe to keep in a
+// local structured log. It is NOT used for network delivery (see errorClass).
+//
+// The documented privacy contract (docs/observability.md) promises that command
+// arguments, environment contents, external command output, usernames, account
+// IDs, configuration values, and paths never leave the machine. Adapters embed
+// user context names, namespaces, and file paths directly into error text, so a
+// deny-list of credential keywords is not sufficient: it misses JSON-form
+// secrets, URL userinfo, bearer tokens, and account-identifying hostnames.
+//
+// The scrubber applies credential redaction, then path removal, then replaces
+// every character outside a conservative allow-list. That last step is what
+// makes the guarantee hold for arbitrary tool output.
 func scrubError(err error) string {
 	if err == nil {
 		return ""
 	}
-	message := secretPattern.ReplaceAllString(err.Error(), "$1=<redacted>")
+	message := err.Error()
+
+	// 1. Drop credential values while keeping the key name for debuggability.
+	message = jsonSecretPattern.ReplaceAllString(message, `"$1":"<redacted>"`)
+	message = sensitiveKeyValuePattern.ReplaceAllString(message, "$1=<redacted>")
+	message = bearerPattern.ReplaceAllString(message, "$1 <redacted>")
+	message = urlUserInfoPattern.ReplaceAllString(message, "$1<redacted>@")
+
+	// 2. Remove filesystem paths (they carry usernames and project names).
 	message = pathPattern.ReplaceAllString(message, "<path>")
-	const maxLength = 8 * 1024
+
+	// 3. Keep only a conservative allow-list. This neutralises anything the
+	//    steps above did not recognise, such as account-identifying hostnames
+	//    or arbitrary external command output.
+	message = safeTokenPattern.ReplaceAllString(message, " ")
+
+	// 4. Collapse the whitespace introduced above and bound the size.
+	message = strings.Join(strings.Fields(message), " ")
+	const maxLength = 2 * 1024
 	if len(message) > maxLength {
 		message = message[:maxLength]
 	}

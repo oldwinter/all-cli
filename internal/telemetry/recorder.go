@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -37,12 +39,20 @@ type Recorder struct {
 	httpClient *http.Client
 	sentry     *sentrySink
 	posthog    *posthogSink
+	warnings   []string
 }
 
 type traceContextKey struct{}
 
 var traceParentPattern = regexp.MustCompile(`(?i)^[0-9a-f]{2}-([0-9a-f]{32})-[0-9a-f]{16}-[0-9a-f]{2}$`)
 
+// New builds a Recorder from config.
+//
+// Misconfigured individual sinks never fail the whole Recorder: a bad
+// SENTRY_DSN, POSTHOG_HOST, or an unwritable installation-ID path disables that
+// one sink and is reported through Warnings. This keeps the documented promise
+// that telemetry problems never change a command's output or exit status.
+// The only hard failure is a Config that cannot be represented at all.
 func New(config Config) (*Recorder, error) {
 	client := config.HTTPClient
 	if client == nil {
@@ -53,20 +63,31 @@ func New(config Config) (*Recorder, error) {
 		httpClient: client,
 	}
 
-	var err error
 	if strings.TrimSpace(config.SentryDSN) != "" {
-		recorder.sentry, err = newSentrySink(config, client)
+		sink, err := newSentrySink(config, client)
 		if err != nil {
-			return nil, err
+			recorder.warnings = append(recorder.warnings, fmt.Sprintf("sentry disabled: %v", err))
+		} else {
+			recorder.sentry = sink
 		}
 	}
 	if strings.TrimSpace(config.PostHogKey) != "" {
-		recorder.posthog, err = newPosthogSink(config, client)
+		sink, err := newPosthogSink(config, client)
 		if err != nil {
-			return nil, err
+			recorder.warnings = append(recorder.warnings, fmt.Sprintf("posthog disabled: %v", err))
+		} else {
+			recorder.posthog = sink
 		}
 	}
 	return recorder, nil
+}
+
+// Warnings reports sinks that were disabled because they were misconfigured.
+func (r *Recorder) Warnings() []string {
+	if r == nil {
+		return nil
+	}
+	return append([]string(nil), r.warnings...)
 }
 
 func (r *Recorder) Start(ctx context.Context) (context.Context, Span) {
@@ -84,6 +105,33 @@ func (r *Recorder) Start(ctx context.Context) (context.Context, Span) {
 	return context.WithValue(ctx, traceContextKey{}, traceID), span
 }
 
+// finishBudget bounds the total wall time Finish may add to a command's exit.
+// A CLI must never make the user wait on analytics; this is a single shared
+// deadline for all remote sinks, not a per-sink timeout.
+const finishBudget = 200 * time.Millisecond
+
+// benignExitError marks an error that represents requested control flow rather
+// than a failure, so it is not reported to Sentry as a crash.
+type benignExitError struct{ err error }
+
+func (b benignExitError) Error() string { return b.err.Error() }
+func (b benignExitError) Unwrap() error { return b.err }
+
+// MarkBenignExit wraps err so telemetry records it as expected control flow
+// (for example `diff --exit-code` reporting that snapshots differ).
+func MarkBenignExit(err error) error {
+	if err == nil {
+		return nil
+	}
+	return benignExitError{err: err}
+}
+
+// isBenignExit reports whether err was produced by intended control flow.
+func isBenignExit(err error) bool {
+	var benign benignExitError
+	return errors.As(err, &benign)
+}
+
 func (r *Recorder) Finish(ctx context.Context, span Span, command string, commandErr error) {
 	result := "success"
 	if commandErr != nil {
@@ -95,15 +143,43 @@ func (r *Recorder) Finish(ctx context.Context, span Span, command string, comman
 	}
 	command = normalizeCommand(command)
 
+	// Local sinks are fast and must not be lost, so run them synchronously.
 	_ = r.writeStructuredLog(ctx, span, command, result, duration)
 	if r.config.MetricsPath != "" {
 		_ = recordPrometheus(r.config.MetricsPath, command, result, duration)
 	}
-	if r.sentry != nil && commandErr != nil {
-		r.sentry.capture(ctx, span, command, commandErr)
+
+	// Detach remote delivery from the command's context: by the time Finish
+	// runs the command has completed, and a cancelled parent context would
+	// otherwise silently discard every event.
+	remoteCtx := context.WithoutCancel(ctx)
+
+	var wg sync.WaitGroup
+	if r.sentry != nil && commandErr != nil && !isBenignExit(commandErr) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r.sentry.capture(remoteCtx, span, command, commandErr)
+		}()
 	}
 	if r.posthog != nil {
-		r.posthog.capture(ctx, command, result)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r.posthog.capture(remoteCtx, command, result)
+		}()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(finishBudget):
+		// Give up waiting. main() exits via os.Exit, so abandoned goroutines
+		// die with the process; the user's command is never blocked further.
 	}
 }
 
