@@ -24,7 +24,14 @@ func newAWSCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newAWSStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return newToolStatusCommand(opts, runner, "aws", "Show AWS CLI status and current context")
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show AWS CLI status and current context",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runSingleToolStatusCommand(cmd, opts, runner, "aws")
+		},
+	}
 }
 
 func newAWSCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
@@ -38,14 +45,32 @@ func newAWSCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 			cur, warnings, errs, _ := a.Current(ctx)
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
+				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
+					"current":  cur,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
+				})
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
-			for _, key := range []string{"profile", "region", "output"} {
-				if value := strings.TrimSpace(cur[key]); value != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
-				}
+			profile := strings.TrimSpace(cur["profile"])
+			region := strings.TrimSpace(cur["region"])
+			format := strings.TrimSpace(cur["output"])
+			printed := false
+			if profile != "" && (profile != "default" || region != "" || format != "") {
+				fmt.Fprintf(cmd.OutOrStdout(), "profile: %s\n", profile)
+				printed = true
+			}
+			if region != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "region: %s\n", region)
+				printed = true
+			}
+			if format != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "output: %s\n", format)
+				printed = true
+			}
+			if !printed {
+				fmt.Fprintln(cmd.OutOrStdout(), "See profiles and install status: all-cli aws list / all-cli aws status")
 			}
 			return nil
 		},
@@ -87,8 +112,8 @@ func newAWSListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"profiles": items,
-					"warnings": nonNil(dedupeMessages(warnings)),
-					"errors":   nonNil(dedupeMessages(errs)),
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 

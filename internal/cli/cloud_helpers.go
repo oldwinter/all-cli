@@ -57,37 +57,6 @@ func runSingleToolStatusCommand(cmd *cobra.Command, opts *rootOptions, runner ex
 	return nil
 }
 
-// currentEnvelope is the shared JSON shape of the per-tool current/list
-// commands. The slices are typed fields rather than map[string]any values so a
-// nil slice can never reach the wire as `null`; consumers that range over
-// warnings or errors must not need a null branch per tool.
-type currentEnvelope struct {
-	Current  map[string]string `json:"current"`
-	Warnings []string          `json:"warnings"`
-	Errors   []string          `json:"errors"`
-}
-
-// newCurrentEnvelope builds the shared envelope. It normalizes both the nil case
-// (so warnings/errors always marshal as []) and the duplicate case: adapters that
-// report the same underlying failure from two probes would otherwise repeat the
-// identical line twice in the payload.
-func newCurrentEnvelope(cur map[string]string, warnings, errs []string) currentEnvelope {
-	return currentEnvelope{
-		Current:  cur,
-		Warnings: nonNil(dedupeMessages(warnings)),
-		Errors:   nonNil(dedupeMessages(errs)),
-	}
-}
-
-// nonNil normalizes a nil slice to an empty one so JSON output uses [] instead
-// of null.
-func nonNil(messages []string) []string {
-	if messages == nil {
-		return []string{}
-	}
-	return messages
-}
-
 // reportUseFailure reports a failed context switch once. With --json the
 // machine-readable failure envelope goes to stdout and the human-readable
 // "Error: ..." line on stderr is suppressed, mirroring `diff --exit-code`.

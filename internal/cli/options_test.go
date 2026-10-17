@@ -23,8 +23,8 @@ func TestOptionsCommandOutputsPersistentFlagsAsText(t *testing.T) {
 	if !strings.Contains(got, "json=false") {
 		t.Fatalf("expected json=false in output, got:\n%s", got)
 	}
-	if !strings.Contains(got, "no-progress=false") {
-		t.Fatalf("expected no-progress=false in output, got:\n%s", got)
+	if !strings.Contains(got, "no_progress=false") {
+		t.Fatalf("expected no_progress=false in output, got:\n%s", got)
 	}
 	if !strings.Contains(got, "timeout=7s") {
 		t.Fatalf("expected timeout=7s in output, got:\n%s", got)

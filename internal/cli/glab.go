@@ -31,45 +31,44 @@ func newGLabStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 		Short: "Show effective and global glab host context",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runGLabContextReport(cmd, opts, runner)
+			ctx := cmd.Context()
+			a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
+			cur, warnings, errs, _ := a.Current(ctx)
+
+			if opts.JSON {
+				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
+					"current":  cur,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
+				})
+			}
+
+			for _, w := range warnings {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
+			}
+			for _, e := range errs {
+				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
+			}
+
+			if v := strings.TrimSpace(cur["effective_host"]); v != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "effective_host: %s\n", v)
+			}
+			if v := strings.TrimSpace(cur["global_host"]); v != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "global_host: %s\n", v)
+			}
+			if v := strings.TrimSpace(cur["user"]); v != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "user: %s\n", v)
+			}
+			return nil
 		},
 	}
 }
 
 func newGLabCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return &cobra.Command{
-		Use:   "current",
-		Short: "Show current glab context",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runGLabContextReport(cmd, opts, runner)
-		},
-	}
-}
-
-// runGLabContextReport is the shared body of `glab status` and `glab current`.
-// Both commands stay independent values so neither mutates the other's metadata.
-func runGLabContextReport(cmd *cobra.Command, opts *rootOptions, runner execx.Runner) error {
-	ctx := cmd.Context()
-	a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-	cur, warnings, errs, _ := a.Current(ctx)
-
-	if opts.JSON {
-		return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
-	}
-
-	printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
-
-	if v := strings.TrimSpace(cur["effective_host"]); v != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "effective_host: %s\n", v)
-	}
-	if v := strings.TrimSpace(cur["global_host"]); v != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "global_host: %s\n", v)
-	}
-	if v := strings.TrimSpace(cur["user"]); v != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "user: %s\n", v)
-	}
-	return nil
+	cmd := newGLabStatusCommand(opts, runner)
+	cmd.Use = "current"
+	cmd.Short = "Show current glab context"
+	return cmd
 }
 
 func newGLabListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
@@ -88,12 +87,17 @@ func newGLabListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			if opts.JSON {
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"instances": lst.Instances,
-					"warnings":  nonNil(dedupeMessages(warnings)),
-					"errors":    nonNil(dedupeMessages(errs)),
+					"warnings":  dedupeMessages(warnings),
+					"errors":    dedupeMessages(errs),
 				})
 			}
 
-			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			for _, w := range warnings {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
+			}
+			for _, e := range errs {
+				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
+			}
 
 			for _, inst := range lst.Instances {
 				ok := "no"
@@ -115,7 +119,7 @@ func newGLabUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "use <host>",
 		Short: "Set glab global default host",
-		Args:  cobra.ExactArgs(1),
+		Args:  requireContextArg("glab use <host>", "list hosts: all-cli glab list"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			a := glab.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})

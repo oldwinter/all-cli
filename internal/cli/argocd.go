@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/oldwinter/all-cli/internal/execx"
-	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/output"
 	"github.com/oldwinter/all-cli/internal/tools/argocd"
 	"github.com/spf13/cobra"
@@ -26,7 +25,14 @@ func newArgoCDCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newArgoCDStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return newToolStatusCommand(opts, runner, "argocd", "Show argocd status and current context")
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show argocd status and current context",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runSingleToolStatusCommand(cmd, opts, runner, "argocd")
+		},
+	}
 }
 
 func newArgoCDCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
@@ -42,9 +48,18 @@ func newArgoCDCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 				errs = append(errs, err.Error())
 			}
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
+				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
+					"current":  cur,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
+				})
 			}
-			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			for _, w := range warnings {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
+			}
+			for _, e := range errs {
+				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
+			}
 			if v := strings.TrimSpace(cur["context"]); v != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "context: %s\n", v)
 			}
@@ -85,12 +100,17 @@ func newArgoCDListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  current,
 					"contexts": contexts,
-					"warnings": nonNil(dedupeMessages(warnings)),
-					"errors":   nonNil(dedupeMessages(errs)),
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 
-			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			for _, w := range warnings {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
+			}
+			for _, e := range errs {
+				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
+			}
 
 			for _, c := range contexts {
 				mark := " "
@@ -108,22 +128,10 @@ func newArgoCDUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 	return &cobra.Command{
 		Use:   "use <context>",
 		Short: "Switch current argocd context",
-		Args:  cobra.ExactArgs(1),
+		Args:  requireContextArg("argocd use <context>", "list contexts: all-cli argocd list"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
 			a := argocd.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-
-			contextName := args[0]
-			if err := a.UseContext(ctx, contextName); err != nil {
-				return reportUseFailure(cmd, opts, "argocd", err)
-			}
-
-			cur, _, _, _ := a.Current(ctx)
-			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: true, ToolID: "argocd", Current: cur})
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "switched argocd context to %s\n", contextName)
-			return nil
+			return switchContext(cmd, opts, "argocd", args[0], a)
 		},
 	}
 }

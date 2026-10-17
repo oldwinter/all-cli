@@ -29,6 +29,10 @@ qa-results/
 # Local builds
 /all-cli
 
+# Verification-skill run state and proof artifacts
+.cursor/skills/verify-all-cli/artifacts/
+.cursor/skills/verify-all-cli/.run/
+
 # Opt-in local telemetry state and textfile metrics
 .all-cli-telemetry/
 all-cli.prom

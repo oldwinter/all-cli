@@ -24,7 +24,14 @@ func newMiseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newMiseStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return newToolStatusCommand(opts, runner, "mise", "Show mise status and current resolved runtimes")
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show mise status and current resolved runtimes",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runSingleToolStatusCommand(cmd, opts, runner, "mise")
+		},
+	}
 }
 
 func newMiseCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
@@ -41,18 +48,26 @@ func newMiseCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comman
 			}
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
+				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
+					"current":  cur,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
+				})
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
 			keys := make([]string, 0, len(cur))
 			for key := range cur {
-				keys = append(keys, key)
+				if strings.TrimSpace(cur[key]) != "" {
+					keys = append(keys, key)
+				}
 			}
 			sort.Strings(keys)
 			for _, key := range keys {
-				value := strings.TrimSpace(cur[key])
-				fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
+				fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, cur[key])
+			}
+			if len(keys) == 0 && len(errs) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "See install status: all-cli mise status")
 			}
 			return nil
 		},

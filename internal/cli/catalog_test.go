@@ -178,7 +178,7 @@ func TestCatalogCommandExplainsNoMatches(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
-	if got, want := stdout, "No tracked tools match \"not-a-real-tool\".\n"; got != want {
+	if got, want := stdout, "No tracked tools match \"not-a-real-tool\".\nList the full catalog: all-cli catalog\n"; got != want {
 		t.Fatalf("stdout = %q, want %q", got, want)
 	}
 }
@@ -258,6 +258,81 @@ func TestCategoryFilterFlagCompletesCatalog(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "cloud") {
 		t.Fatalf("cloud completion missing: %q", stdout)
+	}
+}
+
+func TestCatalogListAliasesMatchFullCatalog(t *testing.T) {
+	wantJSON, _, err := executeTestCommand(t, NewRootCommand(), "catalog", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantTable, _, err := executeTestCommand(t, NewRootCommand(), "catalog")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, alias := range []string{"list", "ls", "listing", "LIST", "  ls  "} {
+		t.Run(alias, func(t *testing.T) {
+			gotJSON, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", alias, "--json")
+			if err != nil || stderr != "" || gotJSON != wantJSON {
+				t.Fatalf("catalog %q --json: stdout=%q stderr=%q err=%v, want full catalog JSON", alias, gotJSON, stderr, err)
+			}
+			gotTable, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", alias)
+			if err != nil || stderr != "" || gotTable != wantTable {
+				t.Fatalf("catalog %q: stdout=%q stderr=%q err=%v, want full catalog table", alias, gotTable, stderr, err)
+			}
+			if strings.Contains(gotTable, "Matching ") {
+				t.Fatalf("catalog %q should not show a search query:\n%s", alias, gotTable)
+			}
+		})
+	}
+}
+
+func TestCatalogListAliasesAcceptSearchTerm(t *testing.T) {
+	want, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", "k8s", "--json")
+	if err != nil || stderr != "" {
+		t.Fatalf("catalog k8s --json: stdout=%q stderr=%q err=%v", want, stderr, err)
+	}
+
+	for _, alias := range []string{"list", "ls", "listing"} {
+		t.Run(alias, func(t *testing.T) {
+			got, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", alias, "k8s", "--json")
+			if err != nil || stderr != "" || got != want {
+				t.Fatalf("catalog %s k8s --json: stdout=%q stderr=%q err=%v, want catalog k8s output", alias, got, stderr, err)
+			}
+		})
+	}
+}
+
+func TestCatalogHumanOutputShowsQuery(t *testing.T) {
+	stdout, stderr, err := executeTestCommand(t, NewRootCommand(), "catalog", "GITLAB")
+	if err != nil {
+		t.Fatalf("catalog GITLAB: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+	if !strings.Contains(stdout, `Matching "GITLAB":`) {
+		t.Fatalf("human catalog output missing active query:\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "glab") {
+		t.Fatalf("human catalog output missing matching tool:\n%s", stdout)
+	}
+
+	ids, _, err := executeTestCommand(t, NewRootCommand(), "catalog", "GITLAB", "--ids")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(ids, "Matching ") {
+		t.Fatalf("--ids output must stay pipe-ready, got %q", ids)
+	}
+
+	unfiltered, _, err := executeTestCommand(t, NewRootCommand(), "catalog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(unfiltered, "Matching ") {
+		t.Fatalf("unfiltered catalog should not show a query:\n%s", unfiltered)
 	}
 }
 

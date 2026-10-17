@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	diag "github.com/oldwinter/all-cli/internal/diagnose"
@@ -31,7 +30,14 @@ func newDockerCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newDockerStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return newToolStatusCommand(opts, runner, "docker", "Show docker status and current context")
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show docker status and current context",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runSingleToolStatusCommand(cmd, opts, runner, "docker")
+		},
+	}
 }
 
 func newDockerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
@@ -47,9 +53,15 @@ func newDockerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 				errs = append(errs, err.Error())
 			}
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
+				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
+					"current":  cur,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
+				})
 			}
-			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			for _, e := range errs {
+				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
+			}
 			if v := strings.TrimSpace(cur["context"]); v != "" {
 				fmt.Fprintln(cmd.OutOrStdout(), v)
 			}
@@ -78,13 +90,17 @@ func newDockerListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"contexts": contexts,
-					"warnings": nonNil(dedupeMessages(warnings)),
-					"errors":   nonNil(dedupeMessages(errs)),
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 
-			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
+			for _, w := range warnings {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
+			}
+			for _, e := range errs {
+				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
+			}
 			for _, c := range contexts {
 				mark := " "
 				if c.Name == currentName || c.IsCurrent {
@@ -92,12 +108,12 @@ func newDockerListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				}
 				desc := strings.TrimSpace(c.Description)
 				if desc != "" {
-					fmt.Fprintf(w, "%s %s\t%s\n", mark, c.Name, desc)
+					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\t%s\n", mark, c.Name, desc)
 				} else {
-					fmt.Fprintf(w, "%s %s\n", mark, c.Name)
+					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", mark, c.Name)
 				}
 			}
-			return w.Flush()
+			return nil
 		},
 	}
 }
@@ -106,22 +122,10 @@ func newDockerUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 	return &cobra.Command{
 		Use:   "use <context>",
 		Short: "Switch current docker context",
-		Args:  cobra.ExactArgs(1),
+		Args:  requireContextArg("docker use <context>", "list contexts: all-cli docker list"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
-
-			contextName := args[0]
-			if err := a.UseContext(ctx, contextName); err != nil {
-				return reportUseFailure(cmd, opts, "docker", err)
-			}
-
-			cur, _, _, _ := a.Current(ctx)
-			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: true, ToolID: "docker", Current: cur})
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "switched docker context to %s\n", contextName)
-			return nil
+			return switchContext(cmd, opts, "docker", args[0], a)
 		},
 	}
 }
@@ -132,9 +136,9 @@ func newDockerFixCommand(opts *rootOptions, runner execx.Runner) *cobra.Command 
 	cmd := &cobra.Command{
 		Use:   "fix",
 		Short: "Preview Docker diagnostic fixes",
-		Args:  cobra.NoArgs,
 		Long: `Builds a Docker-only fix plan from diagnostics. This command is dry-run only:
 it does not run Docker commands or mutate Docker configuration.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if !dryRun {
 				return fmt.Errorf("docker fix currently requires --dry-run")
@@ -163,11 +167,11 @@ func newDockerUpdateCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Plan or run Docker image refreshes",
-		Args:  cobra.NoArgs,
 		Long: `Plans Docker image refreshes from running containers by default.
 Use --all to include stopped containers or --image to target explicit image refs.
 Without --dry-run, this command runs docker pull for planned image refs only; it does not stop,
 recreate, prune, remove containers, or change Docker contexts.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			a := docker.New(execx.TimeoutRunner{Runner: runner, Timeout: opts.Timeout})
@@ -193,13 +197,13 @@ recreate, prune, remove containers, or change Docker contexts.`,
 
 			result := dockerUpdateResult{
 				DryRun:   dryRun,
-				Updates:  nonNilUpdates(updates),
+				Updates:  updates,
 				Warnings: dedupeMessages(warnings),
 				Errors:   dedupeMessages(errs),
 			}
 			if opts.JSON {
-				if printErr := output.PrintJSON(cmd.OutOrStdout(), result); printErr != nil {
-					return printErr
+				if err := output.PrintJSON(cmd.OutOrStdout(), result); err != nil {
+					return err
 				}
 			} else {
 				printDiagnostics(cmd.ErrOrStderr(), result.Warnings, result.Errors)
@@ -229,11 +233,7 @@ recreate, prune, remove containers, or change Docker contexts.`,
 					fmt.Fprintln(cmd.OutOrStdout(), line)
 				}
 			}
-			// This is the only mutating command, so a partial failure must exit
-			// non-zero in every output format. Both paths have already emitted
-			// their payload above, so the diagnostics are never lost.
 			if len(result.Errors) > 0 {
-				cmd.Root().SilenceErrors = true
 				return fmt.Errorf("docker update completed with errors")
 			}
 			return nil
@@ -248,18 +248,8 @@ recreate, prune, remove containers, or change Docker contexts.`,
 type dockerUpdateResult struct {
 	DryRun   bool                 `json:"dry_run"`
 	Updates  []docker.ImageUpdate `json:"updates"`
-	Warnings []string             `json:"warnings"`
-	Errors   []string             `json:"errors"`
-}
-
-// nonNilUpdates normalizes a nil update slice so a failed plan marshals as []
-// instead of null. Machine consumers of `docker update --json` must be able to
-// range over updates unconditionally, exactly like warnings and errors.
-func nonNilUpdates(updates []docker.ImageUpdate) []docker.ImageUpdate {
-	if updates == nil {
-		return []docker.ImageUpdate{}
-	}
-	return updates
+	Warnings []string             `json:"warnings,omitempty"`
+	Errors   []string             `json:"errors,omitempty"`
 }
 
 func buildDockerDiagnosticReport(cmd *cobra.Command, runner execx.Runner, timeout time.Duration) (model.DiagnosticReport, error) {

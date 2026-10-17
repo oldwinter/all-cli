@@ -3,6 +3,7 @@ package telemetry
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -54,37 +55,49 @@ func readPrometheus(path string) (map[metricKey]metricValue, error) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		name, key, value, ok := parseMetricLine(line)
+		name, key, valueText, ok := parseMetricLine(line)
 		if !ok {
 			continue
 		}
 		current := metrics[key]
 		switch name {
 		case "all_cli_command_total":
-			current.Count = uint64(value)
+			value, err := strconv.ParseUint(valueText, 10, 64)
+			if err != nil {
+				continue
+			}
+			current.Count = value
 		case "all_cli_command_duration_seconds_sum":
+			value, err := strconv.ParseFloat(valueText, 64)
+			if err != nil || value < 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+				continue
+			}
 			current.DurationSum = value
+		case "all_cli_command_duration_seconds_count":
+			continue
+		default:
+			continue
 		}
 		metrics[key] = current
 	}
 	return metrics, scanner.Err()
 }
 
-func parseMetricLine(line string) (string, metricKey, float64, bool) {
+func parseMetricLine(line string) (string, metricKey, string, bool) {
 	open := strings.IndexByte(line, '{')
 	close := strings.Index(line, `"} `)
 	if open <= 0 || close <= open {
-		return "", metricKey{}, 0, false
+		return "", metricKey{}, "", false
 	}
 	name := line[:open]
 	labels := line[open+1 : close+2]
 	var command, result string
 	if _, err := fmt.Sscanf(labels, `command=%q,result=%q`, &command, &result); err != nil {
-		return "", metricKey{}, 0, false
+		return "", metricKey{}, "", false
 	}
-	value, err := strconv.ParseFloat(strings.TrimSpace(line[close+3:]), 64)
-	if err != nil {
-		return "", metricKey{}, 0, false
+	value := strings.TrimSpace(line[close+3:])
+	if value == "" {
+		return "", metricKey{}, "", false
 	}
 	return name, metricKey{Command: command, Result: result}, value, true
 }

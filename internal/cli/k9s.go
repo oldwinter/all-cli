@@ -23,7 +23,14 @@ func newK9sCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newK9sStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return newToolStatusCommand(opts, runner, "k9s", "Show k9s status and current context")
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show k9s status and current context",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runSingleToolStatusCommand(cmd, opts, runner, "k9s")
+		},
+	}
 }
 
 func newK9sCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
@@ -37,14 +44,23 @@ func newK9sCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 			cur, warnings, errs, _ := a.Current(ctx)
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
+				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
+					"current":  cur,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
+				})
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			printed := false
 			for _, key := range []string{"context", "namespace", "config"} {
 				if value := strings.TrimSpace(cur[key]); value != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
+					printed = true
 				}
+			}
+			if !printed {
+				fmt.Fprintln(cmd.ErrOrStderr(), "no k9s context. Check: all-cli k9s status")
 			}
 			return nil
 		},

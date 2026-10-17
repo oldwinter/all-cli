@@ -40,7 +40,41 @@ func PrintStatusTableWithOptions(w io.Writer, report model.StatusReport, opts St
 	default:
 		printStatusTableFlat(w, report)
 	}
+	printStatusSummary(w, report)
 	printStatusDiagnostics(w, report)
+}
+
+// printStatusSummary prints a one-line count of the displayed tools so a
+// glance at the table answers "how many need me?" without counting rows.
+func printStatusSummary(w io.Writer, report model.StatusReport) {
+	installed := 0
+	attention := 0
+	for _, tool := range report.Tools {
+		if tool.Installed {
+			installed++
+		}
+		if statusNeedsAttention(tool) {
+			attention++
+		}
+	}
+	label := "tools"
+	if len(report.Tools) == 1 {
+		label = "tool"
+	}
+	fmt.Fprintf(w, "\nSummary: %d %s, %d installed, %d need attention\n",
+		len(report.Tools), label, installed, attention)
+}
+
+// statusNeedsAttention mirrors the --quiet filter: anything not installed,
+// unconfigured, or carrying warnings/errors.
+func statusNeedsAttention(tool model.ToolSummary) bool {
+	if !tool.Installed {
+		return true
+	}
+	if tool.ConfiguredState == model.ConfiguredNo {
+		return true
+	}
+	return len(tool.Warnings) > 0 || len(tool.Errors) > 0
 }
 
 func printStatusTableFlat(w io.Writer, report model.StatusReport) {

@@ -83,6 +83,40 @@ func TestParsePSJSONLinesInvalidLine(t *testing.T) {
 	}
 }
 
+func TestParseContextLSJSONLinesWarnsOnItemError(t *testing.T) {
+	stdout := `{"Current":true,"Name":"broken","Description":"","Error":"context data missing"}` + "\n"
+	contexts, warnings, errs, err := parseContextLSJSONLines(stdout)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errs: %#v", errs)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], `docker context "broken" error: context data missing`) {
+		t.Fatalf("unexpected warnings: %#v", warnings)
+	}
+	if len(contexts) != 1 || contexts[0].Name != "broken" || !contexts[0].IsCurrent {
+		t.Fatalf("unexpected contexts: %#v", contexts)
+	}
+}
+
+func TestParsePSJSONLinesWarnsOnMissingImage(t *testing.T) {
+	stdout := `{"ID":"abc","Names":"web","Status":"Up"}` + "\n"
+	containers, warnings, errs, err := parsePSJSONLines(stdout)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errs: %#v", errs)
+	}
+	if len(containers) != 0 {
+		t.Fatalf("expected image-less container to be skipped, got %#v", containers)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], `docker container "web" has no image reference`) {
+		t.Fatalf("unexpected warnings: %#v", warnings)
+	}
+}
+
 func TestNormalizeImageRefSkipsUnsafeRefs(t *testing.T) {
 	tests := []string{
 		"",
@@ -268,6 +302,222 @@ func TestCurrentBadContextUsesStderr(t *testing.T) {
 		if e == "" {
 			t.Fatalf("errors[%d] is empty: %#v", i, errs)
 		}
+	}
+}
+
+func TestConfiguredUsesContextList(t *testing.T) {
+	tests := []struct {
+		name     string
+		res      execx.CmdResult
+		want     bool
+		wantErrs []string
+		wantErr  bool
+	}{
+		{
+			name: "contexts listed",
+			res: execx.CmdResult{Stdout: `{"Current":true,"Name":"desktop-linux","Description":""}` + "\n" +
+				`{"Current":false,"Name":"remote","Description":""}` + "\n"},
+			want: true,
+		},
+		{
+			name: "no contexts",
+			res:  execx.CmdResult{Stdout: ""},
+			want: false,
+		},
+		{
+			name:     "context ls failure",
+			res:      execx.CmdResult{ExitCode: 1, Err: errors.New("exit status 1"), Stderr: "daemon unavailable"},
+			wantErrs: []string{"daemon unavailable"},
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := New(dockerFakeRunner{results: map[string]execx.CmdResult{
+				"docker context ls --format {{json .}}": tt.res,
+			}})
+			ok, _, errs, err := a.Configured(context.Background())
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error")
+				}
+			} else if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if ok != tt.want {
+				t.Fatalf("ok = %v, want %v", ok, tt.want)
+			}
+			if len(errs) != len(tt.wantErrs) {
+				t.Fatalf("errs = %#v, want %#v", errs, tt.wantErrs)
+			}
+			for i, e := range tt.wantErrs {
+				if errs[i] != e {
+					t.Fatalf("errs = %#v, want %#v", errs, tt.wantErrs)
+				}
+			}
+		})
+	}
+}
+
+func TestListContextsRunsDockerContextLS(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context ls --format {{json .}}": {
+				Stdout: `{"Current":false,"Name":"default","Description":"local"}` + "\n" +
+					`{"Current":true,"Name":"remote","Description":""}` + "\n",
+			},
+		},
+	}
+	contexts, warnings, errs, err := New(runner).ListContexts(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("unexpected diagnostics warnings=%#v errs=%#v", warnings, errs)
+	}
+	if len(contexts) != 2 || contexts[0].Name != "default" || !contexts[1].IsCurrent {
+		t.Fatalf("unexpected contexts: %#v", contexts)
+	}
+}
+
+func TestListContextsFailureUsesRunnerErrorWhenNoStderr(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context ls --format {{json .}}": {
+				ExitCode: 1,
+				Err:      errors.New(`exec: "docker": executable file not found in $PATH`),
+			},
+		},
+	}
+	_, _, errs, err := New(runner).ListContexts(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "docker context ls failed (exit=1)") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(errs) != 1 || !strings.Contains(errs[0], "executable file not found") {
+		t.Fatalf("unexpected errs: %#v", errs)
+	}
+}
+
+func TestCurrentShowsContext(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context show": {Stdout: "desktop-linux\n"},
+		},
+	}
+	cur, warnings, errs, err := New(runner).Current(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(warnings) != 0 || len(errs) != 0 {
+		t.Fatalf("unexpected diagnostics warnings=%#v errs=%#v", warnings, errs)
+	}
+	if !reflect.DeepEqual(cur, map[string]string{"context": "desktop-linux"}) {
+		t.Fatalf("unexpected current: %#v", cur)
+	}
+}
+
+func TestCurrentEmptyContext(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context show": {Stdout: "  \n"},
+		},
+	}
+	cur, _, _, err := New(runner).Current(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cur) != 0 {
+		t.Fatalf("expected empty current, got %#v", cur)
+	}
+}
+
+func TestCurrentErrorWithoutCauseOmitsSuffix(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context show": {ExitCode: 1, Err: errors.New("")},
+		},
+	}
+	_, _, _, err := New(runner).Current(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "docker context show failed (exit=1)" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUseContextSucceeds(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context use prod": {Stdout: "prod\n"},
+		},
+	}
+	if err := New(runner).UseContext(context.Background(), "prod"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUseContextErrorWithoutCauseOmitsSuffix(t *testing.T) {
+	runner := dockerFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context use prod": {ExitCode: 1, Err: errors.New("")},
+		},
+	}
+	err := New(runner).UseContext(context.Background(), "prod")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != `docker context use "prod" failed (exit=1)` {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPullImage(t *testing.T) {
+	tests := []struct {
+		name       string
+		res        execx.CmdResult
+		wantErr    bool
+		errContain string
+	}{
+		{
+			name: "pull succeeds",
+			res:  execx.CmdResult{Stdout: "Status: Image is up to date\n"},
+		},
+		{
+			name:       "pull failure reports stderr",
+			res:        execx.CmdResult{ExitCode: 1, Err: errors.New("exit status 1"), Stderr: "manifest unknown"},
+			wantErr:    true,
+			errContain: `docker pull "bogus:latest" failed (exit=1): manifest unknown`,
+		},
+		{
+			name:       "pull failure falls back to runner error",
+			res:        execx.CmdResult{ExitCode: 1, Err: errors.New("executable file not found")},
+			wantErr:    true,
+			errContain: "executable file not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := New(dockerFakeRunner{results: map[string]execx.CmdResult{
+				"docker pull bogus:latest": tt.res,
+			}})
+			err := a.PullImage(context.Background(), "bogus:latest")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error")
+				}
+				if !strings.Contains(err.Error(), tt.errContain) {
+					t.Fatalf("error %q does not contain %q", err.Error(), tt.errContain)
+				}
+			} else if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 

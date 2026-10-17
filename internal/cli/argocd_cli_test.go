@@ -39,12 +39,17 @@ func TestArgoCDListJSON(t *testing.T) {
 			Server    string `json:"server"`
 			IsCurrent bool   `json:"is_current"`
 		} `json:"contexts"`
+		Warnings []string `json:"warnings"`
+		Errors   []string `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
 	}
 	if got.Current["context"] != "prod-admin" || len(got.Contexts) != 2 || !got.Contexts[0].IsCurrent {
 		t.Fatalf("unexpected payload: %#v", got)
+	}
+	if got.Warnings == nil || got.Errors == nil {
+		t.Fatalf("expected warnings/errors to be arrays, got %#v", got)
 	}
 }
 
@@ -141,13 +146,18 @@ func TestArgoCDCurrentJSON(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	var got struct {
-		Current map[string]string `json:"current"`
+		Current  map[string]string `json:"current"`
+		Warnings []string          `json:"warnings"`
+		Errors   []string          `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
 	}
 	if got.Current["context"] != "prod-admin" || got.Current["server"] != "https://argocd.example.com" {
 		t.Fatalf("unexpected payload: %#v", got.Current)
+	}
+	if got.Warnings == nil || got.Errors == nil {
+		t.Fatalf("expected warnings/errors to be arrays, got %#v", got)
 	}
 }
 
@@ -237,10 +247,14 @@ func TestArgoCDCurrentJSONError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var got struct {
-		Errors []string `json:"errors"`
+		Warnings []string `json:"warnings"`
+		Errors   []string `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
+	}
+	if got.Warnings == nil {
+		t.Fatalf("expected warnings array, got %#v", got)
 	}
 	if len(got.Errors) != 2 || got.Errors[0] != "context unavailable" {
 		t.Fatalf("unexpected payload: %#v", got)
@@ -390,10 +404,14 @@ func TestArgoCDListJSONError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var got struct {
-		Errors []string `json:"errors"`
+		Warnings []string `json:"warnings"`
+		Errors   []string `json:"errors"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode json: %v", err)
+	}
+	if got.Warnings == nil {
+		t.Fatalf("expected warnings array, got %#v", got)
 	}
 	if len(got.Errors) != 2 || got.Errors[0] != "context unavailable" {
 		t.Fatalf("unexpected payload: %#v", got)

@@ -1,7 +1,6 @@
 package k9s
 
 import (
-	"bufio"
 	"context"
 	"regexp"
 	"strings"
@@ -56,11 +55,13 @@ func (a Adapter) Current(ctx context.Context) (map[string]string, []string, []st
 
 func parseK9sInfoConfig(stdout string) string {
 	stdout = ansiRe.ReplaceAllString(stdout, "")
-	scanner := bufio.NewScanner(strings.NewReader(stdout))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for _, rawLine := range strings.Split(stdout, "\n") {
+		line := strings.TrimSpace(strings.TrimRight(rawLine, "\r"))
 		if strings.HasPrefix(line, "Config:") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "Config:"))
+			config := strings.TrimSpace(strings.TrimPrefix(line, "Config:"))
+			if config != "" {
+				return config
+			}
 		}
 	}
 	return ""

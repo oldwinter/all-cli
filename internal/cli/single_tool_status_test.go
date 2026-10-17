@@ -124,27 +124,6 @@ func TestPerToolCommandsRejectUnexpectedArgs(t *testing.T) {
 	}
 }
 
-func TestToolStatusBuilderWiresSharedContract(t *testing.T) {
-	opts := &rootOptions{Timeout: time.Second}
-	cmd := newToolStatusCommand(opts, cliFakeRunner{}, "docker", "Show docker status")
-
-	if cmd.Use != "status" {
-		t.Fatalf("Use = %q, want status", cmd.Use)
-	}
-	if cmd.Short != "Show docker status" {
-		t.Fatalf("Short = %q", cmd.Short)
-	}
-	if cmd.Args == nil {
-		t.Fatal("expected Args validation to be set")
-	}
-	if err := cmd.Args(cmd, []string{"unexpected"}); err == nil {
-		t.Fatal("expected Args to reject positional arguments")
-	}
-	if err := cmd.Args(cmd, nil); err != nil {
-		t.Fatalf("expected Args to accept zero arguments, got %v", err)
-	}
-}
-
 func TestPerToolCurrentJSONWarningsIsEmptyArray(t *testing.T) {
 	tests := []struct {
 		name string

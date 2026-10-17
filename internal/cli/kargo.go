@@ -25,7 +25,14 @@ func newKargoCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newKargoStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return newToolStatusCommand(opts, runner, "kargo", "Show kargo status and current context")
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show kargo status and current context",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runSingleToolStatusCommand(cmd, opts, runner, "kargo")
+		},
+	}
 }
 
 func newKargoCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
@@ -41,9 +48,15 @@ func newKargoCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comma
 				errs = append(errs, err.Error())
 			}
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
+				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
+					"current":  cur,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
+				})
 			}
-			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			for _, e := range errs {
+				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
+			}
 			if v := strings.TrimSpace(cur["api_address"]); v != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "api_address: %s\n", v)
 			}
@@ -76,7 +89,7 @@ func newKargoUseCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 			} else if len(args) == 1 {
 				project = args[0]
 			} else {
-				return fmt.Errorf("project name is required (or use --unset)")
+				return fmt.Errorf("project name is required (or use --unset; see current project: all-cli kargo current)")
 			}
 
 			if err := a.SetDefaultProject(ctx, project); err != nil {

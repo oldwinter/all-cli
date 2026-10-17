@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,7 +28,7 @@ func newPosthogSink(config Config, client *http.Client) (*posthogSink, error) {
 		host = "https://us.i.posthog.com"
 	}
 	parsed, err := url.Parse(host)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return nil, fmt.Errorf("parse POSTHOG_HOST %q", host)
 	}
 	installationIDPath := config.InstallationIDPath
@@ -80,7 +81,8 @@ func (p *posthogSink) capture(ctx context.Context, command, result string) {
 	req.Header.Set("Content-Type", "application/json")
 	response, err := p.client.Do(req)
 	if err == nil {
-		response.Body.Close()
+		_, _ = io.Copy(io.Discard, response.Body)
+		_ = response.Body.Close()
 	}
 }
 

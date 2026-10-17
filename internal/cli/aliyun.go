@@ -24,7 +24,14 @@ func newAliyunCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newAliyunStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return newToolStatusCommand(opts, runner, "aliyun", "Show Aliyun CLI status and current context")
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show Aliyun CLI status and current context",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runSingleToolStatusCommand(cmd, opts, runner, "aliyun")
+		},
+	}
 }
 
 func newAliyunCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
@@ -41,14 +48,23 @@ func newAliyunCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Comm
 			}
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
+				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
+					"current":  cur,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
+				})
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			printed := false
 			for _, key := range []string{"profile", "region", "language", "valid"} {
 				if value := strings.TrimSpace(cur[key]); value != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
+					printed = true
 				}
+			}
+			if !printed && len(errs) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "See profiles and install status: all-cli aliyun list / all-cli aliyun status")
 			}
 			return nil
 		},
@@ -79,8 +95,8 @@ func newAliyunListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
 					"current":  cur,
 					"profiles": profiles,
-					"warnings": nonNil(dedupeMessages(warnings)),
-					"errors":   nonNil(dedupeMessages(errs)),
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
 				})
 			}
 

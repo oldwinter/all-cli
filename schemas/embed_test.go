@@ -17,6 +17,7 @@ func TestReadReturnsBundledSchemas(t *testing.T) {
 	}{
 		{name: Status, wantID: "status-report-v0.1.json"},
 		{name: Diagnostic, wantID: "diagnostic-report-v0.1.json"},
+		{name: DoctorFix, wantID: "doctor-fix-report-v0.1.json"},
 		{name: FixPlan, wantID: "fix-plan-v0.1.json"},
 		{name: SnapshotDiff, wantID: "snapshot-diff-v0.1.json"},
 	}
@@ -45,7 +46,7 @@ func TestReadReturnsBundledSchemas(t *testing.T) {
 func TestNamesIsStable(t *testing.T) {
 	t.Parallel()
 
-	want := []string{Status, Diagnostic, FixPlan, SnapshotDiff}
+	want := []string{Status, Diagnostic, DoctorFix, FixPlan, SnapshotDiff}
 	got := Names()
 	if len(got) != len(want) {
 		t.Fatalf("Names() = %v, want %v", got, want)

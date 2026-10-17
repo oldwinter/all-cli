@@ -23,7 +23,14 @@ func newWranglerCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 }
 
 func newWranglerStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
-	return newToolStatusCommand(opts, runner, "wrangler", "Show Wrangler status and current account context")
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show Wrangler status and current account context",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runSingleToolStatusCommand(cmd, opts, runner, "wrangler")
+		},
+	}
 }
 
 func newWranglerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
@@ -40,14 +47,23 @@ func newWranglerCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Co
 			}
 
 			if opts.JSON {
-				return output.PrintJSON(cmd.OutOrStdout(), newCurrentEnvelope(cur, warnings, errs))
+				return output.PrintJSON(cmd.OutOrStdout(), map[string]any{
+					"current":  cur,
+					"warnings": dedupeMessages(warnings),
+					"errors":   dedupeMessages(errs),
+				})
 			}
 
 			printDiagnostics(cmd.ErrOrStderr(), warnings, errs)
+			printed := false
 			for _, key := range []string{"logged_in", "accounts_count", "account_id"} {
 				if value := strings.TrimSpace(cur[key]); value != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", key, value)
+					printed = true
 				}
+			}
+			if len(errs) == 0 && (!printed || cur["logged_in"] == "no") {
+				fmt.Fprintln(cmd.OutOrStdout(), "See install and login status: all-cli wrangler status")
 			}
 			return nil
 		},

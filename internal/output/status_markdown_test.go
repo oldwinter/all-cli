@@ -54,6 +54,20 @@ func TestPrintStatusMarkdownProducesPasteReadyReport(t *testing.T) {
 	}
 }
 
+func TestPrintStatusMarkdownGuidesWhenNoTools(t *testing.T) {
+	var output bytes.Buffer
+	PrintStatusMarkdown(&output, model.StatusReport{})
+	got := output.String()
+	if strings.Contains(got, "| Tool |") {
+		t.Fatalf("unexpected empty table:\n%s", got)
+	}
+	for _, needle := range []string{"No tools in this report.", "all-cli catalog", "all-cli status"} {
+		if !strings.Contains(got, needle) {
+			t.Fatalf("expected %q in empty report, got:\n%s", needle, got)
+		}
+	}
+}
+
 func TestPrintStatusMarkdownOmitsEmptyMessageSections(t *testing.T) {
 	report := model.StatusReport{
 		Tools: []model.ToolSummary{{

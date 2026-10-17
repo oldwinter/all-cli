@@ -23,12 +23,12 @@ jobs:
       url: ${{ steps.release-info.outputs.url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6.3.0
+        uses: actions/setup-go@v7.0.0
         with:
           go-version-file: go.mod
           cache: true
@@ -57,7 +57,7 @@ jobs:
 
       - name: GoReleaser
         id: goreleaser
-        uses: goreleaser/goreleaser-action@v7.0.0
+        uses: goreleaser/goreleaser-action@v7.2.3
         with:
           version: v2.14.3
           args: release --clean

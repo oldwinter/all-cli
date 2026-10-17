@@ -87,16 +87,16 @@ func parseContextTable(stdout string) ([]Context, []string, []string, error) {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		if strings.HasPrefix(strings.TrimSpace(line), "CURRENT") {
-			continue
-		}
 		trimLeft := strings.TrimLeft(line, " \t")
 		if trimLeft == "" {
 			continue
 		}
+		fields := strings.Fields(trimLeft)
+		if len(fields) >= 3 && fields[0] == "CURRENT" && fields[1] == "NAME" && fields[2] == "SERVER" {
+			continue
+		}
 
 		if strings.HasPrefix(trimLeft, "*") {
-			fields := strings.Fields(trimLeft)
 			if len(fields) < 3 {
 				warnings = append(warnings, fmt.Sprintf("unexpected argocd context row format on line %d", lineNum))
 				continue
@@ -109,7 +109,6 @@ func parseContextTable(stdout string) ([]Context, []string, []string, error) {
 			continue
 		}
 
-		fields := strings.Fields(trimLeft)
 		if len(fields) < 2 {
 			warnings = append(warnings, fmt.Sprintf("unexpected argocd context row format on line %d", lineNum))
 			continue

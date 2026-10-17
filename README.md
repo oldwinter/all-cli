@@ -11,7 +11,7 @@
 
 It also detects “current context” for other common tools in `all-cli status` (read-only), including `aws`, `aliyun`, `wrangler`, `vercel`, `railway`, `netlify`, `argocd`, `kargo`, `mise`, and `k9s`.
 
-The inventory is intentionally broader than the context-switching set. It now also tracks common local CLIs grouped by category, including navigation (`fd`, `rg`, `fzf`, `zoxide`), shell/data helpers (`eza`, `bat`, `yq`), task/runtime tools (`uv`, `just`, `mise`), cloud/deployment CLIs (`aws`, `aliyun`, `wrangler`, `vercel`, `railway`, `netlify`), web automation (`opencli`), Kubernetes helpers (`kubectx`, `kubens`, `kubecolor`, `krew`), AI terminals (`claude`, `codex`, `openclaw`, `opencode`, `gemini`, `ccusage`, `litellm-proxy`), and a few workflow tools such as `linear` and `simplex-cli`.
+The inventory is intentionally broader than the context-switching set. It now also tracks common local CLIs grouped by category, including navigation (`fd`, `rg`, `fzf`, `zoxide`), shell/data helpers (`eza`, `bat`, `yq`), task/runtime tools (`uv`, `just`, `mise`), cloud/deployment CLIs (`aws`, `aliyun`, `wrangler`, `vercel`, `railway`, `netlify`), web automation (`opencli`), Kubernetes helpers (`kubectx`, `kubens`, `kubecolor`, `krew`), AI terminals (`claude`, `codex`, `openclaw`, `opencode`, `gemini`, `grok`, `ccusage`, `litellm-proxy`), and a few workflow tools such as `linear` and `simplex-cli`.
 
 It defaults to human-friendly output and supports `--json` for stable machine-readable output (e.g. a future SwiftUI macOS app).
 
@@ -156,6 +156,19 @@ Note about Go toolchain mismatch:
 
 ## Usage
 
+Command map (same grouping as `all-cli --help`):
+
+| Group | Commands |
+| --- | --- |
+| Primary | `status`, `report`, `current`, `catalog`, `describe`, `diagnose`, `doctor`, `fix`, `snapshot`, `diff`, `schema` |
+| Cloud platforms | `aws`, `aliyun`, `wrangler` |
+| Tool integrations | `mise`, `k9s`, `kubectl`, `docker`, `gh`, `glab`, `argocd`, `kargo` |
+| Other | `version`, `options`, `completion` |
+
+Start with `all-cli catalog` to browse every tracked tool without running
+external commands, then `all-cli describe <tool>` for one tool or
+`all-cli status` for live checks.
+
 ### Version metadata
 
 `all-cli version` keeps its compact human-readable output. Add `--json` when a
@@ -181,9 +194,11 @@ all-cli options --json
 ```bash
 all-cli status
 all-cli status --json
+all-cli status --ids
 all-cli status --tools kubectl,docker
 all-cli status --categories ai,cloud
 all-cli status --categories ai --missing-only
+all-cli status --missing-only --ids
 all-cli status --group-by none
 all-cli status --sort tool-desc
 all-cli status --sort category-desc
@@ -191,6 +206,10 @@ all-cli status --timeout 10s
 all-cli status --no-progress
 all-cli status --quiet
 ```
+
+Use `--ids` to print one checked tool ID per line after applying the status filters and
+sort order. This mode suppresses the progress spinner, so stdout contains only IDs. If
+you also pass `--json`, the full JSON report takes precedence.
 
 Use the global `--no-progress` flag to suppress progress indicators in human-readable
 commands. `status --quiet` also suppresses the status spinner while showing only tools
@@ -240,11 +259,25 @@ all-cli diagnose --tools kubectl,docker,gh --json
 all-cli diagnose --profile ci --json
 ```
 
-`all-cli doctor` is the read-only health-check entrypoint for humans or automation. It returns the same diagnostic report shape as `diagnose`.
+`all-cli doctor` is the health-check entrypoint for humans or automation. Without `--fix` it is read-only and returns the same diagnostic report shape as `diagnose`.
 
 ```bash
 all-cli doctor
 all-cli doctor --tools kubectl,docker,gh --json
+```
+
+Add `--fix` to install missing tools that have a known brew, npm, pipx, or go
+recipe. Preview the commands with `--dry-run` first, and use `--tools` to limit
+which tools are installed. `--installer auto` (the default) picks the first
+supported installer found in PATH; pass `--installer brew|npm|pipx|go` to force
+one. Each install command runs with a 10-minute timeout, and any failed install
+makes `doctor` exit non-zero. With `--json`, the output follows
+[doctor-fix-report-v0.1](schemas/doctor-fix-report-v0.1.json).
+
+```bash
+all-cli doctor --fix --dry-run
+all-cli doctor --fix --tools gh,kubectl
+all-cli doctor --fix --dry-run --installer npm --json
 ```
 
 `all-cli fix` is dry-run only in this release. It builds a fix plan from diagnostics and explicitly reports which items are blocked because automatic mutation is not allowlisted.
@@ -262,11 +295,39 @@ all-cli snapshot --json > after.json
 all-cli diff before.json after.json --json
 ```
 
+Add `--details` to see the old and new values of each changed field directly in
+text output, without opening the snapshot files or parsing JSON:
+
+```bash
+all-cli diff before.json after.json --details
+```
+
+```text
+Snapshot diff: added=0 removed=0 changed=1
+- kubectl changed fields=current
+    current: {"context":"dev"} -> {"context":"staging"}
+```
+
+Values use compact JSON so spaces, quotes, and newlines remain unambiguous;
+`null` means the field was absent. Added and removed tools keep their summary
+lines. This flag works with `--tools`, standard input, and `--exit-code`.
+`--json` keeps its existing full before/after summaries and ignores `--details`.
+
 Add `--exit-code` when a script or CI job should return status 1 if any tool was
 added, removed, or changed. The complete text or JSON report is still printed:
 
 ```bash
 all-cli diff before.json after.json --json --exit-code
+```
+
+Use `--tools` to focus a comparison on selected tracked tool IDs without
+recapturing or editing full snapshots. The summary and `--exit-code` reflect
+only those tools. A selected tool absent from both snapshots has no changes.
+The filter works with text, JSON, and standard input:
+
+```bash
+all-cli diff before.json after.json --tools kubectl,docker --exit-code
+all-cli snapshot --json | all-cli diff before.json - --tools kubectl --json
 ```
 
 Print the matching JSON Schema directly from the installed binary when another
@@ -275,6 +336,7 @@ tool needs to validate these reports offline:
 ```bash
 all-cli schema status > status.schema.json
 all-cli schema diagnostic > diagnostic.schema.json
+all-cli schema doctor-fix > doctor-fix.schema.json
 ```
 
 Use `-` for either diff input to compare a saved snapshot with a live pipeline
@@ -283,6 +345,25 @@ without creating another file. Standard input snapshots are limited to 1 MiB:
 ```bash
 all-cli snapshot --json | all-cli diff before.json - --json
 ```
+
+### Share a saved status report
+
+Turn a captured JSON snapshot into Markdown for an issue or pull request without
+probing local tools again. The report keeps the original timestamp, tool facts,
+warnings, and errors:
+
+```bash
+all-cli report --from before.json > report.md
+all-cli report --from before.json --tools kubectl,docker > cluster-report.md
+all-cli snapshot --tools kubectl,docker --json | all-cli report --from -
+```
+
+`--from -` reads standard input, limited to 1 MiB. Add `--tools` to select tracked
+tool IDs from either a file or standard input without editing or recapturing the
+snapshot. Selected tools keep their original order and captured facts; tools
+absent from the snapshot are omitted. An empty `--tools` value keeps all tools.
+Add `--json` to emit the selected status with diagnostics derived only from those
+facts instead of Markdown. Without `--from`, `report` checks local tools as usual.
 
 ### AI-friendly JSON additions
 
@@ -340,17 +421,40 @@ Example shape:
 ### Tool descriptions
 
 Use `all-cli catalog` to browse every tracked tool without running any external
-commands. Add an optional search term to match tool IDs, names, categories,
-binary names, and purposes. Use `--categories` to browse one or more exact
-registry categories; category filters and search terms can be combined:
+commands. `catalog list`, `catalog ls`, and `catalog listing` are aliases for
+the full catalog; each alias can take an optional search term. Add an optional
+search term to match tool IDs, names,
+categories, binary names, and purposes; human table output shows the active
+query. Use `--categories` to browse one or more exact registry categories;
+category filters and search terms can be combined. Add `--match-all` to match
+every whitespace-separated word anywhere in the metadata, instead of requiring
+one contiguous phrase. Matching is case-insensitive; words may match different
+fields, and an empty query still lists the full catalog:
 
 ```bash
 all-cli catalog
+all-cli catalog list
+all-cli catalog list k8s
 all-cli catalog kubernetes
 all-cli catalog --categories ai,cloud
 all-cli catalog kubernetes --categories k8s,cloud
 all-cli catalog cloud --json
+all-cli catalog "tui kubernetes" --match-all
+all-cli catalog list "cloud account" --match-all --ids
 ```
+
+Use `--summary` instead to see an alphabetical category breakdown and total
+tool count without the individual rows. Search, `--match-all`, and category
+filters apply before counting. No matches produces a total of zero:
+
+```bash
+all-cli catalog --summary
+all-cli catalog "cloud account" --match-all --summary
+all-cli catalog --categories ai,cloud --summary
+```
+
+`--summary` and `--ids` are mutually exclusive. `--json` keeps the full catalog
+report unchanged and takes precedence over either text mode.
 
 Use `--ids` to print one matching tool ID per line for a picker or a shell loop:
 
