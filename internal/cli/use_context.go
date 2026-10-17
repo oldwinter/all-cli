@@ -31,10 +31,7 @@ func requireContextArg(usage, hint string) cobra.PositionalArgs {
 func switchContext(cmd *cobra.Command, opts *rootOptions, toolID, contextName string, adapter contextSwitchAdapter) error {
 	ctx := cmd.Context()
 	if err := adapter.UseContext(ctx, contextName); err != nil {
-		if opts.JSON {
-			_ = output.PrintJSON(cmd.OutOrStdout(), model.UseResult{OK: false, ToolID: toolID, Error: err.Error()})
-		}
-		return err
+		return reportUseFailure(cmd, opts, toolID, err)
 	}
 	cur, _, _, _ := adapter.Current(ctx)
 	if opts.JSON {

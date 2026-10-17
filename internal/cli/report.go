@@ -48,7 +48,9 @@ tools from the snapshot, preserving their original order and captured facts.`,
 					report.Tools = filterSnapshotTools(report.Tools, selected)
 				}
 			} else {
-				report, err = buildStatusReport(cmd.Context(), runner, opts.Timeout, toolsFilter)
+				// Use the timeout-aware form so an explicit --timeout is not
+				// overridden by a per-tool registry default.
+				report, err = buildStatusReportWithTimeoutSettings(cmd.Context(), runner, opts.timeouts(), toolsFilter)
 			}
 			if err != nil {
 				return err

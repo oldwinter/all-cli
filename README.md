@@ -205,12 +205,20 @@ all-cli status --sort tool-desc
 all-cli status --sort category-desc
 all-cli status --timeout 10s
 all-cli status --no-progress
+all-cli status --summary-only
 all-cli status --quiet
 ```
 
 Use `--ids` to print one checked tool ID per line after applying the status filters and
 sort order. This mode suppresses the progress spinner, so stdout contains only IDs. If
 you also pass `--json`, the full JSON report takes precedence.
+
+Use `--summary-only` to print just the `Summary: ...` line without the tables or the
+warning and error details, after applying the status filters. It is handy as a
+prompt-friendly one-liner or a quick health check (for example with `--tools`,
+`--categories`, or `--missing-only`). This mode also suppresses the progress spinner,
+and is mutually exclusive with `--ids`. If you also pass `--json`, the full JSON
+report takes precedence.
 
 Use the global `--no-progress` flag to suppress progress indicators in human-readable
 commands. `status --quiet` also suppresses the status spinner while showing only tools

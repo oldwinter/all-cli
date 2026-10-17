@@ -5,7 +5,10 @@ project := "all-cli"
 main_pkg := "./cmd/all-cli"
 bin_path := "./all-cli"
 packages := "./..."
-go_cmd := "env -u GOROOT -u GOTOOLDIR go"
+# `env -u` is a POSIX utility and Windows bash does not resolve bare `go` to
+# `go.exe`, so use the explicit executable there. `just go-env` shows what is in
+# effect.
+go_cmd := if os() == "windows" { "go.exe" } else { "env -u GOROOT -u GOTOOLDIR go" }
 
 version := `git describe --tags --always --dirty 2>/dev/null || echo "dev"`
 commit := `git rev-parse --short=7 HEAD 2>/dev/null || echo "unknown"`

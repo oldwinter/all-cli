@@ -32,6 +32,7 @@ Configured in `internal/cli/status.go`:
 | `--quiet` | Shows only missing, unconfigured, warning, or error tools. |
 | `--installed-only` | Shows only installed tools. |
 | `--unconfigured-only` | Shows only installed tools that are not configured. |
+| `--summary-only` | Prints only the one-line summary count; mutually exclusive with `--ids`. |
 
 ## Developer automation
 

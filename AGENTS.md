@@ -15,7 +15,18 @@
 - `just ci` is the CI-equivalent gate (tidy, fmt, policy, vet, tests, 80% coverage floor, complexity ≤19, duplication); `just check` adds race and three-pass stability runs. Run `just check` before a PR.
 - `just policy` also checks this file: every `just <recipe>` named here must exist in `justfile`, and every local link must resolve.
 - A `just test-stability` failure is a flaky-test defect, never retryable noise.
-- The justfile runs Go as `env -u GOROOT -u GOTOOLDIR go`; use `just go-env` for toolchain mismatches.
+- The justfile runs Go through a platform-appropriate command: `env -u GOROOT -u GOTOOLDIR go` on POSIX and `go.exe` on Windows, where the POSIX wrapper is unavailable. Use `just go-env` for toolchain mismatches.
+
+## Machine-readable reports
+
+Every `--json` report has a bundled schema, printable offline with `just run schema <name>`:
+
+- `status` — `all-cli status --json`, `all-cli snapshot --json`, and per-tool `all-cli <tool> status --json`
+- `diagnostic` — `all-cli diagnose --json`, `all-cli doctor --json`
+- `fix-plan` — `all-cli fix --dry-run --json`, `all-cli docker fix --dry-run --json`
+- `snapshot-diff` — `all-cli diff <a> <b> --json`
+
+Each schema is self-contained, so `all-cli schema <name> > file.json` can be validated offline without the sibling files.
 
 ## Behavior rules
 
