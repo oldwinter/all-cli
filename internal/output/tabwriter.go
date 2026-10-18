@@ -15,6 +15,12 @@ import (
 // wide rune makes its measurement match the terminal display width (2
 // columns). Because the filler is stripped after padding is computed, it never
 // reaches the terminal.
+//
+// Known limitation: fillerStripper removes every U+E000 from the output, so if
+// the user's own text (a context, namespace, or profile name) contains U+E000,
+// that rune is stripped from the rendered table too. U+E000 is a private-use
+// code point with no standard glyph, so this trade-off only affects tables;
+// --json output is unchanged.
 const widthFiller = '\uE000'
 
 var widthFillerBytes = []byte(string(widthFiller))
