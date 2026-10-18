@@ -5,7 +5,6 @@ import (
 	"io"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/oldwinter/all-cli/internal/model"
 )
@@ -84,7 +83,7 @@ func statusNeedsAttention(tool model.ToolSummary) bool {
 }
 
 func printStatusTableFlat(w io.Writer, report model.StatusReport) {
-	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	tw := NewTabWriter(w)
 	fmt.Fprintln(tw, "TOOL\tCATEGORY\tINSTALLED\tCONFIGURED\tCURRENT")
 
 	for _, tool := range report.Tools {
@@ -125,7 +124,7 @@ func printStatusTableGroupedByCategory(w io.Writer, report model.StatusReport, o
 		}
 	}
 
-	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	tw := NewTabWriter(w)
 	fmt.Fprintln(tw, "CATEGORY\tTOOL\tINSTALLED\tCONFIGURED\tCURRENT")
 
 	for _, category := range categories {
