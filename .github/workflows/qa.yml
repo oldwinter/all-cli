@@ -76,7 +76,6 @@ jobs:
       - name: Run QA
         id: qa
         if: steps.precheck.outputs.has_key == 'true'
-        continue-on-error: true
         timeout-minutes: 20
         env:
           FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
