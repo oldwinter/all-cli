@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"text/tabwriter"
 
 	"github.com/oldwinter/all-cli/internal/model"
 )
@@ -17,7 +16,7 @@ func PrintCurrentTable(w io.Writer, report model.StatusReport) {
 		return
 	}
 
-	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	tw := NewTabWriter(w)
 	fmt.Fprintln(tw, "TOOL\tCURRENT")
 	for _, tool := range report.Tools {
 		current := formatCurrentSummary(tool)
