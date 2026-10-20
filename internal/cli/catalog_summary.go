@@ -3,9 +3,10 @@ package cli
 import (
 	"fmt"
 	"sort"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+
+	"github.com/oldwinter/all-cli/internal/output"
 )
 
 func printCatalogSummary(cmd *cobra.Command, report catalogReport) error {
@@ -19,7 +20,7 @@ func printCatalogSummary(cmd *cobra.Command, report catalogReport) error {
 	}
 	sort.Strings(categories)
 
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
+	w := output.NewTabWriter(cmd.OutOrStdout())
 	if report.Query != "" {
 		fmt.Fprintf(w, "Matching %q:\n", report.Query)
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/oldwinter/all-cli/internal/output"
 	"github.com/oldwinter/all-cli/internal/tools"
@@ -165,7 +164,7 @@ func printCatalogTable(cmd *cobra.Command, report catalogReport) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "Matching %q:\n", report.Query)
 	}
 
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
+	w := output.NewTabWriter(cmd.OutOrStdout())
 	fmt.Fprintln(w, "CATEGORY\tTOOL\tBINARY\tPURPOSE")
 	for _, tool := range report.Tools {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", tool.Category, tool.ID, tool.Binary, tool.Purpose)
