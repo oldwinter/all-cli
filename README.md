@@ -15,40 +15,60 @@ The inventory is intentionally broader than the context-switching set. It now al
 
 It defaults to human-friendly output and supports `--json` for stable machine-readable output (e.g. a future SwiftUI macOS app).
 
+Contributor workflow lives in [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). JSON contracts are listed in [schemas/README.md](schemas/README.md).
+
 ## Install
 
+Four supported paths, from `.goreleaser.yaml`, `.github/workflows/release.yml`, and `justfile`. After any of them, `all-cli version` should print a version line.
+
 ### Homebrew
+
+GoReleaser publishes `Formula/all-cli.rb` to [`oldwinter/homebrew-tap`](https://github.com/oldwinter/homebrew-tap). Homebrew's `oldwinter/tap` name maps to that repository. The formula installs the binary and tests with `all-cli version`:
 
 ```bash
 brew install oldwinter/tap/all-cli
 all-cli version
 ```
 
-### GitHub Releases (Linux)
+The formula currently covers macOS and Linux on amd64 and arm64, matching the four GoReleaser archives.
 
-Prebuilt Linux binaries are published on
-[GitHub Releases](https://github.com/oldwinter/all-cli/releases) as
-`all-cli_<version>_<os>_<arch>.tar.gz` (for example
-`all-cli_0.0.0-33.1.71ef29f_linux_amd64.tar.gz`). A `checksums.txt` file is
-published alongside the archives when present.
+### GitHub Releases
+
+Every push to `main` publishes a **prerelease** tag shaped like
+`v0.0.0-<run>.<attempt>.<sha>`. GitHub's latest-release endpoint ignores
+prereleases, so `https://github.com/oldwinter/all-cli/releases/latest` and an
+untagged `gh release download` both fail (`release not found`) until a stable
+tag exists. Use the Releases list and pass a tag.
+
+Prebuilt binaries are on [GitHub Releases](https://github.com/oldwinter/all-cli/releases)
+as `all-cli_<version>_<os>_<arch>.tar.gz` for `linux`/`darwin` and
+`amd64`/`arm64`, plus `checksums.txt`. The git tag is `vVERSION`; archive names
+omit the leading `v`. Copy a current tag from that page (the example below will
+age):
 
 ```bash
-# linux_amd64 example. Replace VERSION with the release version
-# (the git tag is typically vVERSION; archive names omit the leading v).
-VERSION=0.0.0-33.1.71ef29f
-curl -fsSL -O "https://github.com/oldwinter/all-cli/releases/download/v${VERSION}/all-cli_${VERSION}_linux_amd64.tar.gz"
+VERSION=0.0.0-87.1.d16cef2
+OS=linux    # linux or darwin
+ARCH=amd64  # amd64 or arm64
+curl -fsSL -O "https://github.com/oldwinter/all-cli/releases/download/v${VERSION}/all-cli_${VERSION}_${OS}_${ARCH}.tar.gz"
 curl -fsSL -O "https://github.com/oldwinter/all-cli/releases/download/v${VERSION}/checksums.txt"
 sha256sum --ignore-missing -c checksums.txt
 mkdir -p "$HOME/.local/bin"
-tar -xzf "all-cli_${VERSION}_linux_amd64.tar.gz" all-cli
+tar -xzf "all-cli_${VERSION}_${OS}_${ARCH}.tar.gz" all-cli
 install -m 0755 all-cli "$HOME/.local/bin/all-cli"
 export PATH="$HOME/.local/bin:$PATH"
 all-cli version
 ```
 
-`gh release download --repo oldwinter/all-cli --pattern '*linux_amd64.tar.gz'`
-also works if GitHub CLI is already installed. Put the extracted `all-cli`
-binary on `PATH` before running `all-cli version`.
+With GitHub CLI, list tags and download one explicitly:
+
+```bash
+gh release list --repo oldwinter/all-cli --limit 5
+TAG=v0.0.0-87.1.d16cef2
+gh release download "$TAG" --repo oldwinter/all-cli --pattern '*linux_amd64.tar.gz'
+```
+
+Put the extracted `all-cli` binary on `PATH` before running `all-cli version`.
 
 ### From source (local)
 
@@ -56,6 +76,9 @@ binary on `PATH` before running `all-cli version`.
 go build ./cmd/all-cli
 ./all-cli version
 ```
+
+`just build` writes `./all-cli` from `./cmd/all-cli`. `just install` runs
+`go install ./cmd/all-cli` into `$(go env GOBIN)` or `$(go env GOPATH)/bin`.
 
 ### go install
 
@@ -78,6 +101,8 @@ all-cli version
 ```
 
 To persist this, add the `export PATH=...` line to your shell profile.
+When ldflags are not injected, `all-cli version` still reports the Go module
+version from build info (not a bare `dev`).
 
 ## Local development
 
@@ -156,14 +181,19 @@ Note about Go toolchain mismatch:
 
 ## Usage
 
-Command map (same grouping as `all-cli --help`):
+Command map (same grouping as `all-cli --help`). That help listing is 26
+top-level commands: 11 primary, 3 cloud, 8 tool integrations, and 4 other
+(including Cobra's `help`). Nested per-tool trees add 38 subcommands
+(`docker` 6, `kubectl` 5, `gh`/`glab`/`argocd` 4 each, `aws`/`aliyun`/`kargo` 3
+each, `wrangler`/`mise`/`k9s` 2 each). `surprise` is registered in
+`internal/cli/root.go` but hidden, so it does not appear in `--help`.
 
 | Group | Commands |
 | --- | --- |
 | Primary | `status`, `report`, `current`, `catalog`, `describe`, `diagnose`, `doctor`, `fix`, `snapshot`, `diff`, `schema` |
 | Cloud platforms | `aws`, `aliyun`, `wrangler` |
 | Tool integrations | `mise`, `k9s`, `kubectl`, `docker`, `gh`, `glab`, `argocd`, `kargo` |
-| Other | `version`, `options`, `completion` |
+| Other | `completion`, `help`, `options`, `version` |
 
 Start with `all-cli catalog` to browse every tracked tool without running
 external commands, then `all-cli describe <tool>` for one tool or
@@ -356,7 +386,11 @@ tool needs to validate these reports offline:
 all-cli schema status > status.schema.json
 all-cli schema diagnostic > diagnostic.schema.json
 all-cli schema doctor-fix > doctor-fix.schema.json
+all-cli schema fix-plan > fix-plan.schema.json
+all-cli schema snapshot-diff > snapshot-diff.schema.json
 ```
+
+See [schemas/README.md](schemas/README.md) for which commands emit each document.
 
 Use `-` for either diff input to compare a saved snapshot with a live pipeline
 without creating another file. Standard input snapshots are limited to 1 MiB:
@@ -522,12 +556,15 @@ all-cli docker status
 all-cli docker current
 all-cli docker list
 all-cli docker use <context>
+all-cli docker fix --dry-run
+all-cli docker update --dry-run
 ```
 
 ### gh
 
 ```bash
 all-cli gh status
+all-cli gh current
 all-cli gh list --json
 all-cli gh use --hostname github.com --user <login>
 ```
@@ -536,6 +573,7 @@ all-cli gh use --hostname github.com --user <login>
 
 ```bash
 all-cli glab status
+all-cli glab current
 all-cli glab list
 all-cli glab use <host>
 ```

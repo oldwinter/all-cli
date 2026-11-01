@@ -4,7 +4,7 @@ Contributing to `all-cli` usually means adding a tool, improving a command, tigh
 
 ## Work pickup
 
-Start by reading `CONTRIBUTING.md`, `AGENTS.md`, and the relevant implementation files. For tool changes, the normal path touches `internal/tools/registry.go`, `internal/tools/metadata.go`, a package under `internal/tools/<tool>/`, and often a command file under `internal/cli/`.
+Start by reading `CONTRIBUTING.md` (install paths and command surface), `AGENTS.md`, and the relevant implementation files. For tool changes, the normal path touches `internal/tools/registry.go`, `internal/tools/metadata.go`, a package under `internal/tools/<tool>/`, and often a command file under `internal/cli/`.
 
 ## Definition of done
 

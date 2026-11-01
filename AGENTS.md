@@ -23,6 +23,7 @@ Every `--json` report has a bundled schema, printable offline with `just run sch
 
 - `status` — `all-cli status --json`, `all-cli snapshot --json`, and per-tool `all-cli <tool> status --json`
 - `diagnostic` — `all-cli diagnose --json`, `all-cli doctor --json`
+- `doctor-fix` — `all-cli doctor --fix --json`
 - `fix-plan` — `all-cli fix --dry-run --json`, `all-cli docker fix --dry-run --json`
 - `snapshot-diff` — `all-cli diff <a> <b> --json`
 
