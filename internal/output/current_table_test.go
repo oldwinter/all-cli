@@ -66,3 +66,20 @@ func TestPrintCurrentTableEscapesControlCharacters(t *testing.T) {
 		t.Fatalf("current table contains raw control characters: %q", got)
 	}
 }
+
+func TestPrintCurrentSummaryCountsActiveContexts(t *testing.T) {
+	// Given
+	report := model.StatusReport{Tools: []model.ToolSummary{
+		{ID: "aws", Installed: true, Current: map[string]string{"profile": "work"}},
+		{ID: "docker", Installed: true, Current: map[string]string{"context": ""}},
+	}}
+	var out bytes.Buffer
+
+	// When
+	PrintCurrentSummary(&out, report)
+
+	// Then
+	if got, want := out.String(), "Current: 2 tools, 1 with a readable context\n"; got != want {
+		t.Fatalf("current summary = %q, want %q", got, want)
+	}
+}

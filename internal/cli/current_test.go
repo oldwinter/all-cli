@@ -101,6 +101,62 @@ func TestCurrentCommandJSONPreservesStatusReportShape(t *testing.T) {
 	}
 }
 
+func TestCurrentCommandSummaryOnlyPrintsOneLineAndSkipsSpinner(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		tool := model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities}
+		if def.ID == "aws" {
+			tool.Current = map[string]string{"profile": "work"}
+		}
+		return tool
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, true)
+
+	// When
+	stdout, stderr, err := executeTestCommand(t, newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}), "--summary-only")
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := stdout, "Current: 2 tools, 1 with a readable context\n"; got != want {
+		t.Fatalf("summary output = %q, want %q", got, want)
+	}
+	if stderr != "" {
+		t.Fatalf("expected summary-only to skip spinner, got %q", stderr)
+	}
+}
+
+func TestCurrentCommandJSONTakesPrecedenceOverSummaryOnly(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	stdout, _, err := executeTestCommand(t, newCurrentCommand(&rootOptions{JSON: true, Timeout: time.Second}, cliFakeRunner{}), "--summary-only")
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, `"tools"`) || strings.Contains(stdout, "Current:") {
+		t.Fatalf("expected JSON to take precedence, got %q", stdout)
+	}
+}
+
 func TestCurrentCommandToolsFilterEvaluatesOnlySelectedContextTools(t *testing.T) {
 	// Given
 	stubStatusRegistry(t, []tools.ToolDefinition{
