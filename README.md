@@ -252,12 +252,16 @@ reported by every installed context-aware tool in one compact view.
 all-cli current
 all-cli current --tools kubectl,docker
 all-cli current --categories cloud,k8s
+all-cli current --ids
 all-cli current --summary-only
 all-cli current --json
 ```
 
 Use `--tools` or `--categories` to check only the contexts you need and avoid invoking
 unrelated CLIs. When combined, both filters must match.
+
+Use `--ids` to print one installed context-aware tool ID per line for a picker or
+shell loop. JSON output takes precedence when both flags are supplied.
 
 Use `--summary-only` for a one-line, prompt-friendly count of installed
 context-aware tools and the ones with a readable active context. JSON output

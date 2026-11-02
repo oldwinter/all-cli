@@ -62,6 +62,35 @@ func TestCurrentCommandShowsCurrentContextsForInstalledContextTools(t *testing.T
 	}
 }
 
+func TestCurrentCommandIDsPrintsInstalledContextToolIDsOnly(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "fd", Category: "navigation", Binary: "fd"},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{ID: def.ID, Installed: def.ID == "aws", Capabilities: def.Capabilities}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, true)
+
+	// When
+	stdout, stderr, err := executeTestCommand(t, newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}), "--ids")
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stdout != "aws\n" {
+		t.Fatalf("expected installed context tool IDs only, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected --ids to suppress progress output, got %q", stderr)
+	}
+}
+
 func TestCurrentCommandJSONPreservesStatusReportShape(t *testing.T) {
 	// Given
 	stubStatusRegistry(t, []tools.ToolDefinition{
