@@ -91,6 +91,49 @@ func TestCurrentCommandIDsPrintsInstalledContextToolIDsOnly(t *testing.T) {
 	}
 }
 
+func TestCurrentCommandUnresolvedOnlyFiltersReadableContextsAcrossTextModes(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "kubectl", Category: "k8s", Binary: "kubectl", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		tool := model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities}
+		if def.ID == "aws" {
+			tool.Current = map[string]string{"profile": "work"}
+		}
+		return tool
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When / Then
+	for _, tt := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "table", args: []string{"--unresolved-only"}, want: "docker   none\nkubectl  none"},
+		{name: "ids", args: []string{"--unresolved-only", "--ids"}, want: "docker\nkubectl\n"},
+		{name: "summary", args: []string{"--unresolved-only", "--summary-only"}, want: "Current: 2 tools, 0 with a readable context\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			stdout, stderr, err := executeTestCommand(t, newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}), tt.args...)
+			if err != nil || stderr != "" {
+				t.Fatalf("current %v: stdout=%q stderr=%q err=%v", tt.args, stdout, stderr, err)
+			}
+			if !strings.Contains(stdout, tt.want) {
+				t.Fatalf("current %v = %q, want %q", tt.args, stdout, tt.want)
+			}
+			if strings.Contains(stdout, "aws") {
+				t.Fatalf("current %v included resolved tool: %q", tt.args, stdout)
+			}
+		})
+	}
+}
+
 func TestCurrentCommandJSONPreservesStatusReportShape(t *testing.T) {
 	// Given
 	stubStatusRegistry(t, []tools.ToolDefinition{
@@ -183,6 +226,58 @@ func TestCurrentCommandJSONTakesPrecedenceOverSummaryOnly(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"tools"`) || strings.Contains(stdout, "Current:") {
 		t.Fatalf("expected JSON to take precedence, got %q", stdout)
+	}
+}
+
+func TestCurrentCommandJSONTakesPrecedenceOverUnresolvedOnly(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities, Current: map[string]string{"profile": "work"}}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	stdout, _, err := executeTestCommand(t, newCurrentCommand(&rootOptions{JSON: true, Timeout: time.Second}, cliFakeRunner{}), "--unresolved-only")
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got model.StatusReport
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode json: %v", err)
+	}
+	if len(got.Tools) != 1 || got.Tools[0].ID != "aws" {
+		t.Fatalf("expected JSON to preserve resolved tools, got %#v", got.Tools)
+	}
+}
+
+func TestCurrentCommandUnresolvedOnlyExplainsEmptyResults(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities, Current: map[string]string{"profile": "work"}}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	stdout, _, err := executeTestCommand(t, newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}), "--unresolved-only")
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "without a readable current context") || strings.Contains(stdout, "No installed context-aware tools found") {
+		t.Fatalf("unexpected empty unresolved output: %q", stdout)
 	}
 }
 

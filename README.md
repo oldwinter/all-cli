@@ -252,6 +252,7 @@ reported by every installed context-aware tool in one compact view.
 all-cli current
 all-cli current --tools kubectl,docker
 all-cli current --categories cloud,k8s
+all-cli current --unresolved-only
 all-cli current --ids
 all-cli current --summary-only
 all-cli current --json
@@ -262,6 +263,12 @@ unrelated CLIs. When combined, both filters must match.
 
 Use `--ids` to print one installed context-aware tool ID per line for a picker or
 shell loop. JSON output takes precedence when both flags are supplied.
+
+Use `--unresolved-only` to focus on installed context-aware tools for which
+`all-cli` could not read any active context. It is useful for quickly spotting a
+missing login or local configuration; it can be combined with `--tools`,
+`--categories`, `--ids`, or `--summary-only`. JSON output remains the complete
+report and takes precedence.
 
 Use `--summary-only` for a one-line, prompt-friendly count of installed
 context-aware tools and the ones with a readable active context. JSON output
