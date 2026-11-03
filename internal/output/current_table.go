@@ -30,6 +30,18 @@ func PrintCurrentTable(w io.Writer, report model.StatusReport) {
 	printStatusDiagnostics(w, report)
 }
 
+// PrintCurrentSummary prints a compact count of installed context-aware tools
+// and the ones for which all-cli could read at least one current-context value.
+func PrintCurrentSummary(w io.Writer, report model.StatusReport) {
+	active := 0
+	for _, tool := range report.Tools {
+		if formatCurrentSummary(tool) != "" {
+			active++
+		}
+	}
+	fmt.Fprintf(w, "Current: %d tools, %d with a readable context\n", len(report.Tools), active)
+}
+
 func plainTableCell(value string) string {
 	quoted := strconv.QuoteToGraphic(value)
 	return quoted[1 : len(quoted)-1]

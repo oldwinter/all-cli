@@ -12,6 +12,7 @@ import (
 func newCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
 	var categoriesFilter string
+	var summaryOnly bool
 
 	cmd := &cobra.Command{
 		Use:   "current",
@@ -20,10 +21,12 @@ func newCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 environments reported by installed tools that expose context-like state.
 
 Use --tools or --categories to evaluate only selected tools and skip unrelated
-external commands. When combined, both filters must match.`,
+external commands. When combined, both filters must match.
+Use --summary-only to print a prompt-friendly count instead of the context table.`,
 		Example: `  all-cli current
   all-cli current --tools kubectl,docker
   all-cli current --categories cloud,k8s
+  all-cli current --summary-only
   all-cli current --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -43,7 +46,7 @@ external commands. When combined, both filters must match.`,
 			}
 
 			var spinner *progressSpinner
-			if !opts.JSON && !opts.NoProgress && showStatusSpinner() {
+			if !opts.JSON && !summaryOnly && !opts.NoProgress && showStatusSpinner() {
 				spinner = newProgressSpinner(cmd.ErrOrStderr(), len(contextRegistry))
 				spinner.Start()
 			}
@@ -66,11 +69,16 @@ external commands. When combined, both filters must match.`,
 				report.Diagnostics = diagnose.Generate(report, diagnose.Options{Profile: diagnose.ProfileAgent}).Diagnostics
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
+			if summaryOnly {
+				output.PrintCurrentSummary(cmd.OutOrStdout(), report)
+				return nil
+			}
 			output.PrintCurrentTable(cmd.OutOrStdout(), report)
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tool IDs to show (e.g. kubectl,docker)")
 	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to show (e.g. cloud,k8s)")
+	cmd.Flags().BoolVar(&summaryOnly, "summary-only", false, "Print only the one-line current-context summary (ignored with --json)")
 	return cmd
 }
