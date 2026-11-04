@@ -2,6 +2,19 @@
 
 The project is a Go 1.26.1 CLI with a `justfile` for local automation. You can build and test it without databases, Docker, or background services.
 
+Published install paths (Homebrew, GitHub Releases, source, `go install`) are documented in [README.md](../../README.md#install) and [CONTRIBUTING.md](../../CONTRIBUTING.md#install). This page is the source-tree path.
+
+## Install (from this repo)
+
+| Path | Command | Notes |
+| --- | --- | --- |
+| Homebrew | `brew install oldwinter/tap/all-cli` | Formula published to `oldwinter/homebrew-tap` by GoReleaser. |
+| GitHub Releases | `all-cli_<version>_<os>_<arch>.tar.gz` | Four archives: darwin/linux × amd64/arm64, plus `checksums.txt`. Tags are prereleases; pass the tag to `gh release download`. |
+| Source | `go build ./cmd/all-cli` or `just build` | Writes `./all-cli`. |
+| `go install` | `go install github.com/oldwinter/all-cli/cmd/all-cli@latest` or `just install` | Put `GOBIN` / `GOPATH/bin` on `PATH`. |
+
+`all-cli --help` lists 26 top-level commands (11 primary, 3 cloud, 8 tool integrations, 4 other including `help`) plus 38 nested per-tool subcommands. `surprise` is hidden.
+
 ## Prerequisites
 
 | Tool | Why it matters |
