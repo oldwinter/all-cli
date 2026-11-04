@@ -369,7 +369,7 @@ func TestStatusCommandSummaryOnlyPrintsOneLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := "\nSummary: 3 tools, 2 installed, 2 need attention\n"
+	want := "Summary: 3 tools, 2 installed, 2 need attention\n"
 	if stdout != want {
 		t.Fatalf("expected summary-only line %q, got %q", want, stdout)
 	}
@@ -386,7 +386,7 @@ func TestStatusCommandSummaryOnlyRespectsFilters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := "\nSummary: 1 tool, 0 installed, 1 need attention\n"
+	want := "Summary: 1 tool, 0 installed, 1 need attention\n"
 	if stdout != want {
 		t.Fatalf("expected filtered summary-only line %q, got %q", want, stdout)
 	}
@@ -432,6 +432,14 @@ func TestStatusHelpIncludesDescription(t *testing.T) {
 	help := out.String()
 	if !strings.Contains(help, "registry") {
 		t.Fatalf("expected status long help to mention registry, got:\n%s", help)
+	}
+	if strings.Count(help, "progress indicator") != 1 {
+		t.Fatalf("expected one progress indicator explanation, got:\n%s", help)
+	}
+	for _, flag := range []string{"--json", "--ids", "--summary-only", "--quiet", "--no-progress"} {
+		if !strings.Contains(help, flag) {
+			t.Fatalf("expected progress help to mention %s, got:\n%s", flag, help)
+		}
 	}
 }
 

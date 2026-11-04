@@ -52,8 +52,8 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 		Long: `Evaluates each tracked tool in the built-in registry: installation path,
 configuration state, capabilities, and optional current context snapshot.
 
-When not using --json or --ids, a progress indicator may be shown on stderr while tools are checked.
-When not using --json, --ids, or --summary-only, a progress indicator may be shown on stderr while tools are checked.
+The progress indicator may be shown on stderr while tools are checked, unless
+--json, --ids, --summary-only, --quiet, or --no-progress is used.
 Use --ids to print one checked tool ID per line. --json takes precedence over --ids.
 Use --summary-only to print just the one-line summary count without tables or warning details.`,
 		Example: `  all-cli status
