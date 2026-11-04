@@ -16,6 +16,7 @@ func newCurrentCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var categoriesFilter string
 	var ids bool
 	var summaryOnly bool
+	var unresolvedOnly bool
 
 	cmd := &cobra.Command{
 		Use:   "current",
@@ -26,10 +27,12 @@ environments reported by installed tools that expose context-like state.
 Use --tools or --categories to evaluate only selected tools and skip unrelated
 external commands. When combined, both filters must match.
 Use --ids to print one installed context-aware tool ID per line.
-Use --summary-only to print a prompt-friendly count instead of the context table.`,
+Use --summary-only to print a prompt-friendly count instead of the context table.
+Use --unresolved-only to show installed tools without a readable current context.`,
 		Example: `  all-cli current
   all-cli current --tools kubectl,docker
   all-cli current --categories cloud,k8s
+  all-cli current --unresolved-only
   all-cli current --ids
   all-cli current --summary-only
   all-cli current --json`,
@@ -74,11 +77,18 @@ Use --summary-only to print a prompt-friendly count instead of the context table
 				report.Diagnostics = diagnose.Generate(report, diagnose.Options{Profile: diagnose.ProfileAgent}).Diagnostics
 				return output.PrintJSON(cmd.OutOrStdout(), report)
 			}
+			if unresolvedOnly {
+				report.Tools = filterUnresolvedCurrentTools(report.Tools)
+			}
 			if ids {
 				return printCurrentIDs(cmd, report.Tools)
 			}
 			if summaryOnly {
 				output.PrintCurrentSummary(cmd.OutOrStdout(), report)
+				return nil
+			}
+			if unresolvedOnly {
+				output.PrintUnresolvedCurrentTable(cmd.OutOrStdout(), report)
 				return nil
 			}
 			output.PrintCurrentTable(cmd.OutOrStdout(), report)
@@ -89,7 +99,18 @@ Use --summary-only to print a prompt-friendly count instead of the context table
 	cmd.Flags().StringVar(&categoriesFilter, "categories", "", "Comma-separated categories to show (e.g. cloud,k8s)")
 	cmd.Flags().BoolVar(&ids, "ids", false, "Print only installed context-aware tool IDs, one per line (ignored with --json)")
 	cmd.Flags().BoolVar(&summaryOnly, "summary-only", false, "Print only the one-line current-context summary (ignored with --json)")
+	cmd.Flags().BoolVar(&unresolvedOnly, "unresolved-only", false, "Show only installed tools without a readable current context (ignored with --json)")
 	return cmd
+}
+
+func filterUnresolvedCurrentTools(toolsList []model.ToolSummary) []model.ToolSummary {
+	unresolved := make([]model.ToolSummary, 0, len(toolsList))
+	for _, tool := range toolsList {
+		if len(tool.Current) == 0 {
+			unresolved = append(unresolved, tool)
+		}
+	}
+	return unresolved
 }
 
 func printCurrentIDs(cmd *cobra.Command, toolsList []model.ToolSummary) error {

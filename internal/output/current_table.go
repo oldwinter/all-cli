@@ -30,6 +30,17 @@ func PrintCurrentTable(w io.Writer, report model.StatusReport) {
 	printStatusDiagnostics(w, report)
 }
 
+// PrintUnresolvedCurrentTable keeps the empty result useful when a caller has
+// explicitly asked for tools without a readable current context.
+func PrintUnresolvedCurrentTable(w io.Writer, report model.StatusReport) {
+	if len(report.Tools) == 0 {
+		fmt.Fprintln(w, "No installed context-aware tools without a readable current context.")
+		fmt.Fprintln(w, "Check all installed context tools: all-cli current")
+		return
+	}
+	PrintCurrentTable(w, report)
+}
+
 // PrintCurrentSummary prints a compact count of installed context-aware tools
 // and the ones for which all-cli could read at least one current-context value.
 func PrintCurrentSummary(w io.Writer, report model.StatusReport) {
