@@ -39,6 +39,8 @@ func PrintStatusTableWithOptions(w io.Writer, report model.StatusReport, opts St
 	default:
 		printStatusTableFlat(w, report)
 	}
+	// Blank line stays with the table. summary-only calls printStatusSummary directly.
+	fmt.Fprintln(w)
 	printStatusSummary(w, report)
 	printStatusDiagnostics(w, report)
 }
@@ -66,7 +68,7 @@ func printStatusSummary(w io.Writer, report model.StatusReport) {
 	if len(report.Tools) == 1 {
 		label = "tool"
 	}
-	fmt.Fprintf(w, "\nSummary: %d %s, %d installed, %d need attention\n",
+	fmt.Fprintf(w, "Summary: %d %s, %d installed, %d need attention\n",
 		len(report.Tools), label, installed, attention)
 }
 
