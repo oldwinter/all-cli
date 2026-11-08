@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -235,6 +236,32 @@ func TestDoctorFixPlainOutputListsFixes(t *testing.T) {
 	} {
 		if !strings.Contains(stdout, needle) {
 			t.Fatalf("stdout missing %q:\n%s", needle, stdout)
+		}
+	}
+}
+
+func TestPrintDoctorFixesAlignsCJKToolIDs(t *testing.T) {
+	fixes := model.DoctorFixRun{Items: []model.DoctorFixItem{
+		{ToolID: "kubectl", Command: []string{"brew", "install", "kubectl"}, Status: model.DoctorFixInstalled},
+		{ToolID: "阿里云", Command: []string{"brew", "install", "aliyun"}, Status: model.DoctorFixDryRun},
+		{ToolID: "aws-中国", Command: []string{"brew", "install", "aws"}, Status: model.DoctorFixInstalled},
+	}}
+	var buf bytes.Buffer
+
+	printDoctorFixes(&buf, fixes)
+
+	lines := strings.Split(buf.String(), "\n")
+	for _, row := range []struct{ tool, status string }{
+		{"kubectl", "installed"},
+		{"阿里云", "preview"},
+		{"aws-中国", "installed"},
+	} {
+		line := lineContaining(t, lines, row.tool)
+		if got := cellColumn(t, line, row.tool, row.status); got != 17 {
+			t.Fatalf("STATUS %q starts at %d, want 17:\n%s", row.status, got, buf.String())
+		}
+		if got := cellColumn(t, line, row.status, "brew"); got != 27 {
+			t.Fatalf("detail column starts at %d, want 27:\n%s", got, buf.String())
 		}
 	}
 }

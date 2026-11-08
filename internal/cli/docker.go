@@ -101,6 +101,7 @@ func newDockerListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 			for _, e := range errs {
 				fmt.Fprintf(cmd.ErrOrStderr(), "error: %s\n", e)
 			}
+			w := output.NewTabWriter(cmd.OutOrStdout())
 			for _, c := range contexts {
 				mark := " "
 				if c.Name == currentName || c.IsCurrent {
@@ -108,12 +109,12 @@ func newDockerListCommand(opts *rootOptions, runner execx.Runner) *cobra.Command
 				}
 				desc := strings.TrimSpace(c.Description)
 				if desc != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\t%s\n", mark, c.Name, desc)
+					fmt.Fprintf(w, "%s %s\t%s\n", mark, c.Name, desc)
 				} else {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", mark, c.Name)
+					fmt.Fprintf(w, "%s %s\n", mark, c.Name)
 				}
 			}
-			return nil
+			return w.Flush()
 		},
 	}
 }

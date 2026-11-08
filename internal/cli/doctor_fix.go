@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
+	"github.com/oldwinter/all-cli/internal/output"
 	"io"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func printDoctorFixes(w io.Writer, fixes model.DoctorFixRun) {
 				detail += " (" + item.Reason + ")"
 			}
 		}
-		fmt.Fprintf(w, "  %-14s %-9s %s\n", item.ToolID, displayDoctorFixStatus(item.Status), detail)
+		fmt.Fprintf(w, "  %s %s %s\n", output.PadRight(item.ToolID, 14), output.PadRight(displayDoctorFixStatus(item.Status), 9), detail)
 	}
 }
 
