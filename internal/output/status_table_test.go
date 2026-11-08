@@ -245,8 +245,25 @@ func TestPrintStatusSummary(t *testing.T) {
 	var buf bytes.Buffer
 	PrintStatusSummary(&buf, report)
 
-	want := "\nSummary: 2 tools, 1 installed, 1 need attention\n"
+	want := "Summary: 2 tools, 1 installed, 1 need attention\n"
 	if buf.String() != want {
 		t.Fatalf("expected summary-only line %q, got %q", want, buf.String())
+	}
+}
+
+func TestPrintStatusTable_SeparatesSummaryWithBlankLine(t *testing.T) {
+	report := model.StatusReport{
+		Tools: []model.ToolSummary{
+			{ID: "aws", Category: "cloud", Installed: true, ConfiguredState: model.ConfiguredYes},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintStatusTable(&buf, report)
+
+	got := buf.String()
+	want := "\n\nSummary: 1 tool, 1 installed, 0 need attention\n"
+	if !strings.Contains(got, want) {
+		t.Fatalf("expected blank line before table summary %q, got %q", want, got)
 	}
 }

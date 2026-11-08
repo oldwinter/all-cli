@@ -369,7 +369,7 @@ func TestStatusCommandSummaryOnlyPrintsOneLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := "\nSummary: 3 tools, 2 installed, 2 need attention\n"
+	want := "Summary: 3 tools, 2 installed, 2 need attention\n"
 	if stdout != want {
 		t.Fatalf("expected summary-only line %q, got %q", want, stdout)
 	}
@@ -379,16 +379,57 @@ func TestStatusCommandSummaryOnlyPrintsOneLine(t *testing.T) {
 }
 
 func TestStatusCommandSummaryOnlyRespectsFilters(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "missing-only",
+			args: []string{"--summary-only", "--missing-only"},
+			want: "Summary: 1 tool, 0 installed, 1 need attention\n",
+		},
+		{
+			name: "unconfigured-only",
+			args: []string{"--summary-only", "--unconfigured-only"},
+			want: "Summary: 1 tool, 1 installed, 1 need attention\n",
+		},
+		{
+			name: "categories",
+			args: []string{"--summary-only", "--categories", "cloud"},
+			want: "Summary: 1 tool, 1 installed, 0 need attention\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubSummaryOnlyRegistry(t)
+			stubShowStatusSpinner(t, false)
+
+			stdout, _, err := executeTestCommand(t, newStatusCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}), tt.args...)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if stdout != tt.want {
+				t.Fatalf("expected filtered summary-only line %q, got %q", tt.want, stdout)
+			}
+		})
+	}
+}
+
+func TestStatusCommandTableKeepsBlankLineBeforeSummary(t *testing.T) {
 	stubSummaryOnlyRegistry(t)
 	stubShowStatusSpinner(t, false)
 
-	stdout, _, err := executeTestCommand(t, newStatusCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}), "--summary-only", "--missing-only")
+	stdout, _, err := executeTestCommand(t, newStatusCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := "\nSummary: 1 tool, 0 installed, 1 need attention\n"
-	if stdout != want {
-		t.Fatalf("expected filtered summary-only line %q, got %q", want, stdout)
+	want := "\n\nSummary: 3 tools, 2 installed, 2 need attention\n"
+	if !strings.Contains(stdout, want) {
+		t.Fatalf("expected blank line before table summary %q, got %q", want, stdout)
+	}
+	if strings.HasPrefix(stdout, "\n") {
+		t.Fatalf("table output should not start with a blank line, got %q", stdout)
 	}
 }
 
@@ -432,6 +473,13 @@ func TestStatusHelpIncludesDescription(t *testing.T) {
 	help := out.String()
 	if !strings.Contains(help, "registry") {
 		t.Fatalf("expected status long help to mention registry, got:\n%s", help)
+	}
+	const progress = "When not using --json, --ids, --summary-only, --quiet, or --no-progress, a progress indicator may be shown on stderr while tools are checked."
+	if strings.Count(help, progress) != 1 {
+		t.Fatalf("expected one progress-indicator sentence, got:\n%s", help)
+	}
+	if strings.Contains(help, "When not using --json or --ids, a progress indicator") {
+		t.Fatalf("old progress-indicator sentence still present:\n%s", help)
 	}
 }
 
