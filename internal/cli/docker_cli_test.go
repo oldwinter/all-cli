@@ -191,10 +191,35 @@ func TestDockerListPlain(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	for _, needle := range []string{"* prod\tProd cluster", "  staging\tStaging cluster"} {
+	for _, needle := range []string{"* prod     Prod cluster", "  staging  Staging cluster"} {
 		if !strings.Contains(stdout, needle) {
 			t.Fatalf("expected %q in stdout, got:\n%s", needle, stdout)
 		}
+	}
+}
+
+func TestDockerListPlainAlignsDescriptionsOnDisplayWidth(t *testing.T) {
+	opts := &rootOptions{Timeout: time.Second}
+	runner := cliFakeRunner{
+		results: map[string]execx.CmdResult{
+			"docker context ls --format {{json .}}": {
+				Stdout: "{\"Current\":true,\"Name\":\"qa\",\"Description\":\"测试环境\"}\n{\"Current\":false,\"Name\":\"prod-aliyun-shanghai\",\"Description\":\"生产环境 阿里云上海\"}\n",
+			},
+			"docker context show": {Stdout: "qa\n"},
+		},
+	}
+
+	stdout, stderr, err := executeTestCommand(t, newDockerCommand(opts, runner), "list")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	lines := strings.Split(stdout, "\n")
+	want := cliDisplayColumn(t, lines[0], "测试环境")
+	if got := cliDisplayColumn(t, lines[1], "生产环境 阿里云上海"); got != want {
+		t.Fatalf("description starts at %d, want %d:\n%s", got, want, stdout)
 	}
 }
 

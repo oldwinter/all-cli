@@ -240,3 +240,26 @@ func TestPrintCurrentTableAlignsCJKToolNames(t *testing.T) {
 		t.Fatalf("CJK row at %d, want %d:\n%s", got, want, out.String())
 	}
 }
+
+func TestPadRight(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		s    string
+		cols int
+		want string
+	}{
+		{"ascii padded", "gh", 5, "gh   "},
+		{"ascii exact", "prod", 4, "prod"},
+		{"ascii over", "docker", 4, "docker"},
+		{"wide runes count two", "阿里云", 8, "阿里云  "},
+		{"wide runes exact", "阿里云", 6, "阿里云"},
+		{"mixed", "aws-中国", 12, "aws-中国    "},
+		{"empty", "", 3, "   "},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := PadRight(tc.s, tc.cols); got != tc.want {
+				t.Fatalf("PadRight(%q, %d) = %q, want %q", tc.s, tc.cols, got, tc.want)
+			}
+		})
+	}
+}

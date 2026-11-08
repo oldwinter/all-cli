@@ -3,6 +3,7 @@ package output
 import (
 	"bytes"
 	"io"
+	"strings"
 	"text/tabwriter"
 	"unicode/utf8"
 
@@ -91,6 +92,20 @@ func runeDisplayWidth(r rune) int {
 	default:
 		return 1
 	}
+}
+
+// PadRight appends spaces to s until it occupies columns terminal display
+// columns, like fmt's %-Ns verb but counting East Asian wide and fullwidth
+// runes as two columns. For ASCII s the result is identical to %-Ns.
+func PadRight(s string, columns int) string {
+	width := 0
+	for _, r := range s {
+		width += runeDisplayWidth(r)
+	}
+	if pad := columns - width; pad > 0 {
+		return s + strings.Repeat(" ", pad)
+	}
+	return s
 }
 
 // fillerStripper removes widthFiller runes from tabwriter output. A trailing
