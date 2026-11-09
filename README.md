@@ -348,6 +348,18 @@ Values use compact JSON so spaces, quotes, and newlines remain unambiguous;
 lines. This flag works with `--tools`, standard input, and `--exit-code`.
 `--json` keeps its existing full before/after summaries and ignores `--details`.
 
+Add `--summary-only` to print just the `Snapshot diff: ...` line, without the
+per-tool change list. It is useful for a prompt-friendly one-liner or a CI log
+where the exit code carries the result:
+
+```bash
+all-cli diff before.json after.json --summary-only
+all-cli diff before.json after.json --tools kubectl,docker --summary-only --exit-code
+```
+
+`--summary-only` and `--details` are mutually exclusive. `--json` still emits the
+full report and takes precedence over both text modes.
+
 Add `--exit-code` when a script or CI job should return status 1 if any tool was
 added, removed, or changed. The complete text or JSON report is still printed:
 
