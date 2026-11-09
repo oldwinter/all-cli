@@ -4,15 +4,17 @@ Development tooling is small and Go-focused. The repo does not require Docker, d
 
 ## justfile
 
-`justfile` defines local automation:
+`justfile` defines local automation. Names below match recipes in that file:
 
 | Recipe | Purpose |
 | --- | --- |
-| `just ci` | `verify-tidy`, `vet`, and `test`. |
-| `just check` | `ci`, race tests, and `fmt-check`. |
+| `just ci` | `verify-tidy`, `fmt-check`, `policy`, `vet`, `test`, `coverage-check`, `lint`. |
+| `just check` | `ci` plus race tests and three-pass stability tests. |
 | `just build` | Builds `./all-cli` from `./cmd/all-cli`. |
+| `just install` | `go install ./cmd/all-cli` into `GOBIN` or `GOPATH/bin`. |
 | `just run ...` | Runs the CLI from source. |
 | `just smoke` | Builds, prints version, and runs a status sanity check. |
+| `just policy` | File-size, debt-marker, and `AGENTS.md` freshness checks. |
 | `just release-check` | Validates `.goreleaser.yaml`. |
 | `just release-snapshot` | Dry-run release artifacts. |
 

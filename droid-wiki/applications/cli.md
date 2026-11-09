@@ -6,6 +6,8 @@ Active contributors: oldwinter, chendongdong
 
 The CLI is the only runtime application in the repo. It exposes status inventory, focused tool context commands, diagnostics, dry-run fixes, snapshots, diffs, completion, version, options, and a hidden surprise command.
 
+`all-cli --help` currently lists 26 top-level commands in four groups (11 primary, 3 cloud, 8 tool integrations, 4 other including Cobra `help`). Nested per-tool trees add 38 subcommands. `internal/cli/root.go` registers 26 subcommands including hidden `surprise`; Cobra adds `help`. Verify with `all-cli --help` after `just build`.
+
 ## Directory layout
 
 ```text
