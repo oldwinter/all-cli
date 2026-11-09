@@ -180,6 +180,7 @@ human-readable table that diff cannot parse.`,
 func newDiffCommand(opts *rootOptions) *cobra.Command {
 	var details bool
 	var exitCode bool
+	var summaryOnly bool
 	var toolsFilter string
 
 	cmd := &cobra.Command{
@@ -191,9 +192,12 @@ Standard input snapshots are limited to 1 MiB. Add --exit-code to return status 
 the snapshots differ while still printing the complete report. Use --tools to compare
 only selected tracked tools; the summary and exit code then reflect only those tools.
 Add --details to show before/after values for changed fields in text output.
-JSON always includes full before/after tool summaries and ignores --details.`,
+Add --summary-only to print only the one-line Snapshot diff summary.
+JSON always includes full before/after tool summaries and ignores --details
+and --summary-only.`,
 		Example: `  all-cli diff before.json after.json
   all-cli diff before.json after.json --details
+  all-cli diff before.json after.json --summary-only
   all-cli diff before.json after.json --exit-code
   all-cli diff before.json after.json --tools kubectl,docker --exit-code
   all-cli snapshot --json | all-cli diff before.json - --json`,
@@ -230,6 +234,10 @@ JSON always includes full before/after tool summaries and ignores --details.`,
 				if err := output.PrintJSON(cmd.OutOrStdout(), report); err != nil {
 					return err
 				}
+			} else if summaryOnly {
+				if err := printSnapshotDiffSummary(cmd.OutOrStdout(), report); err != nil {
+					return err
+				}
 			} else if err := printSnapshotDiff(cmd.OutOrStdout(), report, details); err != nil {
 				return err
 			}
@@ -242,8 +250,10 @@ JSON always includes full before/after tool summaries and ignores --details.`,
 	}
 
 	cmd.Flags().BoolVar(&details, "details", false, "Show before/after values for changed fields (ignored with --json)")
+	cmd.Flags().BoolVar(&summaryOnly, "summary-only", false, "Print only the Snapshot diff summary (ignored with --json)")
 	cmd.Flags().BoolVar(&exitCode, "exit-code", false, "Return status 1 when snapshots differ")
 	cmd.Flags().StringVar(&toolsFilter, "tools", "", "Comma-separated tracked tool IDs to compare (e.g. kubectl,docker)")
+	cmd.MarkFlagsMutuallyExclusive("details", "summary-only")
 	return cmd
 }
 
@@ -378,11 +388,7 @@ func readStatusSnapshot(path string, stdin io.Reader) (model.StatusReport, error
 }
 
 func printSnapshotDiff(w io.Writer, report model.SnapshotDiffReport, details bool) error {
-	if _, err := fmt.Fprintf(w, "Snapshot diff: added=%d removed=%d changed=%d\n",
-		report.Summary.Added,
-		report.Summary.Removed,
-		report.Summary.Changed,
-	); err != nil {
+	if err := printSnapshotDiffSummary(w, report); err != nil {
 		return err
 	}
 	if len(report.Changes) == 0 {
@@ -408,4 +414,13 @@ func printSnapshotDiff(w io.Writer, report model.SnapshotDiffReport, details boo
 		}
 	}
 	return nil
+}
+
+func printSnapshotDiffSummary(w io.Writer, report model.SnapshotDiffReport) error {
+	_, err := fmt.Fprintf(w, "Snapshot diff: added=%d removed=%d changed=%d\n",
+		report.Summary.Added,
+		report.Summary.Removed,
+		report.Summary.Changed,
+	)
+	return err
 }
