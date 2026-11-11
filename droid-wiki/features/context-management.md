@@ -31,6 +31,11 @@ Context management covers tools where `all-cli` can inspect, list, and switch lo
 
 Focused command trees expose read-only commands first, then switching commands where supported. `status` reuses the common inventory evaluator for one tool. `current` calls adapter `Current`. `list` commands call adapter list methods and mark the active entry. `use` commands call an explicit adapter mutation, then re-read current state for confirmation.
 
+`current --exit-code` turns the read-only overview into a health gate: it prints the
+same report and then returns status 1 when any displayed installed tool has no
+readable current context. Blank-only context maps count as unresolved, matching the
+table's `none` and the summary's readable-context count.
+
 The meaning of context is tool-specific: kubeconfig context and namespace for `kubectl`, Docker context for `docker`, active account per host for `gh`, global host for `glab`, active Argo CD context, and default Kargo project.
 
 ## Integration points
