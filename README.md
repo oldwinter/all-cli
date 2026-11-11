@@ -255,6 +255,7 @@ all-cli current --categories cloud,k8s
 all-cli current --unresolved-only
 all-cli current --ids
 all-cli current --summary-only
+all-cli current --summary-only --exit-code
 all-cli current --json
 ```
 
@@ -273,6 +274,20 @@ report and takes precedence.
 Use `--summary-only` for a one-line, prompt-friendly count of installed
 context-aware tools and the ones with a readable active context. JSON output
 takes precedence when both flags are supplied.
+
+Use `--exit-code` to return status 1 when any displayed installed tool has no
+readable current context. It works with the table, `--ids`, `--summary-only`, and
+`--unresolved-only`, so it can gate a shell prompt or CI job without parsing text:
+
+```bash
+all-cli current --summary-only --exit-code
+all-cli current --unresolved-only --ids --exit-code
+```
+
+JSON output still prints the complete installed-tool report and takes precedence
+over the text modes; the exit code then reflects that full report. A context with
+only blank values counts as unresolved, matching the table's `none` and the
+summary's "with a readable context" count.
 
 Example text output:
 
