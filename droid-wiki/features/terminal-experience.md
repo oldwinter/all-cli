@@ -12,9 +12,11 @@ The terminal experience covers grouped command help, table output, JSON mode, ti
 | --- | --- |
 | `internal/cli/root.go` | Root command, global flags, command groups, environment help. |
 | `internal/cli/status.go` | Status flags, spinner lifecycle, human-vs-JSON output path. |
+| `internal/cli/watch.go` | Bounded or continuous context refresh and change tracking. |
 | `internal/cli/terminal.go` | TTY, `NO_COLOR`, `TERM=dumb`, `CI`, and progress environment checks. |
 | `internal/cli/progress.go` | Status progress spinner. |
 | `internal/output/status_table.go` | Human table formatting and warnings/errors sections. |
+| `internal/output/watch_view.go` | Timestamped live-frame header and change line. |
 | `internal/output/json.go` | JSON output helper. |
 
 ## Key abstractions
@@ -32,6 +34,8 @@ The terminal experience covers grouped command help, table output, JSON mode, ti
 The root command defines `--json` and `--timeout`, groups commands into primary/cloud/tools/other sections, and documents environment behavior. Human `status` output defaults to a category-grouped table. Focused tool commands print compact field lists or context lists. JSON mode switches to structured objects.
 
 The status spinner runs on stderr only when stderr is a TTY, ANSI output is enabled, `CI` is unset, and `ALL_CLI_NO_PROGRESS` is not set.
+
+`watch` clears the screen only when stdout is an ANSI terminal. Piped output and `--no-clear` keep every frame in the scrollback so the live view remains readable in logs.
 
 ## Integration points
 
