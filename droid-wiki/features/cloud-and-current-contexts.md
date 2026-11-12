@@ -15,6 +15,7 @@ Some tools expose useful current state without a single switchable global contex
 | `internal/cli/wrangler.go` | Wrangler login and account summary. |
 | `internal/cli/mise.go` | Resolved runtime versions. |
 | `internal/cli/k9s.go` | k9s context, namespace, and config path. |
+| `internal/cli/watch.go` | Live refresh loop, filters, and context-change detection. |
 | `internal/tools/vercel/adapter.go` | Vercel user and team scope snapshot. |
 | `internal/tools/railway/adapter.go` | Railway user and workspace snapshot. |
 | `internal/tools/netlify/adapter.go` | Netlify current user snapshot. |
@@ -33,6 +34,8 @@ Some tools expose useful current state without a single switchable global contex
 AWS resolves the active profile from environment variables or defaults, then reads region and output from environment or AWS config. Aliyun parses `aliyun configure list` and selects the `*` row. Wrangler parses `whoami` state and reports login plus account count. `mise` parses `mise current`. `k9s` composes state from kubeconfig and `k9s info`.
 
 Vercel, Railway, and Netlify are registered as cloud tools. Their adapters report authenticated-user or workspace state rather than changing project links or global accounts.
+
+`watch` reuses the current-context evaluation path on a timer. It keeps only installed tools with the `has_contexts` capability, compares normalized current values between frames, and prints added, changed, or removed tool IDs. `--frames` provides a bounded run for logs and verification.
 
 ## Integration points
 
