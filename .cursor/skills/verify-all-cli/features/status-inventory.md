@@ -12,6 +12,10 @@ Markdown report.
 - `status-filter-tools` limits evaluation to named tool IDs.
 - `status-filter-categories` limits evaluation to registry categories.
 - `status-quiet-installed` suppresses healthy installed rows.
+- `status-ids` prints only the checked tool IDs, one per line.
+- `status-summary-only` prints a one-line summary count.
+- `status-unconfigured-only` limits rows to installed tools that are not configured.
+- `status-sort` reorders the table via `--sort tool|tool-desc|category|category-desc|attention`.
 - `status-unknown-tool` rejects an unknown `--tools` ID.
 - `status-mutex-flags` rejects combining `--installed-only` with `--missing-only`.
 - `status-report` prints a Markdown status report.
@@ -23,6 +27,8 @@ Markdown report.
 - Run `all-cli status --tools kubectl,docker --group-by none`.
 - Run `all-cli status --categories ai,cloud`.
 - Run `all-cli status --installed-only --quiet`.
+- Run `all-cli status --ids` or `all-cli status --summary-only`.
+- Run `all-cli status --unconfigured-only` or `all-cli status --sort attention`.
 - Run `all-cli report` for a Markdown document.
 
 ## Driving it with control-all-cli
@@ -40,12 +46,17 @@ Preconditions:
 - **Markdown report.** Create a paste-ready report. Run `control-all-cli cli --name status-report -- --timeout 2s report --tools kubectl,docker`. Exit code `0`. Stdout starts with `# all-cli status report` and includes a Markdown table with `Tool`, `Category`, `Installed`, `Configured`, and `Current`.
 - **Unknown tool.** Filter to a tool that does not exist. Run `control-all-cli cli --name status-unknown --expect-exit 1 -- --timeout 2s status --tools definitely-not-a-tool`. Exit code `1`. Stderr contains `unknown tool ID "definitely-not-a-tool"`.
 - **Mutex flags.** Combine exclusive filters. Run `control-all-cli cli --name status-mutex --expect-exit 1 -- status --installed-only --missing-only`. Exit code `1`. Stderr mentions `--installed-only` and `--missing-only`.
+- **IDs only.** Ask for just the tool IDs. Run `control-all-cli cli --name status-ids -- --timeout 2s status --tools kubectl,docker --ids`. Exit code `0`. Stdout is exactly one tool ID per line (`docker`, `kubectl`) with no table header and no summary line.
+- **Summary only.** Ask for a compact count. Run `control-all-cli cli --name status-summary -- --timeout 2s status --tools kubectl,docker --summary-only`. Exit code `0`. Stdout is one line matching `Summary: <n> tools, <n> installed, <n> need attention` with no table header.
+- **Unconfigured only.** Limit to installed-but-unconfigured tools. Run `control-all-cli cli --name status-unconfigured -- --timeout 2s status --tools kubectl,docker --unconfigured-only --group-by none`. Exit code `0`. Every row shown has `INSTALLED` `yes` and a non-`yes` `CONFIGURED`; an empty result still prints the header and the `Summary:` line.
+- **Attention sort.** Reorder by attention. Run `control-all-cli cli --name status-sort-attention -- --timeout 2s status --tools kubectl,docker --sort attention --group-by none`. Exit code `0`. Tools needing attention sort above healthy ones; accepted values are `tool`, `tool-desc`, `category`, `category-desc`, `attention`.
 - **Proof.** Keep `status-flat.stdout.txt` and `status-json.stdout.txt`. The table names both tools; the JSON parses and includes `legend` plus per-tool `metadata`.
 
 ## Gotchas
 
 - Human `status` may write a progress spinner to stderr when stderr is a TTY, ANSI is enabled, `CI` is unset, and `ALL_CLI_NO_PROGRESS` is unset. JSON mode never emits that spinner. Capturing through `cli` (no TTY) should leave stderr empty or spinner-free.
-- `--installed-only` and `--missing-only` are mutually exclusive.
+- `--installed-only` and `--missing-only` are mutually exclusive. `--unconfigured-only` conflicts with `--missing-only`, and `--ids` conflicts with `--summary-only`; each pair exits `1`.
+- `--ids`, `--summary-only`, and the `Summary:` footer line are ignored or absent under `--json`; the JSON contract stays the `status-json` shape above.
 - `--tools` and `--categories` together keep only tools that match both.
 - A missing kubectl/docker binary is an environment fact. The row must still appear with `INSTALLED` `no` unless a filter removed it.
 - Full-registry `status` without `--tools` can wait on many timeouts. Always filter during verification.
