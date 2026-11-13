@@ -255,6 +255,7 @@ all-cli current --categories cloud,k8s
 all-cli current --unresolved-only
 all-cli current --ids
 all-cli current --summary-only
+all-cli current --markdown
 all-cli current --json
 ```
 
@@ -273,6 +274,11 @@ report and takes precedence.
 Use `--summary-only` for a one-line, prompt-friendly count of installed
 context-aware tools and the ones with a readable active context. JSON output
 takes precedence when both flags are supplied.
+
+Use `--markdown` to render the same filtered view as a paste-ready Markdown table
+for incident notes, standups, and pull requests. It keeps the current-context
+count and any warnings or errors. JSON output takes precedence; `--markdown` is
+mutually exclusive with `--ids` and `--summary-only`.
 
 Example text output:
 

@@ -34,6 +34,8 @@ AWS resolves the active profile from environment variables or defaults, then rea
 
 Vercel, Railway, and Netlify are registered as cloud tools. Their adapters report authenticated-user or workspace state rather than changing project links or global accounts.
 
+`all-cli current --markdown` renders the filtered, installed-only context view as a paste-ready table for issue, pull request, and incident notes.
+
 ## Integration points
 
 These tools appear in the same [status inventory](status-inventory.md) as context-switchable tools. Field descriptions are maintained in `internal/tools/metadata.go`.
