@@ -514,6 +514,18 @@ all-cli describe kubectl
 all-cli describe kubectl --json
 ```
 
+When the tool has dedicated `all-cli` subcommands, `describe` lists them using the
+same command tree the CLI runs, so discovery and the next command stay in sync:
+
+```text
+all-cli commands:
+  all-cli kubectl current                Show current kubectl context and namespace
+  all-cli kubectl list                   List kubeconfig contexts
+  all-cli kubectl namespace <namespace>  Set default namespace for the current kubectl context
+  all-cli kubectl status                 Show kubectl status and current context
+  all-cli kubectl use <context>          Switch current kubectl context (and optionally set namespace for it)
+```
+
 If a tool ID is misspelled, `describe` and every `--tools` filter suggest a
 nearby tracked ID when there is a clear match:
 
