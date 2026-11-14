@@ -16,8 +16,8 @@ func newDescribeCommand(opts *rootOptions) *cobra.Command {
 		Use:   "describe <tool>",
 		Short: "Explain a tracked CLI tool without running it",
 		Long: `Shows the built-in description, configuration criteria, context capabilities,
-and agent actions for one tracked tool. This command does not run the tool or inspect
-local configuration.`,
+dedicated all-cli subcommands, and agent actions for one tracked tool. This command
+does not run the tool or inspect local configuration.`,
 		Example: `  all-cli describe kubectl
   all-cli describe aws --json`,
 		Args: func(_ *cobra.Command, args []string) error {
@@ -67,6 +67,17 @@ local configuration.`,
 			fmt.Fprintf(w, "Has contexts: %s\n", yesNo(description.Capabilities.HasContexts))
 			fmt.Fprintf(w, "Can switch: %s\n", yesNo(description.Capabilities.CanSwitch))
 
+			if commands := toolCommands(cmd.Root(), def.ID); len(commands) > 0 {
+				tw := output.NewTabWriter(w)
+				fmt.Fprintln(tw, "all-cli commands:")
+				for _, command := range commands {
+					fmt.Fprintf(tw, "  %s\t%s\n", commandUsageLine(command), command.Short)
+				}
+				if err := tw.Flush(); err != nil {
+					return err
+				}
+			}
+
 			if len(description.Metadata.CurrentFieldDescriptions) > 0 {
 				keys := make([]string, 0, len(description.Metadata.CurrentFieldDescriptions))
 				for key := range description.Metadata.CurrentFieldDescriptions {
@@ -111,4 +122,45 @@ local configuration.`,
 		return candidates, cobra.ShellCompDirectiveNoFileComp
 	}
 	return cmd
+}
+
+// toolCommands returns the visible all-cli subcommands dedicated to one tool.
+// Reading the live command tree keeps describe in sync with command wiring as
+// tool integrations gain or lose subcommands.
+func toolCommands(root *cobra.Command, toolID string) []*cobra.Command {
+	if root == nil {
+		return nil
+	}
+	var toolCommand *cobra.Command
+	for _, candidate := range root.Commands() {
+		if candidate.Name() == toolID {
+			toolCommand = candidate
+			break
+		}
+	}
+	if toolCommand == nil {
+		return nil
+	}
+
+	commands := make([]*cobra.Command, 0, len(toolCommand.Commands()))
+	for _, candidate := range toolCommand.Commands() {
+		if candidate.Hidden || candidate.Name() == "help" {
+			continue
+		}
+		commands = append(commands, candidate)
+	}
+	sort.Slice(commands, func(i, j int) bool {
+		return commands[i].Name() < commands[j].Name()
+	})
+	return commands
+}
+
+// commandUsageLine renders a runnable command path and its arguments without
+// Cobra's automatic [flags] suffix, which reads as noise in a command map.
+func commandUsageLine(command *cobra.Command) string {
+	line := command.CommandPath()
+	if _, args, ok := strings.Cut(command.Use, " "); ok {
+		line += " " + args
+	}
+	return line
 }
