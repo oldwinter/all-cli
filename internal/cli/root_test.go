@@ -86,6 +86,7 @@ func TestArgFreeCommandsRejectStrayPositionalArgs(t *testing.T) {
 		{name: "doctor", args: []string{"doctor", "bogus"}},
 		{name: "fix", args: []string{"fix", "bogus"}},
 		{name: "snapshot", args: []string{"snapshot", "bogus"}},
+		{name: "watch", args: []string{"watch", "bogus"}},
 		{name: "version", args: []string{"version", "bogus"}},
 		{name: "options", args: []string{"options", "bogus"}},
 		{name: "surprise", args: []string{"surprise", "bogus"}},

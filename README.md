@@ -160,7 +160,7 @@ Command map (same grouping as `all-cli --help`):
 
 | Group | Commands |
 | --- | --- |
-| Primary | `status`, `report`, `current`, `catalog`, `describe`, `diagnose`, `doctor`, `fix`, `snapshot`, `diff`, `schema` |
+| Primary | `status`, `report`, `current`, `watch`, `catalog`, `describe`, `diagnose`, `doctor`, `fix`, `snapshot`, `diff`, `schema` |
 | Cloud platforms | `aws`, `aliyun`, `wrangler` |
 | Tool integrations | `mise`, `k9s`, `kubectl`, `docker`, `gh`, `glab`, `argocd`, `kargo` |
 | Other | `version`, `options`, `completion` |
@@ -273,6 +273,25 @@ report and takes precedence.
 Use `--summary-only` for a one-line, prompt-friendly count of installed
 context-aware tools and the ones with a readable active context. JSON output
 takes precedence when both flags are supplied.
+
+Keep the same view live while you switch tools in another terminal:
+
+```bash
+all-cli watch
+all-cli watch --interval 1s --tools kubectl,docker
+all-cli watch --categories cloud --no-clear
+```
+
+`watch` refreshes every 2 seconds by default and re-reads only installed tools
+that expose context-like state. After the first frame, a `Changed:` line names
+the tools whose context values changed, appeared, or disappeared since the
+previous refresh. Press Ctrl-C to stop.
+
+On an ANSI terminal the screen is cleared between frames; `--no-clear` keeps a
+scrolling history instead. Use `--interval` to change the refresh period (the
+minimum is 100ms), `--tools` or `--categories` to limit external commands, and
+`--frames N` to stop after a fixed number of refreshes. `watch` is a live text
+view; use `all-cli current --json` when machine-readable output is needed.
 
 Example text output:
 
