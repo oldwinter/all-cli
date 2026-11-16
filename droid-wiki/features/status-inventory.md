@@ -41,6 +41,11 @@ graph LR
 
 Human output defaults to a category-grouped table. JSON output includes the stable `StatusReport` shape and adds diagnostics for agent callers.
 
+`status --exit-code` turns the displayed rows into a shell or CI gate: it returns
+status 1 when any displayed tool needs attention, using the same criteria as
+`--quiet`. The report is printed before the exit status is returned, so callers can
+inspect the details that triggered the failure.
+
 ## Integration points
 
 The feature uses [tool registry and evaluation](../systems/tool-registry-and-evaluation.md), [tool adapters](../systems/tool-adapters.md), and [output rendering](../systems/output-rendering.md).

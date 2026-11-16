@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/oldwinter/all-cli/internal/execx"
 	"github.com/oldwinter/all-cli/internal/model"
 	"github.com/oldwinter/all-cli/internal/output"
+	"github.com/oldwinter/all-cli/internal/telemetry"
 	"github.com/oldwinter/all-cli/internal/tools"
 	"github.com/spf13/cobra"
 )
@@ -34,6 +36,8 @@ var (
 	}
 )
 
+var errStatusNeedsAttention = errors.New("one or more tools need attention")
+
 func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var toolsFilter string
 	var categoriesFilter string
@@ -45,6 +49,7 @@ func newStatusCommand(opts *rootOptions, runner execx.Runner) *cobra.Command {
 	var installedOnly bool
 	var missingOnly bool
 	var unconfiguredOnly bool
+	var exitCode bool
 
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -54,7 +59,11 @@ configuration state, capabilities, and optional current context snapshot.
 
 When not using --json, --ids, --summary-only, --quiet, or --no-progress, a progress indicator may be shown on stderr while tools are checked.
 Use --ids to print one checked tool ID per line. --json takes precedence over --ids.
-Use --summary-only to print just the one-line summary count without tables or warning details.`,
+Use --summary-only to print just the one-line summary count without tables or warning details.
+Use --exit-code to return status 1 when any displayed tool needs attention, using the
+same criteria as --quiet. Combine it with --summary-only for a one-line health gate.
+Because the default inventory includes every tracked tool, pair --exit-code with
+--tools or --installed-only when you want to gate only an expected subset.`,
 		Example: `  all-cli status
   all-cli status --tools kubectl,docker --group-by none
   all-cli status --categories ai,cloud
@@ -63,6 +72,8 @@ Use --summary-only to print just the one-line summary count without tables or wa
   all-cli status --sort attention
   all-cli status --unconfigured-only --ids
   all-cli status --summary-only
+  all-cli status --summary-only --exit-code
+  all-cli status --tools kubectl,docker --exit-code
   all-cli status --installed-only --quiet`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -114,19 +125,25 @@ Use --summary-only to print just the one-line summary count without tables or wa
 
 			if opts.JSON {
 				report.Diagnostics = diagnostics
-				return output.PrintJSON(cmd.OutOrStdout(), report)
-			}
-			if ids {
-				return printStatusIDs(cmd, report.Tools)
-			}
-			if summaryOnly {
+				if err := output.PrintJSON(cmd.OutOrStdout(), report); err != nil {
+					return err
+				}
+			} else if ids {
+				if err := printStatusIDs(cmd, report.Tools); err != nil {
+					return err
+				}
+			} else if summaryOnly {
 				output.PrintStatusSummary(cmd.OutOrStdout(), report)
-				return nil
+			} else {
+				output.PrintStatusTableWithOptions(cmd.OutOrStdout(), report, output.StatusTableOptions{
+					GroupBy: groupByValue,
+					SortBy:  sortByValue,
+				})
 			}
-			output.PrintStatusTableWithOptions(cmd.OutOrStdout(), report, output.StatusTableOptions{
-				GroupBy: groupByValue,
-				SortBy:  sortByValue,
-			})
+			if exitCode && statusToolsNeedAttention(report.Tools) {
+				cmd.Root().SilenceErrors = true
+				return telemetry.MarkBenignExit(errStatusNeedsAttention)
+			}
 			return nil
 		},
 	}
@@ -141,6 +158,7 @@ Use --summary-only to print just the one-line summary count without tables or wa
 	cmd.Flags().BoolVar(&installedOnly, "installed-only", false, "Only show installed tools")
 	cmd.Flags().BoolVar(&missingOnly, "missing-only", false, "Only show tools that are not installed")
 	cmd.Flags().BoolVar(&unconfiguredOnly, "unconfigured-only", false, "Only show installed tools that are not configured")
+	cmd.Flags().BoolVar(&exitCode, "exit-code", false, "Return status 1 when any displayed tool needs attention")
 	cmd.MarkFlagsMutuallyExclusive("installed-only", "missing-only")
 	cmd.MarkFlagsMutuallyExclusive("unconfigured-only", "missing-only")
 	cmd.MarkFlagsMutuallyExclusive("ids", "summary-only")
@@ -177,6 +195,15 @@ func filterStatusTools(toolsList []model.ToolSummary, installedOnly, missingOnly
 		filtered = append(filtered, tool)
 	}
 	return filtered
+}
+
+func statusToolsNeedAttention(toolsList []model.ToolSummary) bool {
+	for _, tool := range toolsList {
+		if toolNeedsAttention(tool) {
+			return true
+		}
+	}
+	return false
 }
 
 // toolNeedsAttention mirrors the --quiet filter: anything not installed,

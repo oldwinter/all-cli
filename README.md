@@ -207,6 +207,8 @@ all-cli status --sort attention
 all-cli status --timeout 10s
 all-cli status --no-progress
 all-cli status --summary-only
+all-cli status --summary-only --exit-code
+all-cli status --tools kubectl,docker --exit-code
 all-cli status --quiet
 ```
 
@@ -220,6 +222,21 @@ prompt-friendly one-liner or a quick health check (for example with `--tools`,
 `--categories`, or `--missing-only`). This mode also suppresses the progress spinner,
 and is mutually exclusive with `--ids`. If you also pass `--json`, the full JSON
 report takes precedence.
+
+Add `--exit-code` when a script or CI job should return status 1 if any displayed
+tool needs attention (not installed, unconfigured, or carrying warnings/errors).
+The report is still printed. The exit code follows the filtered rows, so `--tools`,
+`--installed-only`, or `--quiet` narrow what counts. Pair it with `--summary-only`
+for a one-line health gate:
+
+```bash
+all-cli status --summary-only --exit-code
+all-cli status --tools kubectl,docker --exit-code
+```
+
+Because the default inventory includes every tracked tool, combine `--exit-code`
+with `--tools` or `--installed-only` when you want to gate only the tools you
+expect to have installed.
 
 Use the global `--no-progress` flag to suppress progress indicators in human-readable
 commands. `status --quiet` also suppresses the status spinner while showing only tools
