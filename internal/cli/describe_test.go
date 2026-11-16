@@ -42,6 +42,62 @@ func TestDescribeCommandPrintsHumanReadableMetadata(t *testing.T) {
 	}
 }
 
+func TestDescribeCommandListsDedicatedAllCLICommands(t *testing.T) {
+	// Given
+	root := NewRootCommand()
+
+	// When
+	stdout, stderr, err := executeTestCommand(t, root, "describe", "kubectl")
+
+	// Then
+	if err != nil {
+		t.Fatalf("describe kubectl: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+	if !strings.Contains(stdout, "all-cli commands:") {
+		t.Fatalf("stdout missing commands section:\n%s", stdout)
+	}
+	wantOrder := []string{
+		"all-cli kubectl current",
+		"all-cli kubectl list",
+		"all-cli kubectl namespace <namespace>",
+		"all-cli kubectl status",
+		"all-cli kubectl use <context>",
+	}
+	previous := -1
+	for _, want := range wantOrder {
+		index := strings.Index(stdout, want)
+		if index < 0 {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+		if index <= previous {
+			t.Fatalf("%q is out of order:\n%s", want, stdout)
+		}
+		previous = index
+	}
+}
+
+func TestDescribeCommandOmitsCommandsForToolWithoutDedicatedCommand(t *testing.T) {
+	// Given
+	root := NewRootCommand()
+
+	// When
+	stdout, stderr, err := executeTestCommand(t, root, "describe", "fd")
+
+	// Then
+	if err != nil {
+		t.Fatalf("describe fd: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+	if strings.Contains(stdout, "all-cli commands:") {
+		t.Fatalf("fd should not list dedicated all-cli commands:\n%s", stdout)
+	}
+}
+
 func TestDescribeCommandPrintsJSONMetadata(t *testing.T) {
 	// Given
 	opts := &rootOptions{JSON: true}
