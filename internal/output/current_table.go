@@ -44,13 +44,18 @@ func PrintUnresolvedCurrentTable(w io.Writer, report model.StatusReport) {
 // PrintCurrentSummary prints a compact count of installed context-aware tools
 // and the ones for which all-cli could read at least one current-context value.
 func PrintCurrentSummary(w io.Writer, report model.StatusReport) {
+	total, active := currentCounts(report)
+	fmt.Fprintf(w, "Current: %d tools, %d with a readable context\n", total, active)
+}
+
+func currentCounts(report model.StatusReport) (int, int) {
 	active := 0
 	for _, tool := range report.Tools {
 		if formatCurrentSummary(tool) != "" {
 			active++
 		}
 	}
-	fmt.Fprintf(w, "Current: %d tools, %d with a readable context\n", len(report.Tools), active)
+	return len(report.Tools), active
 }
 
 func plainTableCell(value string) string {

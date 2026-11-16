@@ -205,6 +205,87 @@ func TestCurrentCommandSummaryOnlyPrintsOneLineAndSkipsSpinner(t *testing.T) {
 	}
 }
 
+func TestCurrentCommandMarkdownPrintsPasteReadyContextReport(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		tool := model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities}
+		if def.ID == "aws" {
+			tool.Current = map[string]string{"profile": "work", "region": "us-west-2"}
+		}
+		return tool
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, true)
+
+	// When
+	stdout, stderr, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+		"--markdown",
+	)
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected markdown mode to skip spinner, got %q", stderr)
+	}
+	for _, want := range []string{
+		"# all-cli current contexts",
+		"| Tool | Current context |",
+		"| aws | profile=work region=us-west-2 |",
+		"| docker | none |",
+		"Current: 2 tools, 1 with a readable context",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("markdown output missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestCurrentCommandMarkdownRespectsUnresolvedOnly(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "aws", Category: "cloud", Binary: "aws", Capabilities: model.Capability{HasContexts: true}},
+		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		tool := model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities}
+		if def.ID == "aws" {
+			tool.Current = map[string]string{"profile": "work"}
+		}
+		return tool
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	stdout, _, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+		"--unresolved-only",
+		"--markdown",
+	)
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "| docker | none |") || strings.Contains(stdout, "| aws |") {
+		t.Fatalf("markdown did not preserve unresolved-only filter:\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "Current: 1 tools, 0 with a readable context") {
+		t.Fatalf("unexpected filtered summary:\n%s", stdout)
+	}
+}
+
 func TestCurrentCommandJSONTakesPrecedenceOverSummaryOnly(t *testing.T) {
 	// Given
 	stubStatusRegistry(t, []tools.ToolDefinition{
@@ -226,6 +307,50 @@ func TestCurrentCommandJSONTakesPrecedenceOverSummaryOnly(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"tools"`) || strings.Contains(stdout, "Current:") {
 		t.Fatalf("expected JSON to take precedence, got %q", stdout)
+	}
+}
+
+func TestCurrentCommandJSONTakesPrecedenceOverMarkdown(t *testing.T) {
+	// Given
+	stubStatusRegistry(t, []tools.ToolDefinition{
+		{ID: "docker", Category: "containers", Binary: "docker", Capabilities: model.Capability{HasContexts: true}},
+	})
+	oldEvaluate := evaluateToolSummary
+	evaluateToolSummary = func(_ context.Context, def tools.ToolDefinition, _ execx.Runner) model.ToolSummary {
+		return model.ToolSummary{ID: def.ID, Installed: true, Capabilities: def.Capabilities}
+	}
+	t.Cleanup(func() { evaluateToolSummary = oldEvaluate })
+	stubShowStatusSpinner(t, false)
+
+	// When
+	stdout, _, err := executeTestCommand(
+		t,
+		newCurrentCommand(&rootOptions{JSON: true, Timeout: time.Second}, cliFakeRunner{}),
+		"--markdown",
+	)
+
+	// Then
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, `"tools"`) || strings.Contains(stdout, "# all-cli current contexts") {
+		t.Fatalf("expected JSON to take precedence, got %q", stdout)
+	}
+}
+
+func TestCurrentCommandMarkdownConflictsWithCompactModes(t *testing.T) {
+	for _, conflicting := range []string{"--ids", "--summary-only"} {
+		t.Run(conflicting, func(t *testing.T) {
+			_, _, err := executeTestCommand(
+				t,
+				newCurrentCommand(&rootOptions{Timeout: time.Second}, cliFakeRunner{}),
+				"--markdown",
+				conflicting,
+			)
+			if err == nil || !strings.Contains(err.Error(), "if any flags in the group") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 
